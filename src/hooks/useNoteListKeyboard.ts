@@ -12,6 +12,7 @@ interface NoteListKeyboardOptions {
   searchVisible?: boolean
   toggleSearch?: () => void
   enabled: boolean
+  onFocusEditorOnEnter?: (path: string) => void
 }
 
 interface ItemIndex {
@@ -349,6 +350,7 @@ function useProcessKeyDown({
   cancelOpen,
   onEnterNeighborhood,
   onToggleSearchShortcut,
+  onFocusEditorOnEnter,
 }: {
   enabled: boolean
   items: VaultEntry[]
@@ -358,6 +360,7 @@ function useProcessKeyDown({
   cancelOpen: () => void
   onEnterNeighborhood?: (entry: VaultEntry) => void | Promise<void>
   onToggleSearchShortcut?: () => void
+  onFocusEditorOnEnter?: (path: string) => void
 }) {
   return useCallback((event: Pick<KeyboardEvent, 'key' | 'code' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey' | 'preventDefault'>) => {
     if (!enabled) return
@@ -374,8 +377,10 @@ function useProcessKeyDown({
     if (shouldIgnoreListKeyboardEvent(event)) return
     if (handleArrowNavigation(event, moveHighlight)) return
 
+    const pendingPath = event.key === 'Enter' ? highlightedPathRef.current : null
     handleEnterShortcutEvent(event, items, highlightedPathRef, flushOpen)
-  }, [cancelOpen, enabled, flushOpen, highlightedPathRef, items, moveHighlight, onEnterNeighborhood, onToggleSearchShortcut])
+    if (pendingPath) onFocusEditorOnEnter?.(pendingPath)
+  }, [cancelOpen, enabled, flushOpen, highlightedPathRef, items, moveHighlight, onEnterNeighborhood, onFocusEditorOnEnter, onToggleSearchShortcut])
 }
 
 function useFocusHandlers({
@@ -577,6 +582,7 @@ export function useNoteListKeyboard({
   searchVisible = false,
   toggleSearch,
   enabled,
+  onFocusEditorOnEnter,
 }: NoteListKeyboardOptions) {
   const virtuosoRef = useRef<VirtuosoHandle>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -614,6 +620,7 @@ export function useNoteListKeyboard({
     cancelOpen,
     onEnterNeighborhood,
     onToggleSearchShortcut: handleToggleSearchShortcut,
+    onFocusEditorOnEnter,
   })
   const handleKeyDown = useDirectKeyDownHandler(processKeyDown)
   useGlobalKeyboardHandling({ enabled, panelRef, containerRef, processKeyDown })

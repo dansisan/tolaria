@@ -1077,6 +1077,10 @@ function useKeyboardInteractionState({
     onEnterNeighborhood?.(entry)
   }, [onEnterNeighborhood, onReplaceActiveTab])
 
+  const handleFocusEditorOnEnter = useCallback((path: string) => {
+    window.dispatchEvent(new CustomEvent('laputa:focus-editor', { detail: { path } }))
+  }, [])
+
   const noteListKeyboard = useNoteListKeyboard({
     items: keyboardEntries,
     selectedNotePath,
@@ -1086,7 +1090,22 @@ function useKeyboardInteractionState({
     searchVisible,
     toggleSearch,
     enabled: true,
+    onFocusEditorOnEnter: handleFocusEditorOnEnter,
   })
+
+  useEffect(() => {
+    const focusList = noteListKeyboard.focusList
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return
+      const active = document.activeElement
+      if (!active?.closest('[contenteditable="true"]')) return
+      e.preventDefault()
+      focusList()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [noteListKeyboard.focusList])
+
   const multiSelect = useMultiSelect(keyboardEntries, selectedNotePath)
 
   return { handleNeighborhoodOpen, multiSelect, noteListKeyboard }
