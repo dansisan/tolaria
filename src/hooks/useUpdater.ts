@@ -124,10 +124,8 @@ export function useUpdater(
   }, [releaseChannel])
 
   useEffect(() => {
-    if (!isTauri()) return
-    const timer = setTimeout(() => { checkForUpdates() }, 3000)
-    return () => clearTimeout(timer)
-  }, [checkForUpdates])
+    // Auto-update disabled for personal fork
+  }, [])
 
   const startDownload = useCallback(async () => {
     const update = updateRef.current
