@@ -82,10 +82,12 @@ describe('installRichEditorTransformErrorRecovery', () => {
       'Invalid content for node blockContainer: <paragraph("Procedures are long-running"), blockGroup(blockContainer(bulletListItem("Step")))>',
     )
     const { currentDoc, view } = createView(schemaError)
+    const recoverDocument = vi.fn()
 
-    installRichEditorTransformErrorRecovery(view)
+    installRichEditorTransformErrorRecovery(view, { recoverDocument })
 
     expect(() => view.dispatch({ before: currentDoc })).not.toThrow()
+    expect(recoverDocument).toHaveBeenCalledTimes(1)
     expect(trackEvent).toHaveBeenCalledWith('rich_editor_transform_error_recovered', {
       reason: 'transform_error',
     })
@@ -115,6 +117,24 @@ describe('installRichEditorTransformErrorRecovery', () => {
     secondUninstall()
     expect(view.dispatch).toBe(dispatch)
   })
+
+  it('restores the previous recoverDocument callback when a later install unmounts', () => {
+    const schemaError = new RangeError(
+      'Invalid content for node blockContainer: <paragraph("Procedures are long-running"), blockGroup(blockContainer(bulletListItem("Step")))>',
+    )
+    const { currentDoc, view } = createView(schemaError)
+    const firstRecoverDocument = vi.fn()
+    const secondRecoverDocument = vi.fn()
+
+    installRichEditorTransformErrorRecovery(view, { recoverDocument: firstRecoverDocument })
+    const secondUninstall = installRichEditorTransformErrorRecovery(view, { recoverDocument: secondRecoverDocument })
+    secondUninstall()
+
+    view.dispatch({ before: currentDoc })
+
+    expect(firstRecoverDocument).toHaveBeenCalledTimes(1)
+    expect(secondRecoverDocument).not.toHaveBeenCalled()
+  })
 })
 
 describe('createRichEditorTransformErrorRecoveryExtension', () => {
@@ -137,5 +157,49 @@ describe('createRichEditorTransformErrorRecoveryExtension', () => {
     controller.abort()
 
     expect(view.dispatch).toBe(dispatch)
+  })
+
+  it('repairs malformed list-heavy editor documents when invalid-content dispatch fails', () => {
+    const schemaError = new RangeError(
+      'Invalid content for node blockContainer: <paragraph("Procedures are long-running"), blockGroup(blockContainer(bulletListItem("Step")))>',
+    )
+    const { currentDoc, view } = createView(schemaError)
+    const childListItem = {
+      id: 'list-child',
+      type: 'bulletListItem',
+      content: [{ type: 'text', text: 'Step', styles: {} }],
+      children: [],
+    }
+    const paragraph = {
+      id: 'paragraph-parent',
+      type: 'paragraph',
+      content: [{ type: 'text', text: 'Procedures are long-running', styles: {} }],
+      children: [childListItem],
+    }
+    const editor = {
+      document: [paragraph],
+      replaceBlocks: vi.fn(),
+      _tiptapEditor: { view },
+      prosemirrorView: view,
+    }
+    const extension = createRichEditorTransformErrorRecoveryExtension()({ editor: editor as never })
+    const controller = new AbortController()
+
+    extension.mount?.({
+      dom: document.createElement('div'),
+      root: document,
+      signal: controller.signal,
+    })
+
+    expect(() => view.dispatch({ before: currentDoc })).not.toThrow()
+    expect(editor.replaceBlocks).toHaveBeenCalledWith(
+      [paragraph],
+      [
+        { ...paragraph, children: [] },
+        childListItem,
+      ],
+    )
+
+    controller.abort()
   })
 })

@@ -141,9 +141,12 @@ files:
     settings.language.label: 244c7b77926f077b863c33ff1244e1ec
     settings.language.system: 41e2252344aa441e925589ddcb762e6d
     settings.language.summary: edc83f1f48ce29bc80bf2f2f90e24997
-    settings.autogit.title: e59f720605ec1cfa42b3b97d89d7e883
+    settings.autogit.title: 0bcc70105ad279503e31fe7b3f47b665
+    settings.git.enable: c40503e1b0f483eecf3aff2fd01665c4
+    settings.git.enableDescription: a96a43dc4dbf1490d665eef437807b07
     settings.autogit.description.enabled: e65bec70ca4d7921be56f84d10836018
     settings.autogit.description.disabled: 1143ef6ee00614816785e3c6fc299d51
+    settings.autogit.description.gitDisabled: 55a1dd2d7f797062cde1374930221649
     settings.autogit.enable: 9b205a4ae0e3ad4e6708155880ce9c75
     settings.autogit.enableDescription: a7424a8f90c0b7f290a8144d12374554
     settings.autogit.idleThreshold: 28016cc6fccd951a904ee3020cd733b6
@@ -383,6 +386,7 @@ files:
     noteList.title.notes: f4c6f851b00d5518bf888815de279aba
     noteList.searchPlaceholder: 4857cd2689a0a40eb4a77cdc745c518e
     noteList.searchAction: 5012120fc480c67686dd22ee2f9493cd
+    noteList.clearSearch: 9983381c21069a3d6e4432e0aaea0079
     noteList.createNote: f1484bc40bd3fe3430c13fb89e2ce1af
     noteList.empty.changesError: 4fca500c4b70f61f7d9413c57c34bdc4
     noteList.empty.noChanges: ad82ac153532f5625760c29c176c5d5f

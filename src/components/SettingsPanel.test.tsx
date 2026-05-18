@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { SettingsPanel } from './SettingsPanel'
 import type { Settings } from '../types'
 import { THEME_MODE_STORAGE_KEY } from '../lib/themeMode'
@@ -16,6 +16,7 @@ vi.mock('../lib/telemetry', () => ({
 
 const emptySettings: Settings = {
   auto_pull_interval_minutes: null,
+  git_enabled: null,
   autogit_enabled: null,
   autogit_idle_threshold_seconds: null,
   autogit_inactive_threshold_seconds: null,
@@ -667,9 +668,40 @@ describe('SettingsPanel', () => {
       <SettingsPanel open={true} settings={emptySettings} onSave={onSave} onClose={onClose} />
     )
 
+    expect(screen.getAllByText('Git')).not.toHaveLength(0)
+    expect(screen.getByRole('switch', { name: 'Enable Git features' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('switch', { name: 'Enable AutoGit' })).toHaveAttribute('aria-checked', 'false')
     expect(screen.getByTestId('settings-autogit-idle-threshold')).toHaveValue(90)
     expect(screen.getByTestId('settings-autogit-inactive-threshold')).toHaveValue(30)
+  })
+
+  it('saves the global Git feature preference when toggled off', () => {
+    render(
+      <SettingsPanel open={true} settings={emptySettings} onSave={onSave} onClose={onClose} />
+    )
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Enable Git features' }))
+    fireEvent.click(screen.getByTestId('settings-save'))
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      git_enabled: false,
+    }))
+  })
+
+  it('disables AutoGit controls when Git features are disabled globally', () => {
+    render(
+      <SettingsPanel
+        open={true}
+        settings={{ ...emptySettings, git_enabled: false, autogit_enabled: true }}
+        onSave={onSave}
+        onClose={onClose}
+      />
+    )
+
+    expect(screen.getByRole('switch', { name: 'Enable Git features' })).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByRole('switch', { name: 'Enable AutoGit' })).toBeDisabled()
+    expect(screen.getByTestId('settings-autogit-idle-threshold')).toBeDisabled()
+    expect(screen.getByTestId('settings-autogit-inactive-threshold')).toBeDisabled()
   })
 
   it('saves AutoGit preferences when toggled and edited', () => {
@@ -821,6 +853,29 @@ describe('SettingsPanel', () => {
 
     fireEvent.keyDown(document, { key: 'Tab' })
     expect(closeButton).toHaveFocus()
+  })
+
+  it('does not trap focus away from a portaled settings dropdown', () => {
+    render(
+      <SettingsPanel open={true} settings={emptySettings} onSave={onSave} onClose={onClose} />
+    )
+
+    act(() => {
+      fireEvent.pointerDown(screen.getByTestId('settings-default-ai-agent'), { button: 0, pointerType: 'mouse' })
+    })
+    const option = screen.getByRole('option', { name: /Codex/i })
+    act(() => {
+      option.focus()
+    })
+
+    const event = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })
+    act(() => {
+      document.dispatchEvent(event)
+    })
+
+    expect(event.defaultPrevented).toBe(false)
+    expect(screen.getByTitle('Close settings')).not.toHaveFocus()
+    expect(screen.getByTestId('settings-save')).not.toHaveFocus()
   })
 
   it('copies the MCP config from the AI Agents section', () => {

@@ -229,7 +229,7 @@ describe('useEditorTabSwap raw mode sync', () => {
 
   it('renders empty H1 typed notes with template content under the title as repaired blocks', async () => {
     const populatedTab = makeTab('a.md', 'Note A')
-    const typedUntitledTab = makeUntitledTab('untitled.md', 'Untitled Project 1', '## Objective\n\n')
+    const typedUntitledTab = makeUntitledTab('untitled-note-123.md', 'Untitled Project 1', '## Objective\n\n')
 
     const { mockEditor, rerenderWith } = await createSwapHarness({
       initialProps: { tabs: [populatedTab], activeTabPath: 'a.md', rawMode: false },
@@ -247,7 +247,7 @@ describe('useEditorTabSwap raw mode sync', () => {
     mockEditor.tryParseMarkdownToBlocks.mockClear()
     mockEditor._tiptapEditor.commands.setContent.mockClear()
 
-    await rerenderWith({ tabs: [typedUntitledTab], activeTabPath: 'untitled.md' })
+    await rerenderWith({ tabs: [typedUntitledTab], activeTabPath: typedUntitledTab.entry.path })
 
     expect(mockEditor.tryParseMarkdownToBlocks).toHaveBeenCalledWith('## Objective\n\n')
     expect(mockEditor._tiptapEditor.commands.setContent).not.toHaveBeenCalled()
@@ -258,6 +258,57 @@ describe('useEditorTabSwap raw mode sync', () => {
         expect.objectContaining({ id: expect.any(String), type: 'heading' }),
       ],
     )
+  })
+
+  it('keeps immediate typing when an untitled note template parse resolves late', async () => {
+    const templateParse = createDeferred<unknown[]>()
+    const populatedTab = makeTab('a.md', 'Note A')
+    const typedUntitledTab = makeUntitledTab('untitled-note-123.md', 'Untitled Project 1', '## Objective\n\n')
+    const editorContainer = document.createElement('div')
+    const editable = document.createElement('div')
+    const userTypedBlocks = [
+      {
+        type: 'heading',
+        props: { level: 1 },
+        content: [{ type: 'text', text: 'Fast Title', styles: {} }],
+        children: [],
+      },
+      makeTextParagraphBlock('Typed before the template finished rendering'),
+    ]
+    editorContainer.className = 'editor__blocknote-container'
+    editable.contentEditable = 'true'
+    editorContainer.appendChild(editable)
+    document.body.appendChild(editorContainer)
+
+    try {
+      const { docRef, mockEditor, result, rerenderWith } = await createSwapHarness({
+        initialProps: { tabs: [populatedTab], activeTabPath: 'a.md', rawMode: false },
+        setupEditor: (editor) => {
+          editor.tryParseMarkdownToBlocks.mockReturnValue(templateParse.promise)
+        },
+      })
+      mockEditor.replaceBlocks.mockClear()
+      mockEditor.tryParseMarkdownToBlocks.mockClear()
+
+      await rerenderWith({ tabs: [typedUntitledTab], activeTabPath: typedUntitledTab.entry.path })
+      await flushEditorTick()
+      expect(mockEditor.tryParseMarkdownToBlocks).toHaveBeenCalledWith('## Objective\n\n')
+      docRef.current = userTypedBlocks
+      act(() => {
+        editable.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }))
+        result.current.handleEditorChange()
+      })
+
+      await act(async () => {
+        templateParse.resolve([makeTextParagraphBlock('Late template')])
+        await Promise.resolve()
+      })
+
+      expect(mockEditor.replaceBlocks).not.toHaveBeenCalled()
+      expect(docRef.current).toBe(userTypedBlocks)
+    } finally {
+      editorContainer.remove()
+    }
   })
 
   it('reuses cached editor blocks when reopening a recently visited note', async () => {
@@ -629,6 +680,43 @@ describe('useEditorTabSwap raw mode sync', () => {
       'a.md',
       '---\ntitle: Note A\n---\n![shot](attachments/shot.png)\n',
     )
+  })
+
+  it('flushes unsaved file attachment blocks as portable links before switching notes', async () => {
+    const tabA = makeTab('a.md', 'Note A')
+    const tabB = makeTab('b.md', 'Note B')
+    const onContentChange = vi.fn()
+    const { docRef, mockEditor, rerender, result } = await createSwapHarness({
+      initialProps: { tabs: [tabA, tabB], activeTabPath: 'a.md', rawMode: false, vaultPath: '/vault' },
+      onContentChange,
+    })
+
+    docRef.current = [{
+      type: 'file',
+      props: {
+        name: 'project brief.pdf',
+        url: '/vault/attachments/project brief.pdf',
+      },
+      children: [],
+    }]
+    mockEditor.blocksToMarkdownLossy.mockClear()
+    mockEditor.blocksToMarkdownLossy.mockReturnValue('unreachable lossy markdown')
+
+    act(() => {
+      result.current.handleEditorChange()
+    })
+    expect(onContentChange).not.toHaveBeenCalled()
+
+    act(() => {
+      rerender({ tabs: [tabA, tabB], activeTabPath: 'b.md', rawMode: false, vaultPath: '/vault' })
+    })
+    await act(async () => { await Promise.resolve() })
+
+    expect(onContentChange).toHaveBeenCalledWith(
+      'a.md',
+      '---\ntitle: Note A\n---\n[project brief.pdf](<attachments/project brief.pdf>)\n',
+    )
+    expect(mockEditor.blocksToMarkdownLossy).not.toHaveBeenCalled()
   })
 
   it('serializes rich inline math nodes back to Markdown on editor changes', async () => {

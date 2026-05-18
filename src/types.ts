@@ -5,6 +5,10 @@ import type { ThemeMode } from './lib/themeMode'
 import type { AppLocale } from './lib/i18n'
 import type { DateDisplayFormat } from './utils/dateDisplay'
 
+export type VaultPropertyScalar = string | number | boolean | null
+export type VaultPropertyArray = Array<string | number | boolean>
+export type VaultPropertyValue = VaultPropertyScalar | VaultPropertyArray
+
 export interface VaultEntry {
   path: string
   filename: string
@@ -53,8 +57,8 @@ export interface VaultEntry {
   listPropertiesDisplay: string[]
   /** All wikilink targets found in the note content. Extracted from [[target]] patterns. */
   outgoingLinks: string[]
-  /** Custom scalar frontmatter properties (non-relationship, non-structural). */
-  properties: Record<string, string | number | boolean | null>
+  /** Custom scalar and scalar-array frontmatter properties (non-relationship, non-structural). */
+  properties: Record<string, VaultPropertyValue>
   /** Whether the note body has an H1 heading on the first non-empty line. */
   hasH1: boolean
   /** File kind: "markdown", "text", or "binary". Determines editor behavior.
@@ -102,6 +106,7 @@ export interface ModifiedFile {
 
 export interface Settings {
   auto_pull_interval_minutes: number | null
+  git_enabled?: boolean | null
   autogit_enabled?: boolean | null
   autogit_idle_threshold_seconds?: number | null
   autogit_inactive_threshold_seconds?: number | null
@@ -186,6 +191,7 @@ export interface AllNotesConfig {
 export type NoteLayout = 'centered' | 'left'
 
 export type NoteWidthMode = 'normal' | 'wide'
+export type GitSetupPreference = 'prompt' | 'never'
 
 /** Vault-scoped UI configuration stored locally per vault path. */
 export interface VaultConfig {
@@ -193,6 +199,7 @@ export interface VaultConfig {
   view_mode: string | null
   editor_mode: string | null
   note_layout?: NoteLayout | null
+  git_setup_preference?: GitSetupPreference | null
   ai_agent_permission_mode?: AiAgentPermissionMode | null
   tag_colors: Record<string, string> | null
   status_colors: Record<string, string> | null
