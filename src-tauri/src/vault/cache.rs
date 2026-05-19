@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use uuid::Uuid;
 
-use crate::git::{get_all_file_dates, GitDates};
+use crate::git::GitDates;
 use std::collections::HashMap;
 
 use super::path_identity::{
@@ -663,9 +663,6 @@ pub fn scan_vault_cached(vault_path: &Path) -> Result<Vec<VaultEntry>, String> {
         None => return scan_vault(vault_path, &HashMap::new()),
     };
 
-    // Build git dates map once — used by all code paths below
-    let git_dates = get_all_file_dates(vault_path);
-
     match load_cache(vault_path) {
         CacheLoadState::Missing => {}
         CacheLoadState::Unreadable(error) => log::warn!("{error}"),
@@ -677,26 +674,26 @@ pub fn scan_vault_cached(vault_path: &Path) -> Result<Vec<VaultEntry>, String> {
             if cache_requires_full_rescan(&loaded_cache.cache, vault_path) {
                 return scan_and_cache_full(
                     vault_path,
-                    &git_dates,
+                    &HashMap::new(),
                     current_hash,
                     Some(loaded_cache.fingerprint),
                 );
             }
             return if loaded_cache.cache.commit_hash == current_hash {
-                Ok(update_same_commit(vault_path, loaded_cache, &git_dates))
+                Ok(update_same_commit(vault_path, loaded_cache, &HashMap::new()))
             } else {
                 Ok(update_different_commit(
                     vault_path,
                     loaded_cache,
                     current_hash,
-                    &git_dates,
+                    &HashMap::new(),
                 ))
             };
         }
     }
 
     // No cache — full scan and write cache
-    scan_and_cache_full(vault_path, &git_dates, current_hash, None)
+    scan_and_cache_full(vault_path, &HashMap::new(), current_hash, None)
 }
 
 #[cfg(test)]
