@@ -75,7 +75,7 @@ function savePanelWidths(widths: PanelWidths): void {
 
 export function useLayoutPanels(options?: { initialInspectorCollapsed?: boolean }) {
   const [panelWidths, setPanelWidths] = useState(loadPanelWidths)
-  const [inspectorCollapsed, setInspectorCollapsed] = useState(options?.initialInspectorCollapsed ?? true)
+  const [inspectorCollapsed, setInspectorCollapsed] = useState(options?.initialInspectorCollapsed ?? false)
 
   useEffect(() => {
     savePanelWidths(panelWidths)
