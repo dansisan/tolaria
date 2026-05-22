@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { GitCommit } from '../types'
 
-const GIT_HISTORY_LOAD_DELAY_MS = 200
+const GIT_HISTORY_LOAD_DELAY_MS = 500
 
 export function useGitHistory(
   activeTabPath: string | null,

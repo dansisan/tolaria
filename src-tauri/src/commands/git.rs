@@ -17,13 +17,15 @@ type LocalPathArg = String;
 
 #[cfg(desktop)]
 #[tauri::command]
-pub fn get_file_history(
+pub async fn get_file_history(
     vault_path: VaultPathArg,
     path: NotePathArg,
 ) -> Result<Vec<GitCommit>, String> {
-    let vault_path = expand_tilde(&vault_path);
-    let path = expand_tilde(&path);
-    crate::git::get_file_history(&vault_path, &path)
+    let vault_path = expand_tilde(&vault_path).into_owned();
+    let path = expand_tilde(&path).into_owned();
+    tokio::task::spawn_blocking(move || crate::git::get_file_history(&vault_path, &path))
+        .await
+        .map_err(|e| format!("Task panicked: {e}"))?
 }
 
 #[cfg(desktop)]
