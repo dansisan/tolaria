@@ -56,14 +56,18 @@ macro_rules! define_desktop_stream_command {
 
 #[cfg(desktop)]
 #[tauri::command]
-pub fn check_claude_cli() -> ClaudeCliStatus {
-    crate::claude_cli::check_cli()
+pub async fn check_claude_cli() -> ClaudeCliStatus {
+    tokio::task::spawn_blocking(crate::claude_cli::check_cli)
+        .await
+        .expect("check_claude_cli panicked")
 }
 
 #[cfg(desktop)]
 #[tauri::command]
-pub fn get_ai_agents_status() -> AiAgentsStatus {
-    crate::ai_agents::get_ai_agents_status()
+pub async fn get_ai_agents_status() -> AiAgentsStatus {
+    tokio::task::spawn_blocking(crate::ai_agents::get_ai_agents_status)
+        .await
+        .expect("get_ai_agents_status panicked")
 }
 
 #[cfg(desktop)]
