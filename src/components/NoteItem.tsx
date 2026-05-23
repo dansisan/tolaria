@@ -103,8 +103,8 @@ const NOTE_ITEM_ROW_CLASS_NAMES: Record<NoteItemRowState, string> = {
   binary: 'cursor-default opacity-50',
   multiSelected: 'cursor-pointer',
   selected: 'cursor-pointer border-l-[3px]',
-  highlighted: 'cursor-pointer bg-muted hover:bg-muted',
-  default: 'cursor-pointer hover:bg-muted',
+  highlighted: 'cursor-pointer bg-muted',
+  default: 'cursor-pointer',
 }
 
 function resolveNoteItemRowState({ isUnavailableBinary, isSelected, isMultiSelected, isHighlighted }: NoteItemVisualState): NoteItemRowState {
