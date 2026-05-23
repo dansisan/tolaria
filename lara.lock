@@ -59,6 +59,7 @@ files:
     command.git.commitPush: 8cb5faa4019716f43dd69c41496b1d46
     command.git.addRemote: 7eef951b3f909340a68dc9811be83e9e
     command.git.pull: 3988d61f4a4546381f61a4eaf61315b4
+    command.git.pullRepository: 931ad25176586fd4332dd671574d3185
     command.git.resolveConflicts: 871ac36968cfca3d2297a89b28b25dee
     command.git.viewChanges: b2699edf69d8e1031afce2b2f94e5c8d
     git.repository.select: 33fcf2b3ec4686d9cd06051c726d0ba2
@@ -315,7 +316,7 @@ files:
     mcp.setup.disconnect: 42ae25231906c83927831e0ef7c317ac
     mcp.setup.connecting: 182e7eda4e721ad00737460b88701dee
     mcp.setup.disconnecting: 11de134aefe51cb4a5c545b5a057a871
-    mcp.setup.nodeRequirement: ac58a35cf21d2204fed548c227f77594
+    mcp.setup.runtimeRequirement: 1d7a8c99b2bc875b3601fa57860432fb
     mcp.setup.writeEntryDescription: 370aa4403d2ffc37f574503bc3cd00e6
     mcp.setup.clientPathsDescription: 94565852412051c799e78d2f4525ff53
     mcp.setup.geminiGuidanceDescription: 182cf5b84b2f56cb1cf41dcdb5e093d8
@@ -387,6 +388,7 @@ files:
     noteList.searchPlaceholder: 4857cd2689a0a40eb4a77cdc745c518e
     noteList.searchAction: 5012120fc480c67686dd22ee2f9493cd
     noteList.clearSearch: 9983381c21069a3d6e4432e0aaea0079
+    noteList.quickOpenCreate: a4e964a3bc5b25e7ae87163624731e05
     noteList.createNote: f1484bc40bd3fe3430c13fb89e2ce1af
     noteList.empty.changesError: 4fca500c4b70f61f7d9413c57c34bdc4
     noteList.empty.noChanges: ad82ac153532f5625760c29c176c5d5f

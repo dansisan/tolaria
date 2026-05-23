@@ -12,7 +12,7 @@
     "docs:dev": "vitepress dev site --host 127.0.0.1",
     "docs:build": "pnpm agent-docs && vitepress build site",
     "docs:preview": "vitepress preview site --host 127.0.0.1",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings=0",
     "l10n:translate": "lara-cli translate",
     "l10n:translate:force": "lara-cli translate --force",
     "l10n:validate": "node scripts/validate-locales.mjs",
@@ -21,7 +21,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "playwright:smoke": "playwright test --config playwright.smoke.config.ts tests/smoke/autosave-low-end-typing.spec.ts tests/smoke/create-note-backing-file.spec.ts tests/smoke/delete-note-nonblocking.spec.ts tests/smoke/example.spec.ts tests/smoke/fix-ai-chat-empty-body-v3.spec.ts tests/smoke/fix-crash-create-note.spec.ts tests/smoke/fresh-start-telemetry-onboarding.spec.ts tests/smoke/frontmatter-date-picker.spec.ts tests/smoke/getting-started-template.spec.ts tests/smoke/h1-title-decoupled.spec.ts tests/smoke/note-history-edit-loop.spec.ts tests/smoke/save-before-note-switch.spec.ts tests/smoke/h1-untitled-auto-rename.spec.ts tests/smoke/keyboard-command-routing.spec.ts tests/smoke/linkify-init-warnings.spec.ts tests/smoke/missing-active-vault-recovery.spec.ts tests/smoke/missing-string-metadata-open-note.spec.ts tests/smoke/multibyte-search-snippet.spec.ts tests/smoke/multi-selection-shortcuts.spec.ts tests/smoke/pull-refresh-open-note.spec.ts tests/smoke/type-derived-properties.spec.ts tests/smoke/vault-loading-skeleton.spec.ts tests/smoke/wikilink-path-fix.spec.ts",
+    "playwright:smoke": "playwright test --config playwright.smoke.config.ts tests/smoke/autosave-low-end-typing.spec.ts tests/smoke/create-note-backing-file.spec.ts tests/smoke/delete-note-nonblocking.spec.ts tests/smoke/example.spec.ts tests/smoke/fix-ai-chat-empty-body-v3.spec.ts tests/smoke/fix-crash-create-note.spec.ts tests/smoke/fresh-start-telemetry-onboarding.spec.ts tests/smoke/frontmatter-date-picker.spec.ts tests/smoke/getting-started-template.spec.ts tests/smoke/h1-title-decoupled.spec.ts tests/smoke/note-history-edit-loop.spec.ts tests/smoke/quick-open-create-note.spec.ts tests/smoke/save-before-note-switch.spec.ts tests/smoke/h1-untitled-auto-rename.spec.ts tests/smoke/keyboard-command-routing.spec.ts tests/smoke/linkify-init-warnings.spec.ts tests/smoke/missing-active-vault-recovery.spec.ts tests/smoke/missing-string-metadata-open-note.spec.ts tests/smoke/multibyte-search-snippet.spec.ts tests/smoke/multi-selection-shortcuts.spec.ts tests/smoke/pull-refresh-open-note.spec.ts tests/smoke/type-derived-properties.spec.ts tests/smoke/vault-loading-skeleton.spec.ts tests/smoke/wikilink-path-fix.spec.ts",
     "playwright:regression": "playwright test tests/smoke/",
     "playwright:integration": "playwright test --config playwright.integration.config.ts",
     "test:coverage": "node scripts/run-vitest-coverage.mjs",
@@ -123,6 +123,13 @@
       "postcss": "8.5.10",
       "protobufjs": "7.5.6",
       "rollup": "4.59.0"
+    },
+    "patchedDependencies": {
+      "@blocknote/core@0.46.2": "patches/@blocknote__core@0.46.2.patch",
+      "@blocknote/react@0.46.2": "patches/@blocknote__react@0.46.2.patch",
+      "@tiptap/extension-link@3.19.0": "patches/@tiptap__extension-link@3.19.0.patch",
+      "prosemirror-tables@1.8.5": "patches/prosemirror-tables@1.8.5.patch",
+      "@blocknote/code-block@0.46.2": "patches/@blocknote__code-block@0.46.2.patch"
     }
   }
 }
