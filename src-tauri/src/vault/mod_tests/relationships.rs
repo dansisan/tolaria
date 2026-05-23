@@ -32,7 +32,7 @@ Status: Active
 "#;
     create_test_file(dir.path(), "publish-essays.md", content);
 
-    let entry = parse_md_file(&dir.path().join("publish-essays.md"), None).unwrap();
+    let entry = parse_md_file(&dir.path().join("publish-essays.md"), None, "created").unwrap();
     assert_eq!(entry.relationships.len(), 3);
     assert_relationship_values(
         &entry.relationships,
@@ -60,7 +60,7 @@ Belongs to:
 "#;
     create_test_file(dir.path(), "some-project.md", content);
 
-    let entry = parse_md_file(&dir.path().join("some-project.md"), None).unwrap();
+    let entry = parse_md_file(&dir.path().join("some-project.md"), None, "created").unwrap();
     assert!(entry.relationships.contains_key("Owner"));
     assert!(!entry.properties.contains_key("Owner"));
     assert_relationship_values(
@@ -85,7 +85,7 @@ Custom Field: just a plain string
 "#;
     create_test_file(dir.path(), "plain-note.md", content);
 
-    let entry = parse_md_file(&dir.path().join("plain-note.md"), None).unwrap();
+    let entry = parse_md_file(&dir.path().join("plain-note.md"), None, "created").unwrap();
     assert_eq!(entry.relationships.len(), 1);
     assert_relationship_values(&entry.relationships, &[("Type", &["[[note]]"])]);
 }
@@ -141,7 +141,7 @@ Context: "[[area/research]]"
 "#;
     create_test_file(dir.path(), "single-vs-array.md", content);
 
-    let entry = parse_md_file(&dir.path().join("single-vs-array.md"), None).unwrap();
+    let entry = parse_md_file(&dir.path().join("single-vs-array.md"), None, "created").unwrap();
     assert_relationship_values(
         &entry.relationships,
         &[
@@ -207,7 +207,7 @@ References:
 "#;
     create_test_file(dir.path(), "mixed-array.md", content);
 
-    let entry = parse_md_file(&dir.path().join("mixed-array.md"), None).unwrap();
+    let entry = parse_md_file(&dir.path().join("mixed-array.md"), None, "created").unwrap();
     assert_relationship_values(
         &entry.relationships,
         &[("References", &["[[source/paper-a]]", "[[source/paper-b]]"])],
@@ -264,7 +264,7 @@ title: No Code
 # No Code
 "#;
     create_test_file(dir.path(), "no-code.md", content);
-    let entry = parse_md_file(&dir.path().join("no-code.md"), None).unwrap();
+    let entry = parse_md_file(&dir.path().join("no-code.md"), None, "created").unwrap();
 
     let notes = entry
         .relationships

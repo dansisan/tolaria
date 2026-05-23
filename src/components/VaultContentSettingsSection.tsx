@@ -10,6 +10,7 @@ import {
   SettingsRow,
   SettingsSwitchRow,
 } from './SettingsControls'
+import { Input } from './ui/input'
 
 type Translate = (key: TranslationKey, values?: TranslationValues) => string
 
@@ -27,6 +28,8 @@ interface VaultContentSettingsSectionProps {
   setHideGitignoredFiles: (value: boolean) => void
   allNotesFileVisibility: AllNotesFileVisibility
   setAllNotesFileVisibility: (value: AllNotesFileVisibility) => void
+  frontmatterCreatedKey: string
+  setFrontmatterCreatedKey: (value: string) => void
 }
 
 const NOTE_WIDTH_OPTIONS: readonly NoteWidthMode[] = ['normal', 'wide']
@@ -69,6 +72,8 @@ export function VaultContentSettingsSection({
   setHideGitignoredFiles,
   allNotesFileVisibility,
   setAllNotesFileVisibility,
+  frontmatterCreatedKey,
+  setFrontmatterCreatedKey,
 }: VaultContentSettingsSectionProps) {
   const updateAllNotesFileVisibility = (patch: Partial<AllNotesFileVisibility>) => {
     setAllNotesFileVisibility({ ...allNotesFileVisibility, ...patch })
@@ -131,6 +136,19 @@ export function VaultContentSettingsSection({
           onChange={setHideGitignoredFiles}
           testId="settings-hide-gitignored-files"
         />
+
+        <SettingsRow
+          label={t('settings.vaultContent.frontmatterCreatedKey')}
+          description={t('settings.vaultContent.frontmatterCreatedKeyDescription')}
+        >
+          <Input
+            value={frontmatterCreatedKey}
+            onChange={(e) => setFrontmatterCreatedKey(e.target.value)}
+            placeholder="created"
+            data-testid="settings-frontmatter-created-key"
+            className="w-32 bg-transparent"
+          />
+        </SettingsRow>
 
         <SettingsSwitchRow
           label={t('settings.allNotesVisibility.pdfs')}

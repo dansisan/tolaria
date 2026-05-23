@@ -15,7 +15,7 @@ fn create_test_file(dir: &Path, name: &str, content: &str) {
 fn parse_test_entry(content: &str) -> VaultEntry {
     let dir = TempDir::new().unwrap();
     create_test_file(dir.path(), "relationship-note.md", content);
-    parse_md_file(&dir.path().join("relationship-note.md"), None).unwrap()
+    parse_md_file(&dir.path().join("relationship-note.md"), None, "created").unwrap()
 }
 
 #[test]

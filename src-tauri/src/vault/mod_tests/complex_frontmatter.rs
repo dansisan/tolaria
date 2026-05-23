@@ -167,7 +167,7 @@ fn test_fallback_parser_extracts_type_and_organized() {
 
     let raw_content =
         "---\ntype: Note\n_organized: true\nBroken: value: with: colons\n---\n# Test\n";
-    let (frontmatter, _, _) = extract_fm_and_rels(None, raw_content);
+    let (frontmatter, _, _, _) = extract_fm_and_rels(None, raw_content, "created");
     assert_eq!(
         frontmatter
             .is_a

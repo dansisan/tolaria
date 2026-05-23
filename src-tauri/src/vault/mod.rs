@@ -73,7 +73,7 @@ fn preferred_relationship_refs(
 pub(crate) fn derive_markdown_title_from_content(content: &str, filename: &str) -> String {
     let matter = Matter::<YAML>::new();
     let parsed = matter.parse(content);
-    let (frontmatter, _, _) = extract_fm_and_rels(parsed.data, content);
+    let (frontmatter, _, _, _) = extract_fm_and_rels(parsed.data, content, "created");
     extract_title(frontmatter.title.as_deref(), content, filename)
 }
 
@@ -97,7 +97,7 @@ fn resolve_entry_dates(
 /// `modified_at` uses the newer of the latest git touch and the current
 /// filesystem modified time. Pass `None` to use filesystem dates only
 /// (appropriate for non-git vaults).
-pub fn parse_md_file(path: &Path, git_dates: Option<(u64, u64)>) -> Result<VaultEntry, String> {
+pub fn parse_md_file(path: &Path, git_dates: Option<(u64, u64)>, fm_created_key: &str) -> Result<VaultEntry, String> {
     let content = fs::read_to_string(path)
         .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
     let filename = path
@@ -107,7 +107,8 @@ pub fn parse_md_file(path: &Path, git_dates: Option<(u64, u64)>) -> Result<Vault
 
     let matter = Matter::<YAML>::new();
     let parsed = matter.parse(&content);
-    let (frontmatter, mut relationships, properties) = extract_fm_and_rels(parsed.data, &content);
+    let (frontmatter, mut relationships, properties, fm_created_at) =
+        extract_fm_and_rels(parsed.data, &content, fm_created_key);
 
     let title = derive_markdown_title_from_content(&content, &filename);
     let has_h1 = parsing::extract_h1_title(&content).is_some();
@@ -115,7 +116,8 @@ pub fn parse_md_file(path: &Path, git_dates: Option<(u64, u64)>) -> Result<Vault
     let word_count = count_body_words(&content);
     let outgoing_links = extract_outgoing_links(&parsed.content);
     let (fs_modified, fs_created, file_size) = read_file_metadata(path)?;
-    let (modified_at, created_at) = resolve_entry_dates(fs_modified, fs_created, git_dates);
+    let (modified_at, fs_or_git_created) = resolve_entry_dates(fs_modified, fs_created, git_dates);
+    let created_at = fm_created_at.or(fs_or_git_created);
     let is_a = resolve_is_a(frontmatter.is_a);
 
     // Add "Type" relationship: isA becomes a navigable link to the type document.
@@ -217,8 +219,11 @@ pub fn reload_entry(path: &Path) -> Result<VaultEntry, String> {
     if !path.exists() {
         return Err(format!("File does not exist: {}", path.display()));
     }
+    let fm_key = crate::settings::get_settings()
+        .map(|s| s.frontmatter_created_key.unwrap_or_else(|| crate::settings::DEFAULT_FRONTMATTER_CREATED_KEY.to_string()))
+        .unwrap_or_else(|_| crate::settings::DEFAULT_FRONTMATTER_CREATED_KEY.to_string());
     if is_md_file(path) {
-        parse_md_file(path, None)
+        parse_md_file(path, None, &fm_key)
     } else {
         parse_non_md_file(path, None)
     }
@@ -366,10 +371,11 @@ fn try_parse_file(
     vault_path: &Path,
     git_dates: &HashMap<String, GitDates>,
     entries: &mut Vec<VaultEntry>,
+    fm_created_key: &str,
 ) {
     let dates = lookup_git_dates(path, vault_path, git_dates);
     let result = if is_md_file(path) {
-        parse_md_file(path, dates)
+        parse_md_file(path, dates, fm_created_key)
     } else {
         parse_non_md_file(path, dates)
     };
@@ -385,6 +391,7 @@ fn scan_all_files(
     vault_path: &Path,
     git_dates: &HashMap<String, GitDates>,
     entries: &mut Vec<VaultEntry>,
+    fm_created_key: &str,
 ) {
     let walker = WalkDir::new(vault_path)
         .follow_links(true)
@@ -407,7 +414,7 @@ fn scan_all_files(
             if fname.starts_with('.') {
                 continue;
             }
-            try_parse_file(entry.path(), vault_path, git_dates, entries);
+            try_parse_file(entry.path(), vault_path, git_dates, entries, fm_created_key);
         }
     }
 }
@@ -417,6 +424,7 @@ fn scan_all_files(
 pub fn scan_vault(
     vault_path: &Path,
     git_dates: &HashMap<String, GitDates>,
+    fm_created_key: &str,
 ) -> Result<Vec<VaultEntry>, String> {
     if !vault_path.exists() {
         return Err(format!(
@@ -440,7 +448,7 @@ pub fn scan_vault(
     }
 
     let mut entries = Vec::new();
-    scan_all_files(vault_path, git_dates, &mut entries);
+    scan_all_files(vault_path, git_dates, &mut entries, fm_created_key);
 
     entries.sort_by_key(|entry| std::cmp::Reverse(entry.modified_at));
     Ok(entries)

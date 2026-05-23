@@ -140,7 +140,7 @@ fn test_fallback_parser_extracts_archived_from_malformed_yaml() {
     ];
     let content = frontmatter.join("\n");
     create_test_file(dir.path(), "archived-essay.md", &content);
-    let entry = parse_md_file(&dir.path().join("archived-essay.md"), None).unwrap();
+    let entry = parse_md_file(&dir.path().join("archived-essay.md"), None, "created").unwrap();
     assert!(entry.archived);
     assert_eq!(entry.is_a, Some("Essay".to_string()));
 }

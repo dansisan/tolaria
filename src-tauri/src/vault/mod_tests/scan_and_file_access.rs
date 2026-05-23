@@ -32,7 +32,7 @@ fn test_scan_vault_root_and_protected_folders() {
         "This should be included as text",
     );
 
-    let entries = scan_vault(dir.path(), &HashMap::new()).unwrap();
+    let entries = scan_vault(dir.path(), &HashMap::new(), "created").unwrap();
     assert_eq!(entries.len(), 4);
     assert_filenames_include(
         &entries,
@@ -62,7 +62,7 @@ fn test_scan_vault_includes_subdirectory_notes() {
         "---\ntype: Project\n---\n# Old\n",
     );
 
-    let entries = scan_vault(dir.path(), &HashMap::new()).unwrap();
+    let entries = scan_vault(dir.path(), &HashMap::new(), "created").unwrap();
     assert_eq!(
         entries.len(),
         3,
@@ -78,7 +78,7 @@ fn test_scan_vault_includes_all_protected_folders() {
     create_test_file(dir.path(), "attachments/notes.md", "# Attachment note\n");
     create_test_file(dir.path(), "assets/image.md", "# Asset\n");
 
-    let entries = scan_vault(dir.path(), &HashMap::new()).unwrap();
+    let entries = scan_vault(dir.path(), &HashMap::new(), "created").unwrap();
     assert_eq!(entries.len(), 3);
 }
 
@@ -89,7 +89,7 @@ fn test_scan_vault_skips_hidden_folders() {
     create_test_file(dir.path(), ".laputa/cache.md", "# Cache\n");
     create_test_file(dir.path(), ".git/objects.md", "# Git\n");
 
-    let entries = scan_vault(dir.path(), &HashMap::new()).unwrap();
+    let entries = scan_vault(dir.path(), &HashMap::new(), "created").unwrap();
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].filename, "root.md");
 }
@@ -99,6 +99,7 @@ fn test_scan_vault_nonexistent_path() {
     let result = scan_vault(
         Path::new("/nonexistent/path/that/does/not/exist"),
         &HashMap::new(),
+        "created",
     );
     assert!(result.is_err());
 }

@@ -662,5 +662,7 @@
   "locale.vi": "ベトナム語",
   "locale.plPL": "ポーランド語",
   "locale.beBY": "ベラルーシ語",
-  "locale.beLatn": "ベラルーシ語（ラテン文字）"
+  "locale.beLatn": "ベラルーシ語（ラテン文字）",
+  "settings.vaultContent.frontmatterCreatedKey": "Frontmatter creation date key",
+  "settings.vaultContent.frontmatterCreatedKeyDescription": "When sorting by creation date, read this frontmatter key instead of the filesystem date. Leave blank to use \"created\"."
 }

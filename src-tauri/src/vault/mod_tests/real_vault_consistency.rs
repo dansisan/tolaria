@@ -82,7 +82,7 @@ fn parse_real_vault_mismatches(vault_path: &Path) -> Vec<String> {
             continue;
         };
 
-        match parse_md_file(path, None) {
+        match parse_md_file(path, None, "created") {
             Ok(parsed) => mismatches.extend(mismatch_messages(path, expectations, &parsed)),
             Err(error) => mismatches.push(format!("PARSE ERROR: {} -> {}", path.display(), error)),
         }

@@ -126,6 +126,7 @@ interface SettingsDraft {
   crashReporting: boolean
   analytics: boolean
   explicitOrganization: boolean
+  frontmatterCreatedKey: string
 }
 
 interface SettingsBodyProps {
@@ -173,6 +174,8 @@ interface SettingsBodyProps {
   setHideGitignoredFiles: (value: boolean) => void
   allNotesFileVisibility: AllNotesFileVisibility
   setAllNotesFileVisibility: (value: AllNotesFileVisibility) => void
+  frontmatterCreatedKey: string
+  setFrontmatterCreatedKey: (value: string) => void
   multiWorkspaceEnabled: boolean
   setMultiWorkspaceEnabled: (value: boolean) => void
   vaults: VaultOption[]
@@ -229,6 +232,7 @@ function createSettingsDraft(
     crashReporting: settings.crash_reporting_enabled ?? false,
     analytics: settings.analytics_enabled ?? false,
     explicitOrganization: explicitOrganizationEnabled,
+    frontmatterCreatedKey: settings.frontmatter_created_key ?? '',
   }
 }
 
@@ -276,6 +280,7 @@ function buildSettingsFromDraft(settings: Settings, draft: SettingsDraft): Setti
     ai_model_providers: draft.aiModelProviders.length > 0 ? draft.aiModelProviders : null,
     hide_gitignored_files: draft.hideGitignoredFiles,
     multi_workspace_enabled: draft.multiWorkspaceEnabled,
+    frontmatter_created_key: draft.frontmatterCreatedKey || null,
   }
   return settingsWithAllNotesFileVisibility(nextSettings, draft.allNotesFileVisibility)
 }
@@ -515,6 +520,7 @@ function SettingsBodyFromDraft({
   setHideGitignoredFiles,
   setAllNotesFileVisibility,
 }: SettingsBodyFromDraftProps) {
+  const handleFrontmatterCreatedKeyChange = (value: string) => updateDraft('frontmatterCreatedKey', value)
   return (
     <SettingsBody
       t={t}
@@ -561,6 +567,8 @@ function SettingsBodyFromDraft({
       setHideGitignoredFiles={setHideGitignoredFiles}
       allNotesFileVisibility={draft.allNotesFileVisibility}
       setAllNotesFileVisibility={setAllNotesFileVisibility}
+      frontmatterCreatedKey={draft.frontmatterCreatedKey}
+      setFrontmatterCreatedKey={handleFrontmatterCreatedKeyChange}
       multiWorkspaceEnabled={draft.multiWorkspaceEnabled}
       setMultiWorkspaceEnabled={(value) => updateDraft('multiWorkspaceEnabled', value)}
       vaults={vaults}
@@ -691,6 +699,8 @@ function SettingsContentSections({
   setHideGitignoredFiles,
   allNotesFileVisibility,
   setAllNotesFileVisibility,
+  frontmatterCreatedKey,
+  setFrontmatterCreatedKey,
 }: SettingsBodyProps) {
   return (
     <SettingsSection id={SETTINGS_SECTION_IDS.content}>
@@ -708,6 +718,8 @@ function SettingsContentSections({
         setHideGitignoredFiles={setHideGitignoredFiles}
         allNotesFileVisibility={allNotesFileVisibility}
         setAllNotesFileVisibility={setAllNotesFileVisibility}
+        frontmatterCreatedKey={frontmatterCreatedKey}
+        setFrontmatterCreatedKey={setFrontmatterCreatedKey}
       />
     </SettingsSection>
   )

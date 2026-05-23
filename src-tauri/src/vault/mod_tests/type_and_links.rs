@@ -5,7 +5,7 @@ use std::fs;
 fn test_type_from_frontmatter_only() {
     let dir = TempDir::new().unwrap();
     create_test_file(dir.path(), "test.md", "---\ntype: Custom\n---\n# Test\n");
-    let entry = parse_md_file(&dir.path().join("test.md"), None).unwrap();
+    let entry = parse_md_file(&dir.path().join("test.md"), None, "created").unwrap();
     assert_eq!(entry.is_a, Some("Custom".to_string()));
 }
 
@@ -13,7 +13,7 @@ fn test_type_from_frontmatter_only() {
 fn test_no_type_when_frontmatter_missing() {
     let dir = TempDir::new().unwrap();
     create_test_file(dir.path(), "note/test.md", "# Test\n");
-    let entry = parse_md_file(&dir.path().join("note/test.md"), None).unwrap();
+    let entry = parse_md_file(&dir.path().join("note/test.md"), None, "created").unwrap();
     assert_eq!(entry.is_a, None, "type should not be inferred from folder");
 }
 
@@ -23,7 +23,7 @@ fn test_created_at_from_filesystem() {
     let content = "---\nIs A: Note\n---\n# Test\n";
     create_test_file(dir.path(), "test.md", content);
 
-    let entry = parse_md_file(&dir.path().join("test.md"), None).unwrap();
+    let entry = parse_md_file(&dir.path().join("test.md"), None, "created").unwrap();
     assert!(
         entry.created_at.is_some(),
         "created_at should come from filesystem"

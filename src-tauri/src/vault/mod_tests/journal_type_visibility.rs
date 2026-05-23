@@ -15,7 +15,7 @@ fn test_scan_vault_preserves_explicit_journal_type_definition() {
         "---\ntitle: March 11\ntype: Journal\n---\n# March 11\n",
     );
 
-    let entries = scan_vault(dir.path(), &HashMap::new()).unwrap();
+    let entries = scan_vault(dir.path(), &HashMap::new(), "created").unwrap();
     assert_eq!(entries.len(), 2);
 
     let journal_type = entries

@@ -410,7 +410,7 @@ mod tests {
         assert!(diff.contains("# Updated"));
 
         git_commit(vault.clone(), "Update note".to_string()).unwrap();
-        let history = get_file_history(vault.clone(), note.clone()).unwrap();
+        let history = get_file_history(vault.clone(), note.clone()).await.unwrap();
         assert!(history.iter().any(|commit| commit.message == "Update note"));
 
         let last_commit = get_last_commit_info(vault.clone()).unwrap().unwrap();

@@ -25,7 +25,7 @@ describe('useGitHistory', () => {
     expect(loadGitHistory).not.toHaveBeenCalled()
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(199)
+      await vi.advanceTimersByTimeAsync(499)
     })
 
     expect(loadGitHistory).not.toHaveBeenCalled()
@@ -62,13 +62,13 @@ describe('useGitHistory', () => {
     )
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(100)
+      await vi.advanceTimersByTimeAsync(250)
     })
 
     rerender({ path: '/vault/b.md' })
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(199)
+      await vi.advanceTimersByTimeAsync(499)
     })
 
     expect(loadGitHistory).not.toHaveBeenCalled()
@@ -93,7 +93,7 @@ describe('useGitHistory', () => {
     )
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(200)
+      await vi.advanceTimersByTimeAsync(500)
     })
 
     expect(result.current).toEqual(mockHistory)

@@ -31,7 +31,7 @@ fn parse_md_file_uses_newer_filesystem_modified_time_than_git() {
     let git_created = fs_modified.saturating_sub(600);
     let git_modified = fs_modified.saturating_sub(60);
 
-    let entry = parse_md_file(&path, Some((git_modified, git_created))).unwrap();
+    let entry = parse_md_file(&path, Some((git_modified, git_created)), "created").unwrap();
 
     assert_eq!(entry.modified_at, Some(fs_modified));
     assert_eq!(entry.created_at, Some(git_created));
@@ -84,7 +84,7 @@ fn scan_vault_sorts_by_newer_of_git_and_filesystem_modified_time() {
         ),
     ]);
 
-    let entries = super::scan_vault(dir.path(), &git_dates).unwrap();
+    let entries = super::scan_vault(dir.path(), &git_dates, "created").unwrap();
     let titles: Vec<_> = entries.iter().map(|entry| entry.title.as_str()).collect();
 
     assert_eq!(titles, vec!["Newer File", "Newer Git"]);

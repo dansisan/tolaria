@@ -1,5 +1,6 @@
 use crate::frontmatter::keys::{canonical_known_frontmatter_key, FrontmatterKey};
 use crate::vault::parsing::contains_wikilink;
+use chrono::{DateTime, NaiveDate, NaiveDateTime};
 use serde::Deserialize;
 use std::collections::HashMap;
 
@@ -501,17 +502,50 @@ fn flush_list(
     }
 }
 
+fn parse_date_str_ms(s: &str) -> Option<u64> {
+    if let Ok(dt) = DateTime::parse_from_rfc3339(s) {
+        return Some(dt.timestamp_millis() as u64);
+    }
+    for fmt in &[
+        "%Y-%m-%dT%H:%M:%S%.f",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d %H:%M:%S%.f",
+        "%Y-%m-%d %H:%M:%S",
+    ] {
+        if let Ok(dt) = NaiveDateTime::parse_from_str(s, fmt) {
+            return Some(dt.and_utc().timestamp_millis() as u64);
+        }
+    }
+    if let Ok(d) = NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+        return Some(d.and_hms_opt(0, 0, 0)?.and_utc().timestamp_millis() as u64);
+    }
+    None
+}
+
+fn parse_fm_date_ms(value: &serde_json::Value) -> Option<u64> {
+    match value {
+        serde_json::Value::String(s) => parse_date_str_ms(s.trim()),
+        serde_json::Value::Number(n) => n.as_u64(),
+        _ => None,
+    }
+}
+
 /// Extract frontmatter, relationships, and custom properties from parsed gray_matter data.
 /// When gray_matter fails to parse YAML (e.g. malformed quotes from Notion exports),
 /// `raw_content` is used as a fallback: simple key:value pairs are extracted line-by-line
 /// so that critical fields like Trashed, Archived, type are not silently lost.
+///
+/// `fm_created_key` is the frontmatter key to read a creation timestamp from.
+/// Returns a fourth value: the parsed creation timestamp in milliseconds, if found.
 pub(crate) fn extract_fm_and_rels(
     data: Option<gray_matter::Pod>,
     raw_content: &str,
+    fm_created_key: &str,
 ) -> (
     Frontmatter,
     HashMap<String, Vec<String>>,
     HashMap<String, serde_json::Value>,
+    Option<u64>,
 ) {
     let json_map = match data {
         Some(gray_matter::Pod::Hash(map)) => {
@@ -522,13 +556,15 @@ pub(crate) fn extract_fm_and_rels(
             // Fall back to line-by-line extraction from the raw frontmatter block.
             match RawFrontmatter(raw_content).extract_block() {
                 Some(raw) => RawFrontmatter(raw).parse_fallback(),
-                None => return (Frontmatter::default(), HashMap::new(), HashMap::new()),
+                None => return (Frontmatter::default(), HashMap::new(), HashMap::new(), None),
             }
         }
     };
+    let fm_created_at = json_map.get(fm_created_key).and_then(parse_fm_date_ms);
     (
         parse_frontmatter(&json_map, raw_content),
         extract_relationships(&json_map),
         extract_properties(&json_map),
+        fm_created_at,
     )
 }

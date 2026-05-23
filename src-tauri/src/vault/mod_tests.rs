@@ -15,7 +15,7 @@ pub(super) fn create_test_file(dir: &Path, name: &str, content: &str) {
 
 pub(super) fn parse_test_entry(dir: &TempDir, name: &str, content: &str) -> VaultEntry {
     create_test_file(dir.path(), name, content);
-    parse_md_file(&dir.path().join(name), None).unwrap()
+    parse_md_file(&dir.path().join(name), None, "created").unwrap()
 }
 
 #[path = "mod_tests/archival_metadata.rs"]
