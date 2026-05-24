@@ -186,3 +186,33 @@ fn test_alias_collisions_keep_frontmatter_with_last_value_winning() {
     assert_eq!(entry.is_a, Some("Note".to_string()));
     assert_eq!(entry.status, Some("Evergreened".to_string()));
 }
+
+#[test]
+fn test_frontmatter_created_date_only_is_in_seconds() {
+    let dir = TempDir::new().unwrap();
+    // Date-only format (no time component) — the bug case where ms were returned instead of secs.
+    let content = "---\ncreated: 2025-11-30\n---\n# Test\n";
+    let entry = parse_test_entry(&dir, "date-only.md", content);
+
+    // 2025-11-30 00:00:00 UTC in Unix seconds (verified empirically)
+    assert_eq!(entry.created_at, Some(1_764_460_800));
+}
+
+#[test]
+fn test_frontmatter_created_datetime_is_in_seconds() {
+    let dir = TempDir::new().unwrap();
+    let content = "---\ncreated: 2025-11-30T10:30:00\n---\n# Test\n";
+    let entry = parse_test_entry(&dir, "datetime.md", content);
+
+    // 2025-11-30 10:30:00 UTC = base + 37800 seconds
+    assert_eq!(entry.created_at, Some(1_764_460_800 + 10 * 3600 + 30 * 60));
+}
+
+#[test]
+fn test_frontmatter_created_rfc3339_is_in_seconds() {
+    let dir = TempDir::new().unwrap();
+    let content = "---\ncreated: 2025-11-30T10:30:00Z\n---\n# Test\n";
+    let entry = parse_test_entry(&dir, "rfc3339.md", content);
+
+    assert_eq!(entry.created_at, Some(1_764_460_800 + 10 * 3600 + 30 * 60));
+}
