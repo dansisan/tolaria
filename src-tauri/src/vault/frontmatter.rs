@@ -509,8 +509,10 @@ fn parse_date_str_secs(s: &str) -> Option<u64> {
     for fmt in &[
         "%Y-%m-%dT%H:%M:%S%.f",
         "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M",
         "%Y-%m-%d %H:%M:%S%.f",
         "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
     ] {
         if let Ok(dt) = NaiveDateTime::parse_from_str(s, fmt) {
             return Some(dt.and_utc().timestamp() as u64);

@@ -216,3 +216,23 @@ fn test_frontmatter_created_rfc3339_is_in_seconds() {
 
     assert_eq!(entry.created_at, Some(1_764_460_800 + 10 * 3600 + 30 * 60));
 }
+
+#[test]
+fn test_frontmatter_created_datetime_without_seconds_space_separator() {
+    let dir = TempDir::new().unwrap();
+    // Bear/common format: "YYYY-MM-DD HH:MM" (no seconds)
+    let content = "---\ncreated: 2025-11-30 10:30\n---\n# Test\n";
+    let entry = parse_test_entry(&dir, "no-seconds-space.md", content);
+
+    assert_eq!(entry.created_at, Some(1_764_460_800 + 10 * 3600 + 30 * 60));
+}
+
+#[test]
+fn test_frontmatter_created_datetime_without_seconds_t_separator() {
+    let dir = TempDir::new().unwrap();
+    // ISO 8601 without seconds: "YYYY-MM-DDTHH:MM"
+    let content = "---\ncreated: 2025-11-30T10:30\n---\n# Test\n";
+    let entry = parse_test_entry(&dir, "no-seconds-t.md", content);
+
+    assert_eq!(entry.created_at, Some(1_764_460_800 + 10 * 3600 + 30 * 60));
+}

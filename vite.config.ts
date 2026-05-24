@@ -314,7 +314,13 @@ function parseFrontmatterCreatedAt(frontmatter: Record<string, unknown>, key = '
   if (typeof raw === 'number') return raw
   if (typeof raw !== 'string') return null
   const s = raw.trim()
-  // Full ISO 8601 / RFC 3339 with timezone
+  // Datetime without seconds: YYYY-MM-DD HH:MM or YYYY-MM-DDTHH:MM — treat as UTC
+  const noSecondsMatch = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})$/.exec(s)
+  if (noSecondsMatch) {
+    const ts = Date.parse(`${noSecondsMatch[1]}T${noSecondsMatch[2]}:00Z`)
+    return isNaN(ts) ? null : Math.floor(ts / 1000)
+  }
+  // Full ISO 8601 / RFC 3339 with timezone or seconds
   const withTz = Date.parse(s)
   if (!isNaN(withTz)) return Math.floor(withTz / 1000)
   // Date-only YYYY-MM-DD: use noon UTC so all timezones show the right calendar day
