@@ -517,7 +517,9 @@ fn parse_date_str_secs(s: &str) -> Option<u64> {
         }
     }
     if let Ok(d) = NaiveDate::parse_from_str(s, "%Y-%m-%d") {
-        return Some(d.and_hms_opt(0, 0, 0)?.and_utc().timestamp() as u64);
+        // Use noon UTC so date-only values display on the correct calendar day
+        // across all timezones (UTC-12 to UTC+14).
+        return Some(d.and_hms_opt(12, 0, 0)?.and_utc().timestamp() as u64);
     }
     None
 }

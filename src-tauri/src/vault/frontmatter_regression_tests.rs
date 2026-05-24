@@ -194,8 +194,8 @@ fn test_frontmatter_created_date_only_is_in_seconds() {
     let content = "---\ncreated: 2025-11-30\n---\n# Test\n";
     let entry = parse_test_entry(&dir, "date-only.md", content);
 
-    // 2025-11-30 00:00:00 UTC in Unix seconds (verified empirically)
-    assert_eq!(entry.created_at, Some(1_764_460_800));
+    // 2025-11-30 12:00:00 UTC — noon keeps the date stable across all timezones
+    assert_eq!(entry.created_at, Some(1_764_460_800 + 12 * 3600));
 }
 
 #[test]

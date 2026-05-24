@@ -309,6 +309,22 @@ function frontmatterProperties(frontmatter: Record<string, unknown>): Record<str
   return properties
 }
 
+function parseFrontmatterCreatedAt(frontmatter: Record<string, unknown>, key = 'created'): number | null {
+  const raw = getFrontmatterValue(frontmatter, [key])
+  if (typeof raw === 'number') return raw
+  if (typeof raw !== 'string') return null
+  const s = raw.trim()
+  // Full ISO 8601 / RFC 3339 with timezone
+  const withTz = Date.parse(s)
+  if (!isNaN(withTz)) return Math.floor(withTz / 1000)
+  // Date-only YYYY-MM-DD: use noon UTC so all timezones show the right calendar day
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const noon = Date.parse(`${s}T12:00:00Z`)
+    return isNaN(noon) ? null : Math.floor(noon / 1000)
+  }
+  return null
+}
+
 function isScalarFrontmatterProperty(value: unknown): value is number | boolean {
   return typeof value === 'number' || typeof value === 'boolean'
 }
@@ -357,8 +373,8 @@ function parseMarkdownFile(filePath: string): VaultEntry | null {
       archived: frontmatterBool(fm, 'archived') ?? false,
       trashed: frontmatterBool(fm, 'trashed') ?? false,
       trashedAt: null,
-      modifiedAt: stats.mtimeMs,
-      createdAt: stats.birthtimeMs,
+      modifiedAt: Math.floor(stats.mtimeMs / 1000),
+      createdAt: parseFrontmatterCreatedAt(fm) ?? Math.floor(stats.birthtimeMs / 1000),
       fileSize: stats.size,
       snippet,
       wordCount: bodyText.split(/\s+/).filter(Boolean).length,
