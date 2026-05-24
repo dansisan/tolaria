@@ -44,12 +44,7 @@ function stripMarkdownFormatting(text: string): string {
 }
 
 export function filenameStemToTitle(filename: string): string {
-  const stem = filename.replace(/\.[^.]+$/, '')
-  return stem
-    .split('-')
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
+  return filename.replace(/\.[^.]+$/, '')
 }
 
 export function extractH1TitleFromContent(content: string): string | null {

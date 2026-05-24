@@ -8,8 +8,16 @@ import {
 } from './noteTitle'
 
 describe('filenameStemToTitle', () => {
-  it('converts kebab-case filenames into title case', () => {
-    expect(filenameStemToTitle('renamed-note.md')).toBe('Renamed Note')
+  it('strips the extension and returns the stem as-is', () => {
+    expect(filenameStemToTitle('renamed-note.md')).toBe('renamed-note')
+  })
+
+  it('preserves dashes in the stem', () => {
+    expect(filenameStemToTitle('my-project-plan.md')).toBe('my-project-plan')
+  })
+
+  it('works for single-word filenames', () => {
+    expect(filenameStemToTitle('note.md')).toBe('note')
   })
 })
 
@@ -81,9 +89,9 @@ describe('deriveDisplayTitleState', () => {
     })
   })
 
-  it('falls back to filename title when there is no H1 or frontmatter title', () => {
+  it('falls back to filename stem when there is no H1 or frontmatter title', () => {
     expect(deriveDisplayTitleState({ content: 'Body only', filename: 'renamed-note.md' })).toEqual({
-      title: 'Renamed Note',
+      title: 'renamed-note',
       hasH1: false,
     })
   })

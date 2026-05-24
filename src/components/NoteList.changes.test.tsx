@@ -142,9 +142,9 @@ describe('NoteList changes view', () => {
 
     renderNoteList({ selection: changesSelection, modifiedFiles: filesWithDeleted })
     expect(screen.getByText('Build Laputa App')).toBeInTheDocument()
-    expect(screen.getByText('Gone')).toBeInTheDocument()
+    expect(screen.getByText('gone')).toBeInTheDocument()
     expect(screen.getByText('gone.md')).toBeInTheDocument()
-    expect(screen.getByText('Also Gone')).toBeInTheDocument()
+    expect(screen.getByText('also-gone')).toBeInTheDocument()
     expect(screen.getByText('also-gone.md')).toBeInTheDocument()
     expect(screen.queryByText(/notes? deleted/)).not.toBeInTheDocument()
   })
@@ -157,8 +157,8 @@ describe('NoteList changes view', () => {
       ],
     })
 
-    expect(screen.getByText('Gone')).toHaveClass('line-through')
-    expect(screen.getByText('Gone')).toHaveClass('opacity-70')
+    expect(screen.getByText('gone')).toHaveClass('line-through')
+    expect(screen.getByText('gone')).toHaveClass('opacity-70')
     expect(screen.getByTestId('change-stat-deleted')).toHaveTextContent('-5')
   })
 
@@ -193,7 +193,7 @@ describe('NoteList changes view', () => {
       onDiscardFile: vi.fn(),
     })
 
-    const noteItem = screen.getByText('Gone').closest('[class*="border-b"]')!
+    const noteItem = screen.getByText('gone').closest('[class*="border-b"]')!
     fireEvent.contextMenu(noteItem)
 
     expect(screen.getByTestId('changes-context-menu')).toBeInTheDocument()

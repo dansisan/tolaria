@@ -87,7 +87,7 @@ describe('useEditorSaveWithLinks', () => {
       outgoingLinks: ['Alpha'],
     })
     expect(updateEntry).toHaveBeenCalledWith('/note.md', {
-      title: 'Note',
+      title: 'note',
       hasH1: false,
     })
 
@@ -110,7 +110,7 @@ describe('useEditorSaveWithLinks', () => {
       outgoingLinks: ['Alpha'],
     })
     expect(updateEntry).toHaveBeenCalledWith('/note.md', {
-      title: 'Note',
+      title: 'note',
       hasH1: false,
     })
 
@@ -133,7 +133,7 @@ describe('useEditorSaveWithLinks', () => {
 
     expect(updateEntry).toHaveBeenCalledTimes(1)
     expect(updateEntry).toHaveBeenCalledWith('/note.md', {
-      title: 'Note',
+      title: 'note',
       hasH1: false,
     })
   })
@@ -162,7 +162,7 @@ describe('useEditorSaveWithLinks', () => {
       status: 'Active',
     }))
     expect(updateEntry).toHaveBeenCalledWith('/note.md', {
-      title: 'Note',
+      title: 'note',
       hasH1: false,
     })
   })
@@ -189,7 +189,7 @@ describe('useEditorSaveWithLinks', () => {
       isA: 'Essay',
     }))
     expect(updateEntry).toHaveBeenCalledWith('/note.md', {
-      title: 'Note',
+      title: 'note',
       hasH1: false,
     })
 
@@ -200,7 +200,7 @@ describe('useEditorSaveWithLinks', () => {
       isA: 'Note',
     }))
     expect(updateEntry).toHaveBeenCalledWith('/note.md', {
-      title: 'Note',
+      title: 'note',
       hasH1: false,
     })
   })
@@ -258,7 +258,7 @@ describe('useEditorSaveWithLinks', () => {
 
   it.each([
     ['/old-title.md', '# Renamed Note\n\nBody', { title: 'Renamed Note', hasH1: true }],
-    ['/renamed-note.md', 'Body without a heading', { title: 'Renamed Note', hasH1: false }],
+    ['/renamed-note.md', 'Body without a heading', { title: 'renamed-note', hasH1: false }],
   ])('handleContentChange derives the displayed title for %s', (path, content, expected) => {
     const { result } = renderHookWithLinks()
 

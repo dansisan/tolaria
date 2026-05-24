@@ -55,9 +55,9 @@ pub(super) fn extract_title(fm_title: Option<&str>, content: &str, filename: &st
             return title.to_string();
         }
     }
-    // 3. filename slug
+    // 3. filename stem as-is (preserve dashes, no conversion)
     let stem = filename.strip_suffix(".md").unwrap_or(filename);
-    slug_to_title(stem)
+    stem.to_string()
 }
 
 /// Remove YAML frontmatter (triple-dash delimited) from content.
@@ -431,7 +431,7 @@ mod tests {
     fn test_extract_title_fallback_to_filename() {
         assert_eq!(
             extract_title(None, "", "fallback-title.md"),
-            "Fallback Title"
+            "fallback-title"
         );
     }
 
@@ -447,7 +447,7 @@ mod tests {
     fn test_extract_title_empty_fm_no_h1_falls_back_to_filename() {
         assert_eq!(
             extract_title(Some(""), "No heading here.", "empty-h1.md"),
-            "Empty H1"
+            "empty-h1"
         );
     }
 
