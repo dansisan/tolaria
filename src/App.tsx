@@ -358,6 +358,10 @@ function App() {
     vaultSwitcherLoaded: vaultSwitcher.loaded,
     windowMode: Boolean(noteWindowParams),
   })
+  const vaultWorkspaceOrder = useMemo(
+    () => vaultSwitcher.allVaults.map((vault) => vault.path),
+    [vaultSwitcher.allVaults],
+  )
   const { config: vaultConfig, updateConfig } = useVaultConfig(resolvedPath)
   const gitFeaturesEnabled = areGitFeaturesEnabled(settings)
   const handleGitSetupPreferenceChange = useCallback((preference: GitSetupPreference) => {
@@ -699,6 +703,7 @@ function App() {
   const autoSync = useAutoSync({
     enabled: gitFeaturesEnabled && gitRepoState === 'ready',
     vaultPath: gitSurfaces.syncRepositoryPath,
+    vaultPaths: activeGitRepositoryPaths,
     intervalMinutes: settings.auto_pull_interval_minutes,
     onVaultUpdated: handlePulledVaultUpdate,
     onConflict: (files) => {
@@ -751,7 +756,7 @@ function App() {
   })
 
   const conflictFlow = useConflictFlow({
-    resolvedPath: gitSurfaces.syncRepositoryPath,
+    resolvedPath: autoSync.conflictVaultPath ?? graphDefaultWorkspacePath,
     entries: visibleEntries,
     conflictFiles: autoSync.conflictFiles,
     pausePull: autoSync.pausePull, resumePull: autoSync.resumePull,
@@ -1021,8 +1026,6 @@ function App() {
   const handleAppContentChange = appSave.handleContentChange
   const handleAppSave = appSave.handleSave
   const loadModifiedFiles = refreshGitModifiedFiles
-  const setSyncRepositoryPath = gitSurfaces.setSyncRepositoryPath
-  const syncRepositoryPath = gitSurfaces.syncRepositoryPath
   const triggerSync = autoSync.triggerSync
   const pullAndPush = autoSync.pullAndPush
 
@@ -1047,15 +1050,15 @@ function App() {
   }, [gitFeaturesEnabled, openCommitDialog, runAutomaticCheckpoint, settings.autogit_enabled])
   const handlePullRepository = useCallback((targetVaultPath: string) => {
     if (!gitFeaturesEnabled) return
-    setSyncRepositoryPath(targetVaultPath)
     triggerSync(targetVaultPath)
-  }, [gitFeaturesEnabled, setSyncRepositoryPath, triggerSync])
+  }, [gitFeaturesEnabled, triggerSync])
   const handlePullSelectedRepository = useCallback(() => {
-    handlePullRepository(syncRepositoryPath)
-  }, [handlePullRepository, syncRepositoryPath])
+    if (!gitFeaturesEnabled) return
+    triggerSync()
+  }, [gitFeaturesEnabled, triggerSync])
   const handlePullAndPushSelectedRepository = useCallback(() => {
-    pullAndPush(syncRepositoryPath)
-  }, [pullAndPush, syncRepositoryPath])
+    pullAndPush()
+  }, [pullAndPush])
 
   const handleTrackedContentChange = useCallback((path: string, content: string) => {
     recordAutoGitActivity()
@@ -1717,7 +1720,7 @@ function App() {
           {sidebarVisible && (
             <>
               <div className="app__sidebar" style={{ width: layout.sidebarWidth }}>
-                <Sidebar entries={visibleEntries} folders={vault.folders} views={vault.views} selection={effectiveSelection} onSelect={handleSetSelection} onSelectNote={notes.handleSelectNote} onSelectFavorite={handleOpenFavorite} onReorderFavorites={entryActions.handleReorderFavorites} onCreateType={notes.handleCreateNoteImmediate} onCreateNewType={dialogs.openCreateType} onCustomizeType={entryActions.handleCustomizeType} onUpdateTypeTemplate={entryActions.handleUpdateTypeTemplate} onReorderSections={entryActions.handleReorderSections} onRenameSection={entryActions.handleRenameSection} onDeleteType={handleDeleteType} onToggleTypeVisibility={entryActions.handleToggleTypeVisibility} onCreateFolder={handleCreateFolder} onRenameFolder={folderActions.renameFolder} onDeleteFolder={folderActions.requestDeleteFolder} folderFileActions={fileActions.folderActions} renamingFolderPath={folderActions.renamingFolderPath} onStartRenameFolder={folderActions.startFolderRename} onCancelRenameFolder={folderActions.cancelFolderRename} onCreateView={dialogs.openCreateView} onEditView={handleEditView} onDeleteView={handleDeleteView} onUpdateViewDefinition={handleSidebarUpdateViewDefinition} onReorderViews={canReorderSavedViews ? viewOrdering.onReorderViews : undefined} showInbox={explicitOrganizationEnabled} inboxCount={inboxCount} allNotesFileVisibility={allNotesFileVisibility} pluralizeTypeLabels={settings.sidebar_type_pluralization_enabled ?? true} onCollapse={handleCollapseSidebar} onGoBack={handleGoBack} onGoForward={handleGoForward} canGoBack={canGoBack} canGoForward={canGoForward} locale={appLocale} loading={isVaultContentLoading} vaultRootPath={resolvedPath} />
+                <Sidebar entries={visibleEntries} folders={vault.folders} views={vault.views} selection={effectiveSelection} onSelect={handleSetSelection} onSelectNote={notes.handleSelectNote} onSelectFavorite={handleOpenFavorite} onReorderFavorites={entryActions.handleReorderFavorites} onCreateType={notes.handleCreateNoteImmediate} onCreateNewType={dialogs.openCreateType} onCustomizeType={entryActions.handleCustomizeType} onUpdateTypeTemplate={entryActions.handleUpdateTypeTemplate} onReorderSections={entryActions.handleReorderSections} onRenameSection={entryActions.handleRenameSection} onDeleteType={handleDeleteType} onToggleTypeVisibility={entryActions.handleToggleTypeVisibility} onCreateFolder={handleCreateFolder} onRenameFolder={folderActions.renameFolder} onDeleteFolder={folderActions.requestDeleteFolder} folderFileActions={fileActions.folderActions} renamingFolderPath={folderActions.renamingFolderPath} onStartRenameFolder={folderActions.startFolderRename} onCancelRenameFolder={folderActions.cancelFolderRename} onCreateView={dialogs.openCreateView} onEditView={handleEditView} onDeleteView={handleDeleteView} onUpdateViewDefinition={handleSidebarUpdateViewDefinition} onReorderViews={canReorderSavedViews ? viewOrdering.onReorderViews : undefined} showInbox={explicitOrganizationEnabled} inboxCount={inboxCount} allNotesFileVisibility={allNotesFileVisibility} pluralizeTypeLabels={settings.sidebar_type_pluralization_enabled ?? true} onCollapse={handleCollapseSidebar} onGoBack={handleGoBack} onGoForward={handleGoForward} canGoBack={canGoBack} canGoForward={canGoForward} locale={appLocale} loading={isVaultContentLoading} vaultRootPath={resolvedPath} workspaceOrder={vaultWorkspaceOrder} />
               </div>
               <ResizeHandle onResize={layout.handleSidebarResize} />
             </>

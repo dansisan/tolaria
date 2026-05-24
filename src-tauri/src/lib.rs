@@ -1,5 +1,6 @@
 pub mod ai_agents;
 pub mod ai_models;
+mod app_icon;
 pub mod app_updater;
 pub mod claude_cli;
 mod claude_invocation;
@@ -284,9 +285,10 @@ fn setup_desktop_plugins(app: &mut tauri::App) -> Result<(), Box<dyn std::error:
         .plugin(tauri_plugin_updater::Builder::new().build())?;
     app.handle().plugin(tauri_plugin_process::init())?;
     app.handle().plugin(tauri_plugin_opener::init())?;
-    #[cfg(not(target_os = "linux"))]
-    menu::setup_menu(app)?;
-    setup_linux_window_chrome(app)?;
+    if should_use_native_desktop_menu(std::env::consts::OS) {
+        menu::setup_menu(app)?;
+    }
+    setup_custom_window_chrome(app)?;
     window_state::restore_main_window_state(app);
     show_debug_main_window(app);
     Ok(())
@@ -307,8 +309,12 @@ fn show_debug_main_window(app: &mut tauri::App) {
 #[cfg(not(debug_assertions))]
 fn show_debug_main_window(_app: &mut tauri::App) {}
 
-#[cfg(all(desktop, target_os = "linux"))]
-fn setup_linux_window_chrome(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+fn should_use_native_desktop_menu(target_os: &str) -> bool {
+    target_os == "macos"
+}
+
+#[cfg(all(desktop, any(target_os = "linux", target_os = "windows")))]
+fn setup_custom_window_chrome(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     use tauri::Manager;
 
     if let Some(window) = app.get_webview_window("main") {
@@ -317,8 +323,8 @@ fn setup_linux_window_chrome(app: &mut tauri::App) -> Result<(), Box<dyn std::er
     Ok(())
 }
 
-#[cfg(not(all(desktop, target_os = "linux")))]
-fn setup_linux_window_chrome(_app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+#[cfg(not(all(desktop, any(target_os = "linux", target_os = "windows"))))]
+fn setup_custom_window_chrome(_app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
@@ -496,6 +502,7 @@ macro_rules! app_invoke_handler {
             commands::get_settings,
             commands::check_for_app_update,
             commands::update_menu_state,
+            commands::update_app_icon,
             commands::trigger_menu_command,
             commands::update_current_window_min_size,
             commands::perform_current_window_titlebar_double_click,
@@ -572,6 +579,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
+    use super::should_use_native_desktop_menu;
     use super::MACOS_WEBVIEW_RESERVED_COMMAND_KEYS;
     use super::MACOS_WEBVIEW_RESERVED_COMMAND_SHIFT_KEYS;
 
@@ -725,5 +733,12 @@ mod tests {
         assert!(
             missing_asset_scope_roots(&allowed_roots, std::slice::from_ref(&vault_a)).is_empty()
         );
+    }
+
+    #[test]
+    fn native_desktop_menu_is_macos_only() {
+        assert!(should_use_native_desktop_menu("macos"));
+        assert!(!should_use_native_desktop_menu("windows"));
+        assert!(!should_use_native_desktop_menu("linux"));
     }
 }

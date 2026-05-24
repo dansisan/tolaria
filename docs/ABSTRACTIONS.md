@@ -376,9 +376,9 @@ The renderer uses `viewOrdering` helpers to convert drag or command-palette move
 
 ## Command Surface
 
-`src/shared/appCommandManifest.json` is the cross-runtime source for stable app command IDs, menu structure, display labels, accelerators, deterministic shortcut QA metadata, and native menu enablement groups. The renderer imports it through `src/hooks/appCommandCatalog.ts`, which derives `APP_COMMAND_IDS`, shortcut lookup maps, Linux titlebar menu sections, native-menu command membership, and test helpers. Tauri includes the same JSON in `src-tauri/src/menu.rs` and uses it to build custom menu items, emit overridden menu item IDs such as the quick-open alias as their primary command IDs, register the Windows main-window menu event bridge, and toggle state-dependent menu items from manifest groups.
+`src/shared/appCommandManifest.json` is the cross-runtime source for stable app command IDs, menu structure, display labels, accelerators, deterministic shortcut QA metadata, and native menu enablement groups. The renderer imports it through `src/hooks/appCommandCatalog.ts`, which derives `APP_COMMAND_IDS`, shortcut lookup maps, custom titlebar menu sections, native-menu command membership, and test helpers. Tauri includes the same JSON in `src-tauri/src/menu.rs` and uses it to build custom menu items, emit overridden menu item IDs such as the quick-open alias as their primary command IDs, and toggle state-dependent menu items from manifest groups.
 
-Domain command builders still own context-sensitive command-palette entries, availability, and execution callbacks. The manifest owns metadata that must stay identical across native menus, renderer shortcuts, deterministic QA bridges, and the Linux fallback menu; OS-native menu items such as Undo, Copy/Paste, Services, Quit, and Window controls remain local to the native menu implementation.
+Domain command builders still own context-sensitive command-palette entries, availability, and execution callbacks. The manifest owns metadata that must stay identical across native menus, renderer shortcuts, deterministic QA bridges, and the custom desktop titlebar menu; OS-native menu items such as Undo, Copy/Paste, Services, Quit, and Window controls remain local to the native menu implementation.
 
 ## File System Integration
 
@@ -506,15 +506,16 @@ interface PulseCommit {
 
 ### Auto-Sync
 
-`useAutoSync` hook handles automatic git sync:
+`useAutoSync` hook handles automatic git sync across every active Git repository:
 - Configurable interval (from app settings: `auto_pull_interval_minutes`)
-- Pulls on interval, pushes after commits
-- Awaits the post-pull vault refresh so toasts land after note-list state is fresh
+- Pulls the active repository set concurrently on launch, focus, interval, and manual sync
+- Pushes the active repository set during divergence recovery
+- Awaits the post-pull vault refreshes so toasts land after note-list state is fresh
 - Reopens the clean active tab from disk only when the pull changed that active note, so unrelated updates do not remount the editor
 - Detects merge conflicts → opens `ConflictResolverModal`
-- Tracks remote status (branch, ahead/behind via `git_remote_status`)
+- Tracks aggregate remote status (ahead/behind via `git_remote_status`)
 - Handles push rejection (divergence) → sets `pull_required` status
-- `pullAndPush()`: pulls then auto-pushes for divergence recovery
+- `pullAndPush()`: pulls then auto-pushes each active repository for divergence recovery
 - `ConflictNoteBanner`: inline banner in editor for conflicted notes (Keep mine / Keep theirs)
 
 ### External Vault Refresh
@@ -547,7 +548,7 @@ External vault mutations are any disk writes Tolaria did not just perform throug
 - **No remote indicator**: Neutral chip in the bottom bar when `GitRemoteStatus.hasRemote === false`
 - **Pulse view**: Activity feed when Pulse filter is selected
 - **Pull command**: Cmd+K → "Pull from Remote", also in Vault menu
-- **Git status popup**: Click sync badge → shows branch, ahead/behind, Pull button
+- **Git status popup**: Click sync badge → shows aggregate ahead/behind and a Pull button for the active repository set
 - **Conflict banner**: Inline banner in editor with Keep mine / Keep theirs for conflicted notes
 
 ## BlockNote Customization
