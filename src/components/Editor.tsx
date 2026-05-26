@@ -35,6 +35,7 @@ import { createArrowLigaturesExtension } from './arrowLigaturesExtension'
 import { createImeCompositionKeyGuardExtension } from './imeCompositionKeyGuardExtension'
 import { createMathInputExtension } from './mathInputExtension'
 import { createRichEditorTransformErrorRecoveryExtension } from './richEditorTransformErrorRecoveryExtension'
+import { createInlineTagsExtension } from './inlineTagsExtension'
 import { useFilenameAutolinkGuard } from './useFilenameAutolinkGuard'
 import './Editor.css'
 import './EditorTheme.css'
@@ -129,6 +130,7 @@ interface EditorProps {
   /** Registers a hook that flushes the raw editor buffer into app state before external actions. */
   flushPendingRawContentRef?: React.MutableRefObject<((path: string) => void) | null>
   locale?: AppLocale
+  onClickTag?: (tag: string) => void
 }
 
 function useEditorModeExclusion({
@@ -219,6 +221,7 @@ function useEditorSetup({
       createImeCompositionKeyGuardExtension(),
       createArrowLigaturesExtension(),
       createMathInputExtension(),
+      createInlineTagsExtension,
     ],
   })
   useFilenameAutolinkGuard(editor)
@@ -395,6 +398,7 @@ function EditorLayout({
   workspaces,
   onUnsupportedAiPaste,
   locale,
+  onClickTag,
 }: {
   tabs: Tab[]
   activeTabPath: string | null
@@ -466,6 +470,7 @@ function EditorLayout({
   workspaces?: WorkspaceIdentity[]
   onUnsupportedAiPaste?: (message: string) => void
   locale?: AppLocale
+  onClickTag?: (tag: string) => void
 }) {
   const activeBinaryTab = activeTab?.entry.fileKind === 'binary' ? activeTab : null
   const showEmptyState = tabs.length === 0 && activeTabPath === null && !isVaultLoading
@@ -528,6 +533,7 @@ function EditorLayout({
               onKeepMine={onKeepMine}
               onKeepTheirs={onKeepTheirs}
               locale={locale}
+              onClickTag={onClickTag}
             />
         }
         {(showAIChat || showTableOfContents || !inspectorCollapsed) && <ResizeHandle onResize={onInspectorResize} />}

@@ -1,4 +1,4 @@
-import { ArrowSquareOut as ExternalLink, Copy } from '@phosphor-icons/react'
+import { ArrowSquareOut as ExternalLink, Copy, Hash } from '@phosphor-icons/react'
 import { Component, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   GridSuggestionMenuController,
@@ -14,6 +14,7 @@ import {
   useCreateBlockNote,
   useDictionary,
   type DefaultReactGridSuggestionItem,
+  type DefaultReactSuggestionItem,
   type LinkToolbarProps,
 } from '@blocknote/react'
 import { components } from '@blocknote/mantine'
@@ -1091,6 +1092,7 @@ function useInsertWikilink(
 function useSuggestionMenuItems(options: {
   baseItems: ReturnType<typeof buildBaseSuggestionItems>
   editor: ReturnType<typeof useCreateBlockNote>
+  entries: VaultEntry[]
   insertWikilink: (target: string) => void
   locale: AppLocale
   runEditorAction: (action: SuggestionAction) => void
@@ -1101,6 +1103,7 @@ function useSuggestionMenuItems(options: {
   const {
     baseItems,
     editor,
+    entries,
     insertWikilink,
     locale,
     runEditorAction,
@@ -1108,6 +1111,18 @@ function useSuggestionMenuItems(options: {
     typeEntryMap,
     vaultPath,
   } = options
+
+  const allTags = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const { inlineTags } of entries) {
+      for (const tag of inlineTags) {
+        counts.set(tag, (counts.get(tag) ?? 0) + 1)
+      }
+    }
+    return Array.from(counts.entries())
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag))
+  }, [entries])
   const t = useMemo(() => createTranslator(locale), [locale])
 
   const buildItems = useCallback((query: string, triggerCharacter: '[[' | '@') => {
@@ -1160,6 +1175,23 @@ function useSuggestionMenuItems(options: {
       }))
   }, [editor, runEditorAction])
 
+  const getTagItems = useCallback(async (query: string): Promise<DefaultReactSuggestionItem[]> => {
+    const normalizedQuery = normalizeSuggestionQuery(query, '#').toLowerCase()
+    return allTags
+      .filter(({ tag }) => !normalizedQuery || tag.toLowerCase().includes(normalizedQuery))
+      .slice(0, 20)
+      .map(({ tag, count }) => ({
+        title: `#${tag}`,
+        badge: String(count),
+        icon: <Hash size={14} />,
+        onItemClick: () => {
+          runEditorAction(() => {
+            editor.insertInlineContent(`#${tag} `, { updateSelection: true })
+          })
+        },
+      }))
+  }, [allTags, editor, runEditorAction])
+
   const getSlashMenuItems = useCallback(async (query: string) => {
     try {
       return guardSuggestionMenuItems(
@@ -1179,6 +1211,7 @@ function useSuggestionMenuItems(options: {
     getEmojiItems,
     getPersonMentionItems,
     getSlashMenuItems,
+    getTagItems,
   }
 }
 
@@ -1191,6 +1224,7 @@ function EditorInteractionControllers({
   getEmojiItems,
   getPersonMentionItems,
   getSlashMenuItems,
+  getTagItems,
   getWikilinkItems,
   runEditorAction,
   vaultPath,
@@ -1227,6 +1261,10 @@ function EditorInteractionControllers({
         columns={10}
         minQueryLength={1}
         getItems={getEmojiItems}
+      />
+      <SuggestionMenuController
+        triggerCharacter="#"
+        getItems={getTagItems}
       />
       <SuggestionMenuController
         triggerCharacter="[["
@@ -1300,7 +1338,7 @@ function useRichEditorPlainTextPasteTarget(options: {
 }
 
 /** Single BlockNote editor view — content is swapped via replaceBlocks */
-export function SingleEditorView({ editor, entries, onNavigateWikilink, onChange, sourceEntry, vaultPath, editable = true, locale = 'en' }: {
+export function SingleEditorView({ editor, entries, onNavigateWikilink, onChange, sourceEntry, vaultPath, editable = true, locale = 'en', onClickTag }: {
   editor: ReturnType<typeof useCreateBlockNote>
   entries: VaultEntry[]
   onNavigateWikilink: (target: string) => void
@@ -1309,6 +1347,7 @@ export function SingleEditorView({ editor, entries, onNavigateWikilink, onChange
   vaultPath?: string
   editable?: boolean
   locale?: AppLocale
+  onClickTag?: (tag: string) => void
 }) {
   const { cssVars } = useEditorTheme()
   const themeMode = useDocumentThemeMode()
@@ -1337,7 +1376,7 @@ export function SingleEditorView({ editor, entries, onNavigateWikilink, onChange
     handleMouseMove: handleCodeBlockCopyMouseMove,
   } = useCodeBlockCopyTarget(containerRef)
   useBlockNoteSideMenuHoverGuard(containerRef)
-  useEditorLinkActivation(containerRef, onNavigateWikilink, vaultPath)
+  useEditorLinkActivation(containerRef, onNavigateWikilink, vaultPath, onClickTag)
 
   useEffect(() => {
     _wikilinkEntriesRef.current = entries
@@ -1383,6 +1422,7 @@ export function SingleEditorView({ editor, entries, onNavigateWikilink, onChange
   const suggestionMenuItems = useSuggestionMenuItems({
     baseItems,
     editor,
+    entries,
     insertWikilink,
     locale,
     runEditorAction,

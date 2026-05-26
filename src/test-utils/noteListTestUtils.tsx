@@ -38,6 +38,7 @@ export const makeEntry = (overrides: Partial<VaultEntry> = {}): VaultEntry => ({
   favoriteIndex: null,
   listPropertiesDisplay: [],
   outgoingLinks: [],
+  inlineTags: [],
   properties: {},
   hasH1: false,
   ...overrides,

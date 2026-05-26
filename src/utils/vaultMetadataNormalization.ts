@@ -204,6 +204,7 @@ function normalizeVaultEntryRecord({ rawEntry, vaultPath, index, workspace }: En
     favoriteIndex: nullableNumberFrom(source.favoriteIndex),
     listPropertiesDisplay: stringArrayFrom(source.listPropertiesDisplay),
     outgoingLinks: stringArrayFrom(source.outgoingLinks),
+    inlineTags: stringArrayFrom(source.inlineTags),
     properties: normalizeProperties(source.properties),
     hasH1: booleanFrom(source.hasH1),
   } as VaultEntry

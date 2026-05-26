@@ -319,6 +319,86 @@ pub(super) fn extract_outgoing_links(content: &str) -> Vec<String> {
     links
 }
 
+/// Extract tags from tag lines in note body content (excludes frontmatter).
+/// A tag line is a line whose first character is '#' immediately followed by a letter (no space),
+/// which distinguishes it from Markdown headings ('# heading').
+/// On a tag line every '#word' token is a tag; inline code spans are skipped.
+/// Returns a sorted, deduplicated Vec of tag names (without the leading '#').
+pub(super) fn extract_inline_tags(content: &str) -> Vec<String> {
+    let mut tags = Vec::new();
+    let body = strip_frontmatter(content);
+    let mut in_code_fence = false;
+
+    for line in body.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
+            in_code_fence = !in_code_fence;
+            continue;
+        }
+        if in_code_fence {
+            continue;
+        }
+        collect_line_tags(line, &mut tags);
+    }
+
+    tags.sort();
+    tags.dedup();
+    tags
+}
+
+fn collect_line_tags(line: &str, tags: &mut Vec<String>) {
+    let chars: Vec<char> = line.chars().collect();
+    // Only process tag lines: '#' immediately followed by a letter (not '# heading').
+    if chars.len() < 2 || chars[0] != '#' || !chars[1].is_ascii_alphabetic() {
+        return;
+    }
+
+    let mut i = 0;
+    while i < chars.len() {
+        // Skip inline code spans regardless of backtick count (1, 2, 3+).
+        if chars[i] == '`' {
+            let tick_start = i;
+            while i < chars.len() && chars[i] == '`' {
+                i += 1;
+            }
+            let tick_count = i - tick_start;
+            while i < chars.len() {
+                if chars[i] == '`' {
+                    let close_start = i;
+                    while i < chars.len() && chars[i] == '`' {
+                        i += 1;
+                    }
+                    if i - close_start == tick_count {
+                        break;
+                    }
+                } else {
+                    i += 1;
+                }
+            }
+            continue;
+        }
+        // Match '#word' at start of line or preceded by a space.
+        if chars[i] == '#' && (i == 0 || chars[i - 1] == ' ') {
+            let start = i + 1;
+            if start < chars.len() && chars[start].is_ascii_alphabetic() {
+                let mut j = start + 1;
+                while j < chars.len()
+                    && (chars[j].is_alphanumeric()
+                        || chars[j] == '-'
+                        || chars[j] == '_'
+                        || chars[j] == '/')
+                {
+                    j += 1;
+                }
+                tags.push(chars[start..j].iter().collect());
+                i = j;
+                continue;
+            }
+        }
+        i += 1;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -865,5 +945,88 @@ mod tests {
         let content = "[[unclosed and [[valid]]";
         let links = extract_outgoing_links(content);
         assert_eq!(links, vec!["unclosed and [[valid"]);
+    }
+
+    // --- extract_inline_tags tests ---
+
+    #[test]
+    fn test_extract_inline_tags_basic() {
+        // Tag lines start with '#' immediately followed by a letter (no space).
+        let content = "# Title\n\n#project #work\n\nNormal prose here.";
+        let tags = extract_inline_tags(content);
+        assert_eq!(tags, vec!["project", "work"]);
+    }
+
+    #[test]
+    fn test_extract_inline_tags_sorted_dedup() {
+        let content = "# Title\n\n#beta #alpha #beta";
+        let tags = extract_inline_tags(content);
+        assert_eq!(tags, vec!["alpha", "beta"]);
+    }
+
+    #[test]
+    fn test_extract_inline_tags_skips_frontmatter() {
+        // tags in frontmatter body text are not parsed here; frontmatter.tags handles that
+        let content = "---\ntags: [project]\n---\n# Title\n\n#realtag";
+        let tags = extract_inline_tags(content);
+        assert_eq!(tags, vec!["realtag"]);
+    }
+
+    #[test]
+    fn test_extract_inline_tags_skips_fenced_code() {
+        let content = "# Title\n\n```\n#notag\n```\n\n#realtag";
+        let tags = extract_inline_tags(content);
+        assert_eq!(tags, vec!["realtag"]);
+    }
+
+    #[test]
+    fn test_extract_inline_tags_skips_inline_code() {
+        // '#notag' inside inline code on a tag line is skipped
+        let content = "# Title\n\n#realtag `#notag`";
+        let tags = extract_inline_tags(content);
+        assert_eq!(tags, vec!["realtag"]);
+    }
+
+    #[test]
+    fn test_extract_inline_tags_only_on_tag_lines() {
+        // '#word' in ordinary prose (non-tag lines) is ignored
+        let content = "# Title\n\nSome prose with #NotATag in the middle.\n\n#realtag";
+        let tags = extract_inline_tags(content);
+        assert_eq!(tags, vec!["realtag"]);
+    }
+
+    #[test]
+    fn test_extract_inline_tags_first_char_must_be_alpha() {
+        // '#_nope', '#1nope', '#-nope' are not valid tag tokens (first char must be a letter)
+        let content = "# Title\n\n#valid #_nope #1nope\n\n#valid2 #-nope";
+        let tags = extract_inline_tags(content);
+        assert_eq!(tags, vec!["valid", "valid2"]);
+    }
+
+    #[test]
+    fn test_extract_inline_tags_skips_double_backtick_inline_code() {
+        let content = "# Title\n\n#realtag ``#notag``";
+        let tags = extract_inline_tags(content);
+        assert_eq!(tags, vec!["realtag"]);
+    }
+
+    #[test]
+    fn test_extract_inline_tags_skips_triple_backtick_inline_code() {
+        let content = "# Title\n\n#realtag ```#notag```";
+        let tags = extract_inline_tags(content);
+        assert_eq!(tags, vec!["realtag"]);
+    }
+
+    #[test]
+    fn test_extract_inline_tags_nested_slash() {
+        let content = "# Title\n\n#project/work";
+        let tags = extract_inline_tags(content);
+        assert_eq!(tags, vec!["project/work"]);
+    }
+
+    #[test]
+    fn test_extract_inline_tags_empty_content() {
+        assert!(extract_inline_tags("").is_empty());
+        assert!(extract_inline_tags("No tags here").is_empty());
     }
 }

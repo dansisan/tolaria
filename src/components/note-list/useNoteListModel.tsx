@@ -505,6 +505,7 @@ export interface NoteListProps {
   getNoteStatus?: (path: string) => NoteStatus
   sidebarCollapsed?: boolean
   onSelectNote: (entry: VaultEntry) => void
+  onClearTagFilter?: () => void
   onReplaceActiveTab: (entry: VaultEntry) => void
   onEnterNeighborhood?: (entry: VaultEntry) => void
   onCreateNote: (type?: string) => void
@@ -544,6 +545,7 @@ function buildNoteListLayoutModel(params: {
   filterCounts: ReturnType<typeof useFilterCounts>
   onNoteListFilterChange: (filter: NoteListFilter) => void
   onOpenType: (entry: VaultEntry) => void
+  onClearTagFilter?: () => void
   locale: AppLocale
   content: ReturnType<typeof useNoteListContent> & {
     handleSearchKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void
@@ -593,6 +595,8 @@ function buildNoteListLayoutModel(params: {
     handleClickNote: params.interaction.handleClickNote,
     isArchivedView: params.content.isArchivedView,
     isChangesView: params.selection.kind === 'filter' && params.selection.filter === 'changes',
+    isTagView: params.selection.kind === 'tag',
+    onClearTagFilter: params.onClearTagFilter,
     gitRepositories: params.gitRepositories ?? [],
     selectedGitRepositoryPath: params.selectedGitRepositoryPath ?? '',
     onGitRepositoryChange: params.onGitRepositoryChange,
@@ -634,6 +638,7 @@ export function useNoteListModel({
   getNoteStatus,
   sidebarCollapsed,
   onReplaceActiveTab,
+  onClearTagFilter,
   onEnterNeighborhood,
   onCreateNote,
   onBulkArchive,
@@ -757,6 +762,7 @@ export function useNoteListModel({
     sidebarCollapsed,
     loading,
     onOpenType: onReplaceActiveTab,
+    onClearTagFilter,
     modifiedFilesError,
     gitRepositories,
     selectedGitRepositoryPath,

@@ -56,6 +56,7 @@ export interface EditorContentProps {
   onKeepMine?: (path: string) => void
   onKeepTheirs?: (path: string) => void
   locale?: AppLocale
+  onClickTag?: (tag: string) => void
 }
 
 export function useEditorContentModel(props: EditorContentProps) {

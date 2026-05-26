@@ -57,6 +57,8 @@ export interface VaultEntry {
   listPropertiesDisplay: string[]
   /** All wikilink targets found in the note content. Extracted from [[target]] patterns. */
   outgoingLinks: string[]
+  /** All inline #tag references found in the note body. */
+  inlineTags: string[]
   /** Custom scalar and scalar-array frontmatter properties (non-relationship, non-structural). */
   properties: Record<string, VaultPropertyValue>
   /** Whether the note body has an H1 heading on the first non-empty line. */
@@ -237,6 +239,7 @@ export type SidebarSelection =
   | { kind: 'folder'; path: string; rootPath?: string }
   | { kind: 'entity'; entry: VaultEntry }
   | { kind: 'view'; filename: string; rootPath?: string }
+  | { kind: 'tag'; tag: string }
 
 // --- Custom Views ---
 

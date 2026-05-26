@@ -73,6 +73,9 @@ pub struct VaultEntry {
     /// Extracted from `[[target]]` and `[[target|display]]` patterns.
     #[serde(rename = "outgoingLinks", default)]
     pub outgoing_links: Vec<String>,
+    /// All inline `#tag` references found in the note body (excludes frontmatter).
+    #[serde(rename = "inlineTags", default)]
+    pub inline_tags: Vec<String>,
     /// Custom scalar and scalar-array frontmatter properties (non-relationship, non-structural).
     /// Objects and arrays containing wikilinks are excluded.
     #[serde(default)]

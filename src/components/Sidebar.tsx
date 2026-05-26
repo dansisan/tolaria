@@ -29,6 +29,7 @@ import {
   SidebarTypesLoadingSection,
 } from './sidebar/SidebarLoadingSections'
 import { useSidebarTypeInteractions } from './sidebar/useSidebarTypeInteractions'
+import { TagsSection } from './sidebar/TagsSection'
 import type { AppLocale } from '../lib/i18n'
 import type { FolderFileActions } from '../hooks/useFileActions'
 import type { AllNotesFileVisibility } from '../utils/allNotesFileVisibility'
@@ -473,6 +474,15 @@ function SidebarNavigation(props: SidebarNavigationProps) {
         toggleGroup={props.toggleGroup}
         locale={props.locale}
       />
+      {!props.loading && (
+        <TagsSection
+          entries={props.entries}
+          selection={props.selection}
+          collapsed={props.groupCollapsed.tags}
+          onToggle={() => props.toggleGroup('tags')}
+          onSelect={props.onSelect}
+        />
+      )}
     </nav>
   )
 }

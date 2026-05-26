@@ -25,6 +25,17 @@ function resolveAnchorHref(target: HTMLElement) {
   return target.closest<HTMLAnchorElement>('a[href]')?.getAttribute('href')?.trim() ?? null
 }
 
+function resolveInlineTagAtPoint(event: MouseEvent): string | null {
+  if (!hasFollowModifier(event)) return null
+  const target = elementFromEventTarget(event.target)
+  if (!target) return null
+  const tagEl = target.closest<HTMLElement>('.inline-tag')
+  if (!tagEl) return null
+  const text = (tagEl.textContent ?? '').trim()
+  const match = /^#([a-zA-Z][a-zA-Z0-9_\-/]*)$/.exec(text)
+  return match ? match[1] : null
+}
+
 function blurActiveEditable(container: HTMLElement) {
   const active = document.activeElement
   if (!(active instanceof HTMLElement) || !container.contains(active)) return
@@ -69,11 +80,17 @@ function activateUrl(event: MouseEvent, href: string, vaultPath?: string) {
   openEditorAttachmentOrUrl({ url: href, vaultPath, source: 'link' })
 }
 
+function activateInlineTag(event: MouseEvent, tag: string, onClickTag: (tag: string) => void) {
+  consumeEditorLinkEvent(event)
+  onClickTag(tag)
+}
+
 function handleEditorLinkClick(
   event: MouseEvent,
   container: HTMLElement,
   onNavigateWikilink: (target: string) => void,
   vaultPath?: string,
+  onClickTag?: (tag: string) => void,
 ) {
   const target = elementFromEventTarget(event.target)
   if (!target || isInsideCodeContext(target)) return
@@ -85,10 +102,18 @@ function handleEditorLinkClick(
   }
 
   const href = resolveAnchorHref(target)
-  if (href) activateUrl(event, href, vaultPath)
+  if (href) {
+    activateUrl(event, href, vaultPath)
+    return
+  }
+
+  if (onClickTag) {
+    const tag = resolveInlineTagAtPoint(event)
+    if (tag) activateInlineTag(event, tag, onClickTag)
+  }
 }
 
-function handleEditorLinkMouseDown(event: MouseEvent, vaultPath?: string): string | null {
+function handleEditorLinkMouseDown(event: MouseEvent, vaultPath?: string, onClickTag?: (tag: string) => void): string | null {
   const target = elementFromEventTarget(event.target)
   if (!target || isInsideCodeContext(target)) return null
 
@@ -101,6 +126,14 @@ function handleEditorLinkMouseDown(event: MouseEvent, vaultPath?: string): strin
   if (hasFollowModifier(event) && href) {
     activateUrl(event, href, vaultPath)
     return href
+  }
+
+  if (onClickTag && hasFollowModifier(event)) {
+    const tag = resolveInlineTagAtPoint(event)
+    if (tag) {
+      consumeEditorLinkEvent(event)
+      return null
+    }
   }
 
   return null
@@ -116,6 +149,7 @@ export function useEditorLinkActivation(
   containerRef: RefObject<HTMLDivElement | null>,
   onNavigateWikilink: (target: string) => void,
   vaultPath?: string,
+  onClickTag?: (tag: string) => void,
 ) {
   useEffect(() => {
     const container = containerRef.current
@@ -136,7 +170,7 @@ export function useEditorLinkActivation(
       }, 0)
     }
     const handleMouseDown = (event: MouseEvent) => {
-      const href = handleEditorLinkMouseDown(event, vaultPath)
+      const href = handleEditorLinkMouseDown(event, vaultPath, onClickTag)
       if (href) rememberHandledMouseDownUrl(href)
     }
     const handleClick = (event: MouseEvent) => {
@@ -148,7 +182,7 @@ export function useEditorLinkActivation(
       }
 
       handledMouseDownUrl = null
-      handleEditorLinkClick(event, container, onNavigateWikilink, vaultPath)
+      handleEditorLinkClick(event, container, onNavigateWikilink, vaultPath, onClickTag)
     }
 
     container.addEventListener('mousedown', handleMouseDown, true)
@@ -167,5 +201,5 @@ export function useEditorLinkActivation(
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       resetModifierState()
     }
-  }, [containerRef, onNavigateWikilink, vaultPath])
+  }, [containerRef, onNavigateWikilink, vaultPath, onClickTag])
 }

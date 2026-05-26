@@ -44,6 +44,8 @@ export function selectionsEqual(a: SidebarSelection, b: SidebarSelection): boole
       return isSameEntitySelection(a, b as Extract<SidebarSelection, { kind: 'entity' }>)
     case 'view':
       return isSameViewSelection(a, b as Extract<SidebarSelection, { kind: 'view' }>)
+    case 'tag':
+      return (a as Extract<SidebarSelection, { kind: 'tag' }>).tag === (b as Extract<SidebarSelection, { kind: 'tag' }>).tag
   }
 }
 

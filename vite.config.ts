@@ -48,7 +48,36 @@ interface VaultEntry {
   view: string | null
   visible: boolean | null
   outgoingLinks: string[]
+  inlineTags: string[]
   properties: Record<string, string | number | boolean | null>
+}
+
+/** Extract tags from tag lines in note body (excluding frontmatter).
+ * A tag line starts with '#' immediately followed by a letter (no space),
+ * distinguishing it from Markdown headings ('# heading').
+ */
+function extractInlineTags(body: string): string[] {
+  const tags: string[] = []
+  const lines = body.split('\n')
+  let inFence = false
+  for (const line of lines) {
+    const trimmed = line.trimStart()
+    if (trimmed.startsWith('```') || trimmed.startsWith('~~~')) {
+      inFence = !inFence
+      continue
+    }
+    if (inFence) continue
+    if (!/^#[a-zA-Z]/.test(line)) continue
+    // Strip inline code spans then extract #word tokens
+    const stripped = line.replace(/`[^`]*`/g, '')
+    const matches = stripped.match(/#([a-zA-Z][a-zA-Z0-9_\-/]*)/g)
+    if (matches) {
+      for (const m of matches) {
+        tags.push(m.slice(1)) // strip leading '#'
+      }
+    }
+  }
+  return [...new Set(tags)].sort()
 }
 
 /** Extract all [[wiki-links]] from a string. */
@@ -82,7 +111,7 @@ const DEDICATED_KEYS = new Set([
   'archived', '_icon', 'icon', 'color', '_order', 'order',
   '_sidebar_label', 'sidebar_label', 'sidebar label', 'template',
   '_sort', 'sort', 'view', '_width', 'width', 'visible',
-  '_organized', '_favorite', '_favorite_index', '_list_properties_display',
+  '_organized', '_favorite', '_favorite_index', '_list_properties_display', 'tags',
 ].map((key) => key.toLowerCase()))
 
 type FrontmatterPropertyValue = string | number | boolean | null
@@ -353,6 +382,12 @@ function frontmatterPropertyValue(value: unknown): FrontmatterPropertyValue | un
   return singleArrayValue === undefined ? undefined : wikiLinkFreeString(singleArrayValue)
 }
 
+function mergeInlineTags(bodyTags: string[], fmTags: string[]): string[] {
+  const normalized = fmTags.map((t) => t.startsWith('#') ? t.slice(1) : t).filter(Boolean)
+  const combined = new Set([...bodyTags, ...normalized])
+  return [...combined].sort()
+}
+
 function parseMarkdownFile(filePath: string): VaultEntry | null {
   try {
     const raw = readUtf8File(filePath)
@@ -394,6 +429,7 @@ function parseMarkdownFile(filePath: string): VaultEntry | null {
       view: frontmatterString(fm, 'view'),
       visible: frontmatterBool(fm, 'visible'),
       outgoingLinks: [],
+      inlineTags: mergeInlineTags(extractInlineTags(content), frontmatterStringArray(fm, 'tags')),
       properties: frontmatterProperties(fm),
     }
   } catch {
@@ -918,6 +954,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      'prosemirror-state': path.resolve(__dirname, 'node_modules/.pnpm/prosemirror-state@1.4.4/node_modules/prosemirror-state'),
+      'prosemirror-view': path.resolve(__dirname, 'node_modules/.pnpm/prosemirror-view@1.41.6/node_modules/prosemirror-view'),
     },
   },
 

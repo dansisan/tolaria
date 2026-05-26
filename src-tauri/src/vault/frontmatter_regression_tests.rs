@@ -114,11 +114,11 @@ fn test_multi_element_array_properties_are_preserved() {
     let entry = parse_test_entry(
         &dir,
         "playlist.md",
-        "---\ntags:\n  - blues\n  - chicago\n---\n# Playlist\n",
+        "---\ngenres:\n  - blues\n  - chicago\n---\n# Playlist\n",
     );
 
     assert_eq!(
-        entry.properties.get("tags"),
+        entry.properties.get("genres"),
         Some(&serde_json::json!(["blues", "chicago"]))
     );
 }
@@ -235,4 +235,47 @@ fn test_frontmatter_created_datetime_without_seconds_t_separator() {
     let entry = parse_test_entry(&dir, "no-seconds-t.md", content);
 
     assert_eq!(entry.created_at, Some(1_764_460_800 + 10 * 3600 + 30 * 60));
+}
+
+#[test]
+fn test_frontmatter_tags_list_included_in_inline_tags() {
+    let dir = TempDir::new().unwrap();
+    let content = "---\ntags:\n  - project\n  - work\n---\n# Test\n\nBody text.\n";
+    let entry = parse_test_entry(&dir, "fm-tags-list.md", content);
+
+    assert!(entry.inline_tags.contains(&"project".to_string()));
+    assert!(entry.inline_tags.contains(&"work".to_string()));
+}
+
+#[test]
+fn test_frontmatter_tags_hash_prefix_stripped() {
+    let dir = TempDir::new().unwrap();
+    let content = "---\ntags:\n  - \"#project\"\n  - \"#work\"\n---\n# Test\n\nBody text.\n";
+    let entry = parse_test_entry(&dir, "fm-tags-hash.md", content);
+
+    assert!(entry.inline_tags.contains(&"project".to_string()));
+    assert!(entry.inline_tags.contains(&"work".to_string()));
+    assert!(!entry.inline_tags.iter().any(|t| t.starts_with('#')));
+}
+
+#[test]
+fn test_frontmatter_tags_string_included_in_inline_tags() {
+    let dir = TempDir::new().unwrap();
+    let content = "---\ntags: single-tag\n---\n# Test\n\nBody text.\n";
+    let entry = parse_test_entry(&dir, "fm-tags-string.md", content);
+
+    assert!(entry.inline_tags.contains(&"single-tag".to_string()));
+}
+
+#[test]
+fn test_frontmatter_tags_merged_with_body_tags_deduped() {
+    let dir = TempDir::new().unwrap();
+    let content = "---\ntags:\n  - alpha\n  - beta\n---\n# Test\n\n#alpha #gamma\n";
+    let entry = parse_test_entry(&dir, "fm-tags-merged.md", content);
+
+    let mut expected = vec!["alpha", "beta", "gamma"];
+    expected.sort();
+    let mut actual = entry.inline_tags.iter().map(|s| s.as_str()).collect::<Vec<_>>();
+    actual.sort();
+    assert_eq!(actual, expected);
 }

@@ -36,6 +36,7 @@ export function resolveHeaderTitle(selection: SidebarSelection, typeDocument: Va
     return view?.definition.name ?? translate(locale, 'noteList.title.view')
   }
   if (selection.kind === 'entity') return selection.entry.title
+  if (selection.kind === 'tag') return `#${selection.tag}`
   if (typeDocument) return typeDocument.title
 
   return resolveSelectionFilterTitle(selection, locale) ?? translate(locale, 'noteList.title.notes')
@@ -180,6 +181,7 @@ function createDeletedNoteEntry(file: ModifiedFile): DeletedNoteEntry {
     favoriteIndex: null,
     listPropertiesDisplay: [],
     outgoingLinks: [],
+    inlineTags: [],
     properties: {},
     hasH1: true,
     fileKind: 'markdown',

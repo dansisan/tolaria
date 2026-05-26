@@ -71,6 +71,7 @@ const LOADING_BREADCRUMB_ENTRY: VaultEntry = {
   favoriteIndex: null,
   listPropertiesDisplay: [],
   outgoingLinks: [],
+  inlineTags: [],
   properties: {},
   hasH1: false,
   fileKind: 'markdown',
@@ -360,6 +361,7 @@ function EditorCanvas({
   isDeletedPreview,
   vaultPath,
   locale,
+  onClickTag,
 }: Pick<
   EditorContentModel,
   | 'showEditor'
@@ -372,6 +374,7 @@ function EditorCanvas({
   | 'isDeletedPreview'
   | 'vaultPath'
   | 'locale'
+  | 'onClickTag'
 >) {
   if (!showEditor) return null
 
@@ -390,6 +393,7 @@ function EditorCanvas({
           vaultPath={vaultPath}
           editable={!isDeletedPreview}
           locale={locale}
+          onClickTag={onClickTag}
         />
       </div>
     </EditorFindScope>
@@ -462,6 +466,7 @@ export function EditorContentLayout(model: EditorContentModel) {
     findRequest,
     locale,
     isVaultLoading,
+    onClickTag,
   } = model
   const rootClassName = cn(
     'flex flex-1 flex-col min-w-0 min-h-0',
@@ -522,6 +527,7 @@ export function EditorContentLayout(model: EditorContentModel) {
             onEditorChange={onEditorChange}
             isDeletedPreview={isDeletedPreview}
             locale={locale}
+            onClickTag={onClickTag}
           />
         </>
       )}

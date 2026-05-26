@@ -39,6 +39,8 @@ interface NoteListHeaderProps {
   typeDocument: VaultEntry | null
   isEntityView: boolean
   isChangesView?: boolean
+  isTagView?: boolean
+  onClearTagFilter?: () => void
   listSort: SortOption
   listDirection: SortDirection
   customProperties: string[]
@@ -58,6 +60,31 @@ interface NoteListHeaderProps {
   onSearchChange: (value: string) => void
   onSearchKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void
   onGitRepositoryChange?: (path: string) => void
+}
+
+function TagSearchRow({
+  title,
+  onClearTagFilter,
+}: {
+  title: string
+  onClearTagFilter: () => void
+}) {
+  return (
+    <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border bg-muted/40 px-4">
+      <span className="flex-1 truncate font-mono text-[12px] text-muted-foreground">{title}</span>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        className="!h-5 !w-5 !min-w-0 !rounded !p-0 !text-muted-foreground hover:!bg-accent hover:!text-foreground [&_svg]:!size-3"
+        onClick={onClearTagFilter}
+        title="Clear tag filter"
+        aria-label="Clear tag filter"
+      >
+        <X size={12} />
+      </Button>
+    </div>
+  )
 }
 
 function dispatchExpandSidebarFromHeader() {
@@ -271,6 +298,8 @@ export function NoteListHeader({
   typeDocument,
   isEntityView,
   isChangesView = false,
+  isTagView = false,
+  onClearTagFilter,
   listSort,
   listDirection,
   customProperties,
@@ -325,6 +354,9 @@ export function NoteListHeader({
         locale={locale}
         onGitRepositoryChange={onGitRepositoryChange}
       />
+      {isTagView && onClearTagFilter && (
+        <TagSearchRow title={title} onClearTagFilter={onClearTagFilter} />
+      )}
       <SearchRow
         searchVisible={searchVisible}
         search={search}

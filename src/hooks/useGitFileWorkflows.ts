@@ -66,6 +66,7 @@ const DELETED_NOTE_PREVIEW_DEFAULTS = {
   favoriteIndex: null,
   listPropertiesDisplay: [],
   outgoingLinks: [],
+  inlineTags: [],
   properties: {},
   hasH1: true,
   fileKind: 'markdown',

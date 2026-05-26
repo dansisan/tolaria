@@ -546,6 +546,7 @@ function filterByKind(
   if (selection.kind === 'folder') return filterFolderEntries(entries, selection, options.subFilter)
   if (selection.kind === 'sectionGroup') return filterSectionGroupEntries(entries, selection.type, options.subFilter)
   if (selection.kind === 'filter') return filterTopLevelEntries(entries, selection, options)
+  if (selection.kind === 'tag') return entries.filter((e) => !e.archived && e.inlineTags.includes(selection.tag))
   return []
 }
 

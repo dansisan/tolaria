@@ -253,6 +253,8 @@ function NoteListLayoutHeader({
   typeDocument,
   isEntityView,
   isChangesView,
+  isTagView,
+  onClearTagFilter,
   listSort,
   listDirection,
   customProperties,
@@ -278,6 +280,8 @@ function NoteListLayoutHeader({
   | 'typeDocument'
   | 'isEntityView'
   | 'isChangesView'
+  | 'isTagView'
+  | 'onClearTagFilter'
   | 'listSort'
   | 'listDirection'
   | 'customProperties'
@@ -304,6 +308,8 @@ function NoteListLayoutHeader({
       typeDocument={typeDocument}
       isEntityView={isEntityView}
       isChangesView={isChangesView}
+      isTagView={isTagView}
+      onClearTagFilter={onClearTagFilter}
       listSort={listSort}
       listDirection={listDirection}
       customProperties={customProperties}

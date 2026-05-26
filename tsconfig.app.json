@@ -9,7 +9,9 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "prosemirror-state": ["node_modules/.pnpm/prosemirror-state@1.4.4/node_modules/prosemirror-state"],
+      "prosemirror-view": ["node_modules/.pnpm/prosemirror-view@1.41.6/node_modules/prosemirror-view"]
     },
 
     /* Bundler mode */
