@@ -753,7 +753,7 @@ async function createNoteImmediate(deps: ImmediateCreateDeps, request: Immediate
   }
   const resolved = applyTypeDefaults({
     entry,
-    content: buildNoteContent({ title: null, type: noteType, status, template, initialEmptyHeading: true, defaults }),
+    content: buildNoteContent({ title: null, type: noteType, status, template, defaults }),
     defaults,
   })
   const didPersist = await persistImmediateEntry(deps, resolved.entry, resolved.content)

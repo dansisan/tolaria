@@ -372,7 +372,8 @@ describe('useNoteCreation hook', () => {
     expect(addEntry.mock.calls[0][0].title).toBe('Untitled Note 1700000000')
     expect(addEntry.mock.calls[0][0].filename).toBe('untitled-note-1700000000.md')
     expect(addEntry.mock.calls[0][0].status).toBeNull()
-    expect(openTabWithContent.mock.calls[0][1]).toBe('---\ntype: Note\n---\n\n# \n\n')
+    expect(openTabWithContent.mock.calls[0][1]).toContain('type: Note')
+    expect(openTabWithContent.mock.calls[0][1]).not.toContain('# \n\n')
     vi.restoreAllMocks()
   })
 
