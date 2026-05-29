@@ -264,36 +264,6 @@ fn normalize_ai_workspace_conversations(
     }
 }
 
-fn normalize_ai_workspace_conversations(
-    conversations: Option<Vec<AiWorkspaceConversationSetting>>,
-) -> Option<Vec<AiWorkspaceConversationSetting>> {
-    let normalized: Vec<AiWorkspaceConversationSetting> = conversations
-        .unwrap_or_default()
-        .into_iter()
-        .filter_map(|conversation| {
-            let id = conversation.id.trim().to_string();
-            let title = conversation.title.trim().to_string();
-            if id.is_empty() || title.is_empty() {
-                return None;
-            }
-
-            Some(AiWorkspaceConversationSetting {
-                archived: conversation.archived,
-                id,
-                target_id: normalize_optional_string(conversation.target_id),
-                title,
-            })
-        })
-        .take(100)
-        .collect();
-
-    if normalized.is_empty() {
-        None
-    } else {
-        Some(normalized)
-    }
-}
-
 fn app_config_dir() -> Result<PathBuf, String> {
     dirs::config_dir().ok_or_else(|| "Could not determine config directory".to_string())
 }
