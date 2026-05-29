@@ -148,6 +148,28 @@ describe('buildNoteContent', () => {
     })
     expect(content).toBe('---\ntype: Project\nstatus: Active\n---\n\n# \n\n## Objective\n\n')
   })
+
+  it('skips the empty H1 when the template already starts with one', () => {
+    const content = buildNoteContent({
+      title: null,
+      type: 'Weekly',
+      status: null,
+      template: '# Woche 2026.21\n\nWochennotiz\n',
+      initialEmptyHeading: true,
+    })
+    expect(content).toBe('---\ntype: Weekly\n---\n\n# Woche 2026.21\n\nWochennotiz\n')
+  })
+
+  it('skips the empty H1 when the template starts with an H1 after leading whitespace', () => {
+    const content = buildNoteContent({
+      title: null,
+      type: 'Weekly',
+      status: null,
+      template: '\n\n# Woche 2026.21\n',
+      initialEmptyHeading: true,
+    })
+    expect(content).toBe('---\ntype: Weekly\n---\n\n\n\n# Woche 2026.21\n')
+  })
 })
 
 describe('resolveNewNote', () => {
@@ -337,6 +359,34 @@ describe('useNoteCreation hook', () => {
     expect(addEntry.mock.calls[0][0].filename).toBe('untitled-note-1700000000.md')
     expect(addEntry.mock.calls[0][0].status).toBeNull()
     expect(openTabWithContent.mock.calls[0][1]).toBe('---\ntype: Note\n---\n\n# \n\n')
+    vi.restoreAllMocks()
+  })
+
+  it('handleCreateNoteImmediate can target a nested folder in a mounted vault', async () => {
+    vi.mocked(isTauri).mockReturnValue(true)
+    vi.mocked(invoke).mockResolvedValueOnce(undefined)
+    vi.spyOn(Date, 'now').mockReturnValue(1700000000000)
+    const { result } = renderHook(() => useNoteCreation(makeConfig(), tabDeps))
+
+    await act(async () => {
+      result.current.handleCreateNoteImmediate(undefined, {
+        creationPath: 'folder_header',
+        folderPath: 'Projects/2026 Planning',
+        vaultPath: '/Users/luca/Team',
+      })
+      await flushImmediateCreate()
+    })
+
+    const createdPath = '/Users/luca/Team/Projects/2026 Planning/untitled-note-1700000000.md'
+    expect(vi.mocked(invoke)).toHaveBeenCalledWith('create_note_content', {
+      path: createdPath,
+      content: expect.stringContaining('type: Note'),
+      vaultPath: '/Users/luca/Team',
+    })
+    expect(addEntry).toHaveBeenCalledWith(expect.objectContaining({
+      path: createdPath,
+      workspace: expect.objectContaining({ path: '/Users/luca/Team' }),
+    }))
     vi.restoreAllMocks()
   })
 

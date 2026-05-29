@@ -158,6 +158,10 @@ function MermaidLightbox({ svg }: { svg: string }) {
   )
 }
 
+function MermaidSourceFallback({ source }: { source: string }) {
+  return <pre aria-label="Mermaid source"><code>{source}</code></pre>
+}
+
 export function MermaidDiagram({ diagram, source }: MermaidDiagramProps) {
   const reactId = useId()
   const renderId = useMemo(() => renderIdFromReactId(reactId), [reactId])
@@ -183,7 +187,7 @@ export function MermaidDiagram({ diagram, source }: MermaidDiagramProps) {
     return (
       <figure className="mermaid-diagram mermaid-diagram--error" data-testid="mermaid-diagram-error">
         <figcaption>Mermaid diagram unavailable</figcaption>
-        <pre aria-label="Mermaid source"><code>{source}</code></pre>
+        <MermaidSourceFallback source={source} />
       </figure>
     )
   }

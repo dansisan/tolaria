@@ -40,6 +40,8 @@ function makeActions() {
     onSearch: vi.fn(),
     onCreateNote: vi.fn(),
     onSave: vi.fn(),
+    onUndo: vi.fn(),
+    onRedo: vi.fn(),
     onOpenSettings: vi.fn(),
     onDeleteNote: vi.fn(),
     onArchiveNote: vi.fn(),
@@ -182,6 +184,40 @@ describe('useAppKeyboard', () => {
     expect(actions.onArchiveNote).not.toHaveBeenCalled()
   })
 
+  it('Cmd+Z triggers app action undo outside text editing', () => {
+    const actions = makeActions()
+    renderHook(() => useAppKeyboard(actions))
+    fireKey('z', { metaKey: true, code: 'KeyZ' })
+    expect(actions.onUndo).toHaveBeenCalledTimes(1)
+  })
+
+  it('Cmd+Shift+Z triggers app action redo outside text editing', () => {
+    const actions = makeActions()
+    renderHook(() => useAppKeyboard(actions))
+    fireKey('z', { metaKey: true, shiftKey: true, code: 'KeyZ' })
+    expect(actions.onRedo).toHaveBeenCalledTimes(1)
+  })
+
+  it('Ctrl+Y triggers app action redo on non-mac platforms', () => {
+    setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
+    const actions = makeActions()
+    renderHook(() => useAppKeyboard(actions))
+    fireKey('y', { ctrlKey: true, code: 'KeyY' })
+    expect(actions.onRedo).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves text undo and redo to focused editors', () => {
+    const actions = makeActions()
+    renderHook(() => useAppKeyboard(actions))
+
+    withFocusedContentEditable((editable) => {
+      expect(fireKeyOnTarget(editable, 'z', { metaKey: true, code: 'KeyZ' }).defaultPrevented).toBe(false)
+      expect(fireKeyOnTarget(editable, 'z', { metaKey: true, shiftKey: true, code: 'KeyZ' }).defaultPrevented).toBe(false)
+      expect(actions.onUndo).not.toHaveBeenCalled()
+      expect(actions.onRedo).not.toHaveBeenCalled()
+    })
+  })
+
   it('Cmd+E uses the current multi-selection instead of the active note', () => {
     const actions = makeActions()
     const organizeSelected = vi.fn()
@@ -307,11 +343,47 @@ describe('useAppKeyboard', () => {
     })
   })
 
-  function withFocusedInput(fn: () => void) {
+  it('Cmd+Z and Cmd+Shift+Z run app history when text is not focused', () => {
+    const actions = makeActions()
+    renderHook(() => useAppKeyboard(actions))
+
+    fireKey('z', { metaKey: true, code: 'KeyZ' })
+    fireKey('z', { metaKey: true, shiftKey: true, code: 'KeyZ' })
+
+    expect(actions.onUndo).toHaveBeenCalledOnce()
+    expect(actions.onRedo).toHaveBeenCalledOnce()
+  })
+
+  it('Ctrl+Y runs redo on Windows-style platforms', () => {
+    setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
+    const actions = makeActions()
+    renderHook(() => useAppKeyboard(actions))
+
+    fireKey('y', { ctrlKey: true, code: 'KeyY' })
+
+    expect(actions.onRedo).toHaveBeenCalledOnce()
+  })
+
+  it('lets focused text inputs own undo and redo shortcuts', () => {
+    const actions = makeActions()
+    renderHook(() => useAppKeyboard(actions))
+
+    withFocusedInput((input) => {
+      const undo = fireKeyOnTarget(input, 'z', { metaKey: true, code: 'KeyZ' })
+      const redo = fireKeyOnTarget(input, 'z', { metaKey: true, shiftKey: true, code: 'KeyZ' })
+
+      expect(undo.defaultPrevented).toBe(false)
+      expect(redo.defaultPrevented).toBe(false)
+      expect(actions.onUndo).not.toHaveBeenCalled()
+      expect(actions.onRedo).not.toHaveBeenCalled()
+    })
+  })
+
+  function withFocusedInput(fn: (input: HTMLInputElement) => void) {
     const input = document.createElement('input')
     document.body.appendChild(input)
     input.focus()
-    try { fn() } finally { document.body.removeChild(input) }
+    try { fn(input) } finally { document.body.removeChild(input) }
   }
 
   function withFocusedContentEditable(fn: (editable: HTMLDivElement) => void) {

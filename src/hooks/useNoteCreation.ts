@@ -6,11 +6,17 @@ import { slugifyNoteStem as slugify } from '../utils/noteSlug'
 import { resolveEntry } from '../utils/wikilink'
 import { trackEvent } from '../lib/telemetry'
 import { cacheNoteContent } from './useTabManagement'
-import { findByCollidingNotePath, joinVaultPath, notePathFilename } from '../utils/notePathIdentity'
+import {
+  findByCollidingNotePath,
+  joinVaultPath,
+  normalizeVaultRelativePath,
+  notePathFilename,
+} from '../utils/notePathIdentity'
 import { canonicalFrontmatterKey } from '../utils/systemMetadata'
 import { canonicalizeTypeName } from '../utils/vaultTypes'
 import { labelFromWorkspacePath, workspaceIdentityFromVault } from '../utils/workspaces'
 import type { VaultOption } from '../components/status-bar/types'
+import { useCreateNoteInFolderRequests } from './noteCreationRequests'
 
 export interface NewEntryParams {
   path: string
@@ -69,7 +75,11 @@ export interface UntitledNameParams {
 export function generateUntitledName({ entries, type, pendingTitles }: UntitledNameParams): string {
   const baseName = `Untitled ${type.toLowerCase()}`
   const existingTitles = new Set(entries.map(e => e.title))
-  if (pendingTitles) pendingTitles.forEach((title) => existingTitles.add(title))
+  if (pendingTitles) {
+    for (const title of pendingTitles) {
+      existingTitles.add(title)
+    }
+  }
   let title = baseName
   let counter = 2
   while (existingTitles.has(title)) {
@@ -117,7 +127,8 @@ export interface TypeInstanceDefault {
 }
 
 function buildNoteBody({ template, initialEmptyHeading }: Pick<NoteContentParams, 'template' | 'initialEmptyHeading'>): string {
-  if (initialEmptyHeading) {
+  const templateStartsWithH1 = template?.trimStart().startsWith('# ') ?? false
+  if (initialEmptyHeading && !templateStartsWithH1) {
     return template ? `\n# \n\n${template}` : '\n# \n\n'
   }
   return template ? `\n${template}` : ''
@@ -167,7 +178,9 @@ export function resolveTypeInstanceDefaults(params: TemplateLookupParams): TypeI
     ...collectPropertyDefaults(typeEntry),
     ...collectRelationshipDefaults(typeEntry),
   ]
-  candidateDefaults.forEach((defaultValue) => appendUniqueDefault(defaults, seenKeys, defaultValue))
+  for (const defaultValue of candidateDefaults) {
+    appendUniqueDefault(defaults, seenKeys, defaultValue)
+  }
   return defaults
 }
 
@@ -219,7 +232,9 @@ function appendDefaultFrontmatterLines(lines: string[], defaults: TypeInstanceDe
     existingKeys.add(canonicalKey)
     if (Array.isArray(value)) {
       lines.push(`${key}:`)
-      value.forEach((item) => lines.push(`  - ${formatYamlScalar(item)}`))
+      for (const item of value) {
+        lines.push(`  - ${formatYamlScalar(item)}`)
+      }
     } else {
       lines.push(`${key}: ${formatYamlScalar(value)}`)
     }
@@ -612,7 +627,7 @@ async function createTypeSilently({
   } catch (error) {
     const message = createPersistFailureMessage(plan.resolved.entry, error)
     setToastMessage(message)
-    throw new Error(message)
+    throw new Error(message, { cause: error })
   }
 }
 
@@ -630,7 +645,20 @@ interface ImmediateCreateDeps {
   setToastMessage: (msg: string | null) => void
 }
 
-interface ImmediateCreateRequest {
+type ImmediateCreationPath =
+  | 'cmd_n'
+  | 'folder_command_palette'
+  | 'folder_context_menu'
+  | 'folder_header'
+  | 'type_section'
+
+export interface ImmediateCreateOptions {
+  creationPath?: ImmediateCreationPath
+  folderPath?: string
+  vaultPath?: string
+}
+
+interface ImmediateCreateRequest extends ImmediateCreateOptions {
   type?: string
 }
 
@@ -688,16 +716,26 @@ async function persistImmediateEntry(
 }
 
 /** Create an untitled note and write its backing file before opening it. */
-async function createNoteImmediate(deps: ImmediateCreateDeps, type?: string): Promise<boolean> {
-  const noteType = type || 'Note'
+function resolveImmediateCreationVaultPath(deps: ImmediateCreateDeps, request: ImmediateCreateRequest): string {
+  return request.vaultPath ?? resolveCreationVaultPath(deps.vaultPath, deps.defaultWorkspacePath, deps.vaults)
+}
+
+function immediateNoteRelativePath(slug: string, folderPath?: string): string {
+  const folder = normalizeVaultRelativePath(folderPath ?? '')
+  return folder ? `${folder}/${slug}.md` : `${slug}.md`
+}
+
+async function createNoteImmediate(deps: ImmediateCreateDeps, request: ImmediateCreateRequest): Promise<boolean> {
+  const noteType = request.type || 'Note'
   const slug = generateUntitledFilename(deps.entries, noteType, deps.pendingSlugs)
   const title = slug_to_title(slug)
   const template = resolveTemplate({ entries: deps.entries, typeName: noteType })
   const defaults = resolveTypeInstanceDefaults({ entries: deps.entries, typeName: noteType })
   const status = null
-  const creationVaultPath = resolveCreationVaultPath(deps.vaultPath, deps.defaultWorkspacePath, deps.vaults)
+  const creationVaultPath = resolveImmediateCreationVaultPath(deps, request)
+  const relativePath = immediateNoteRelativePath(slug, request.folderPath)
   const entry = {
-    ...buildNewEntry({ path: joinVaultPath(creationVaultPath, `${slug}.md`), slug, title, type: noteType, status }),
+    ...buildNewEntry({ path: joinVaultPath(creationVaultPath, relativePath), slug, title, type: noteType, status }),
     workspace: workspaceForVaultPath(creationVaultPath, deps.vaults, deps.defaultWorkspacePath),
   }
   const resolved = applyTypeDefaults({
@@ -719,7 +757,7 @@ function trackImmediateCreate(request: ImmediateCreateRequest, didCreate: boolea
   if (!didCreate) return
   trackEvent('note_created', {
     has_type: request.type ? 1 : 0,
-    creation_path: request.type ? 'type_section' : 'cmd_n',
+    creation_path: request.creationPath ?? (request.type ? 'type_section' : 'cmd_n'),
   })
 }
 
@@ -775,7 +813,9 @@ function useLatestImmediateCreateDeps(
   return { latestDepsRef, syncDeps }
 }
 
-function useImmediateCreateQueue(config: ImmediateCreateQueueConfig): (type?: string) => void {
+function useImmediateCreateQueue(
+  config: ImmediateCreateQueueConfig,
+): (type?: string, options?: ImmediateCreateOptions) => void {
   const pendingSlugsRef = useRef<Set<string>>(new Set())
   const queuedImmediateCreatesRef = useRef<ImmediateCreateRequest[]>([])
   const immediateCreateLockedRef = useRef(false)
@@ -788,7 +828,7 @@ function useImmediateCreateQueue(config: ImmediateCreateQueueConfig): (type?: st
     if (!deps) return
 
     try {
-      const didCreate = await createNoteImmediate(deps, request.type)
+      const didCreate = await createNoteImmediate(deps, request)
       trackImmediateCreate(request, didCreate)
     } catch (error) {
       console.warn('Failed to create immediate note:', error)
@@ -822,9 +862,9 @@ function useImmediateCreateQueue(config: ImmediateCreateQueueConfig): (type?: st
     }
   }, [])
 
-  return useCallback((type?: string) => {
+  return useCallback((type?: string, options: ImmediateCreateOptions = {}) => {
     syncDeps()
-    const request = { type }
+    const request = { ...options, type }
     if (immediateCreateLockedRef.current) {
       queuedImmediateCreatesRef.current.push(request)
       return
@@ -921,6 +961,7 @@ export function useNoteCreation(config: NoteCreationConfig, tabDeps: CreationTab
     removePendingSave,
     setToastMessage,
   })
+  useCreateNoteInFolderRequests(handleCreateNoteImmediate)
 
   return {
     handleCreateNote,

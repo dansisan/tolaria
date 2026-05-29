@@ -376,7 +376,7 @@ function emojiSuggestionRank(entry: EmojiEntry, query: string): number {
   const normalizedName = entry.name.toLowerCase()
   const tokens = normalizedName.split(/[^a-z0-9]+/).filter(Boolean)
   if (normalizedName === query) return 0
-  if (tokens.some(token => token === query)) return 1
+  if (tokens.includes(query)) return 1
   if (tokens.some(token => token.startsWith(query))) return 2
   if (normalizedName.startsWith(query)) return 3
   return 4
@@ -1418,6 +1418,17 @@ export function SingleEditorView({ editor, entries, onNavigateWikilink, onChange
     activatePlainTextPaste()
     handleWhitespaceMouseSelection(event)
   }, [activatePlainTextPaste, handleWhitespaceMouseSelection])
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const handleClick = (event: MouseEvent) => {
+      handleContainerClick(event as unknown as React.MouseEvent<HTMLDivElement>)
+    }
+    container.addEventListener('click', handleClick)
+    return () => container.removeEventListener('click', handleClick)
+  }, [handleContainerClick])
+
   const insertWikilink = useInsertWikilink(editor, runEditorAction)
   const suggestionMenuItems = useSuggestionMenuItems({
     baseItems,
@@ -1434,9 +1445,10 @@ export function SingleEditorView({ editor, entries, onNavigateWikilink, onChange
   return (
     <div
       ref={containerRef}
+      role="application"
+      aria-label="Rich text editor"
       className={`editor__blocknote-container${isDragOver ? ' editor__blocknote-container--drag-over' : ''}`}
       style={cssVars as React.CSSProperties}
-      onClick={handleContainerClick}
       onCopyCapture={handleEditorCopy}
       onFocusCapture={handleFocusCapture}
       onMouseLeave={clearCopyTarget}
