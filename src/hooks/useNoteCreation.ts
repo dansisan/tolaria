@@ -17,6 +17,7 @@ import { canonicalizeTypeName } from '../utils/vaultTypes'
 import { labelFromWorkspacePath, workspaceIdentityFromVault } from '../utils/workspaces'
 import type { VaultOption } from '../components/status-bar/types'
 import { useCreateNoteInFolderRequests } from './noteCreationRequests'
+import { formatLocalISODatetime } from '../utils/dateDisplay'
 
 export interface NewEntryParams {
   path: string
@@ -206,14 +207,6 @@ function isDecimalYamlScalar({ value }: { value: string }): boolean {
   return decimalParts.length <= 2 && decimalParts.every((part) => (
     part.length > 0 && Array.from(part).every((char) => char >= '0' && char <= '9')
   ))
-}
-
-function twoDigitPad(n: number): string {
-  return String(n).padStart(2, '0')
-}
-
-function formatLocalISODatetime(date: Date): string {
-  return `${date.getFullYear()}-${twoDigitPad(date.getMonth() + 1)}-${twoDigitPad(date.getDate())} ${twoDigitPad(date.getHours())}:${twoDigitPad(date.getMinutes())}:${twoDigitPad(date.getSeconds())}`
 }
 
 const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const

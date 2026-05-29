@@ -34,6 +34,10 @@ function twoDigit(value: number): string {
   return String(value).padStart(2, '0')
 }
 
+export function formatLocalISODatetime(date: Date): string {
+  return `${date.getFullYear()}-${twoDigit(date.getMonth() + 1)}-${twoDigit(date.getDate())} ${twoDigit(date.getHours())}:${twoDigit(date.getMinutes())}:${twoDigit(date.getSeconds())}`
+}
+
 export function formatDatePartsForDisplay(
   parts: DateParts,
   format: DateDisplayFormat = DEFAULT_DATE_DISPLAY_FORMAT,
