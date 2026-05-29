@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { invoke } from '@tauri-apps/api/core'
 import { isTauri } from '../mock-tauri'
@@ -118,16 +118,29 @@ describe('entryMatchesTarget', () => {
 })
 
 describe('buildNoteContent', () => {
+  const FIXED_DATE = new Date('2026-01-15T12:30:45')
+  const FIXED_DATETIME = '2026-01-15 12:30:45'
+  const DATE_FIELDS = `created: "${FIXED_DATETIME}"\ndayCreated: Thu\nmodified: "${FIXED_DATETIME}"`
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(FIXED_DATE)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('generates frontmatter with title and status', () => {
-    expect(buildNoteContent({ title: 'My Note', type: 'Note', status: 'Active' })).toBe('---\ntitle: My Note\ntype: Note\nstatus: Active\n---\n')
+    expect(buildNoteContent({ title: 'My Note', type: 'Note', status: 'Active' })).toBe(`---\ntitle: My Note\ntype: Note\nstatus: Active\n${DATE_FIELDS}\n---\n`)
   })
 
   it('omits title when null', () => {
-    expect(buildNoteContent({ title: null, type: 'Note', status: 'Active' })).toBe('---\ntype: Note\nstatus: Active\n---\n')
+    expect(buildNoteContent({ title: null, type: 'Note', status: 'Active' })).toBe(`---\ntype: Note\nstatus: Active\n${DATE_FIELDS}\n---\n`)
   })
 
   it('omits status when null', () => {
-    expect(buildNoteContent({ title: 'AI', type: 'Topic', status: null })).toBe('---\ntitle: AI\ntype: Topic\n---\n')
+    expect(buildNoteContent({ title: 'AI', type: 'Topic', status: null })).toBe(`---\ntitle: AI\ntype: Topic\n${DATE_FIELDS}\n---\n`)
   })
 
   it('includes template body when provided', () => {
@@ -136,7 +149,7 @@ describe('buildNoteContent', () => {
   })
 
   it('prepends an empty H1 when requested for untitled-note flows', () => {
-    expect(buildNoteContent({ title: null, type: 'Note', status: 'Active', initialEmptyHeading: true })).toBe('---\ntype: Note\nstatus: Active\n---\n\n# \n\n')
+    expect(buildNoteContent({ title: null, type: 'Note', status: 'Active', initialEmptyHeading: true })).toBe(`---\ntype: Note\nstatus: Active\n${DATE_FIELDS}\n---\n\n# \n\n`)
   })
 
   it('keeps the empty H1 before any template content', () => {
@@ -147,7 +160,7 @@ describe('buildNoteContent', () => {
       template: '## Objective\n\n',
       initialEmptyHeading: true,
     })
-    expect(content).toBe('---\ntype: Project\nstatus: Active\n---\n\n# \n\n## Objective\n\n')
+    expect(content).toBe(`---\ntype: Project\nstatus: Active\n${DATE_FIELDS}\n---\n\n# \n\n## Objective\n\n`)
   })
 
   it('skips the empty H1 when the template already starts with one', () => {
@@ -158,7 +171,7 @@ describe('buildNoteContent', () => {
       template: '# Woche 2026.21\n\nWochennotiz\n',
       initialEmptyHeading: true,
     })
-    expect(content).toBe('---\ntype: Weekly\n---\n\n# Woche 2026.21\n\nWochennotiz\n')
+    expect(content).toBe(`---\ntype: Weekly\n${DATE_FIELDS}\n---\n\n# Woche 2026.21\n\nWochennotiz\n`)
   })
 
   it('skips the empty H1 when the template starts with an H1 after leading whitespace', () => {
@@ -169,7 +182,7 @@ describe('buildNoteContent', () => {
       template: '\n\n# Woche 2026.21\n',
       initialEmptyHeading: true,
     })
-    expect(content).toBe('---\ntype: Weekly\n---\n\n\n\n# Woche 2026.21\n')
+    expect(content).toBe(`---\ntype: Weekly\n${DATE_FIELDS}\n---\n\n\n\n# Woche 2026.21\n`)
   })
 })
 

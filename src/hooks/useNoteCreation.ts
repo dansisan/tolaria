@@ -208,6 +208,20 @@ function isDecimalYamlScalar({ value }: { value: string }): boolean {
   ))
 }
 
+function twoDigitPad(n: number): string {
+  return String(n).padStart(2, '0')
+}
+
+function formatLocalISODatetime(date: Date): string {
+  return `${date.getFullYear()}-${twoDigitPad(date.getMonth() + 1)}-${twoDigitPad(date.getDate())} ${twoDigitPad(date.getHours())}:${twoDigitPad(date.getMinutes())}:${twoDigitPad(date.getSeconds())}`
+}
+
+const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
+
+function formatShortDayOfWeek(date: Date): string {
+  return SHORT_DAYS[date.getDay()]
+}
+
 function shouldQuoteYamlString(value: string): boolean {
   return [
     hasOuterWhitespace,
@@ -242,10 +256,16 @@ function appendDefaultFrontmatterLines(lines: string[], defaults: TypeInstanceDe
 }
 
 export function buildNoteContent({ title, type, status, template, initialEmptyHeading = false, defaults = [] }: NoteContentParams): string {
+  const now = new Date()
+  const datetime = formatLocalISODatetime(now)
+  const day = formatShortDayOfWeek(now)
   const lines = ['---']
   if (title) lines.push(`title: ${title}`)
   lines.push(`type: ${type}`)
   if (status) lines.push(`status: ${status}`)
+  lines.push(`created: ${formatYamlScalar(datetime)}`)
+  lines.push(`dayCreated: ${day}`)
+  lines.push(`modified: ${formatYamlScalar(datetime)}`)
   appendDefaultFrontmatterLines(lines, defaults)
   lines.push('---')
   const body = buildNoteBody({ template, initialEmptyHeading })
