@@ -46,6 +46,7 @@ import { areGitFeaturesEnabled } from '../lib/gitSettings'
 import { areAiFeaturesEnabled } from '../lib/aiFeatures'
 import { trackAllNotesVisibilityChanged } from '../lib/productAnalytics'
 import { AiProviderSettings } from './AiProviderSettings'
+import { AiAgentIcon } from './AiAgentIcon'
 import { GitSettingsSection } from './GitSettingsSection'
 import { PrivacySettingsSection } from './PrivacySettingsSection'
 import { SettingsBodyNav } from './SettingsBodyNav'
@@ -124,7 +125,6 @@ interface SettingsDraft {
   crashReporting: boolean
   analytics: boolean
   explicitOrganization: boolean
-  frontmatterCreatedKey: string
 }
 
 interface SettingsBodyProps {
@@ -172,8 +172,6 @@ interface SettingsBodyProps {
   setHideGitignoredFiles: (value: boolean) => void
   allNotesFileVisibility: AllNotesFileVisibility
   setAllNotesFileVisibility: (value: AllNotesFileVisibility) => void
-  frontmatterCreatedKey: string
-  setFrontmatterCreatedKey: (value: string) => void
   multiWorkspaceEnabled: boolean
   setMultiWorkspaceEnabled: (value: boolean) => void
   vaults: VaultOption[]
@@ -230,7 +228,6 @@ function createSettingsDraft(
     crashReporting: settings.crash_reporting_enabled ?? false,
     analytics: settings.analytics_enabled ?? false,
     explicitOrganization: explicitOrganizationEnabled,
-    frontmatterCreatedKey: settings.frontmatter_created_key ?? '',
   }
 }
 
@@ -278,7 +275,6 @@ function buildSettingsFromDraft(settings: Settings, draft: SettingsDraft): Setti
     ai_model_providers: draft.aiModelProviders.length > 0 ? draft.aiModelProviders : null,
     hide_gitignored_files: draft.hideGitignoredFiles,
     multi_workspace_enabled: draft.multiWorkspaceEnabled,
-    frontmatter_created_key: draft.frontmatterCreatedKey || null,
   }
   return settingsWithAllNotesFileVisibility(nextSettings, draft.allNotesFileVisibility)
 }
@@ -443,7 +439,7 @@ function SettingsPanelInner({
   return (
     <div
       ref={backdropRef}
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 z-[1300] flex items-center justify-center"
       style={{ background: 'var(--shadow-overlay)' }}
       data-testid="settings-panel"
     >
@@ -540,7 +536,6 @@ function SettingsBodyFromDraft({
   setHideGitignoredFiles,
   setAllNotesFileVisibility,
 }: SettingsBodyFromDraftProps) {
-  const handleFrontmatterCreatedKeyChange = (value: string) => updateDraft('frontmatterCreatedKey', value)
   return (
     <SettingsBody
       t={t}
@@ -587,8 +582,6 @@ function SettingsBodyFromDraft({
       setHideGitignoredFiles={setHideGitignoredFiles}
       allNotesFileVisibility={draft.allNotesFileVisibility}
       setAllNotesFileVisibility={setAllNotesFileVisibility}
-      frontmatterCreatedKey={draft.frontmatterCreatedKey}
-      setFrontmatterCreatedKey={handleFrontmatterCreatedKeyChange}
       multiWorkspaceEnabled={draft.multiWorkspaceEnabled}
       setMultiWorkspaceEnabled={(value) => updateDraft('multiWorkspaceEnabled', value)}
       vaults={vaults}
@@ -719,8 +712,6 @@ function SettingsContentSections({
   setHideGitignoredFiles,
   allNotesFileVisibility,
   setAllNotesFileVisibility,
-  frontmatterCreatedKey,
-  setFrontmatterCreatedKey,
 }: SettingsBodyProps) {
   return (
     <SettingsSection id={SETTINGS_SECTION_IDS.content}>
@@ -738,8 +729,6 @@ function SettingsContentSections({
         setHideGitignoredFiles={setHideGitignoredFiles}
         allNotesFileVisibility={allNotesFileVisibility}
         setAllNotesFileVisibility={setAllNotesFileVisibility}
-        frontmatterCreatedKey={frontmatterCreatedKey}
-        setFrontmatterCreatedKey={setFrontmatterCreatedKey}
       />
     </SettingsSection>
   )
@@ -1148,7 +1137,10 @@ function AiAgentsInstalledSection({
           return (
             <div key={definition.id} className="rounded-md border border-border bg-background px-3 py-2">
               <div className="flex items-center justify-between gap-2">
-                <div className="truncate text-sm font-medium text-foreground">{definition.label}</div>
+                <div className="flex min-w-0 items-center gap-2">
+                  <AiAgentIcon agent={definition.id} size={16} />
+                  <div className="truncate text-sm font-medium text-foreground">{definition.label}</div>
+                </div>
                 <div className={installed ? 'text-xs text-emerald-700' : 'text-xs text-muted-foreground'}>
                   {installed ? t('settings.aiAgents.installed') : t('settings.aiAgents.missing')}
                 </div>

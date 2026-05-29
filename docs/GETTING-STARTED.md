@@ -53,7 +53,7 @@ Linux release CI currently uses Tauri's stock linuxdeploy AppImage output plugin
 pnpm tauri build --target x86_64-unknown-linux-gnu --bundles deb,rpm,appimage
 ```
 
-Release validation verifies that the Linux job produced an AppImage, at least one installer bundle, and updater signature artifacts. The experimental AppImage output-plugin shim in `scripts/appimage-launcher-tools.mjs` is retained for local investigation, but it is not wired into release packaging because linuxdeploy currently exits before sealing the AppImage when the shim is pre-seeded in Tauri's tools cache.
+Release validation verifies that the Linux job produced an AppImage, at least one installer bundle, and updater signature artifacts. Windows release jobs import the CI code-signing certificate, build NSIS with a generated Tauri Authenticode signing config, and verify the app executable plus installer signatures before upload. The experimental AppImage output-plugin shim in `scripts/appimage-launcher-tools.mjs` is retained for local investigation, but it is not wired into release packaging because linuxdeploy currently exits before sealing the AppImage when the shim is pre-seeded in Tauri's tools cache.
 
 ## Quick Start
 
@@ -69,9 +69,14 @@ pnpm dev
 pnpm tauri dev
 
 # Run tests
-pnpm test          # Vitest unit tests
-cargo test         # Rust tests (from src-tauri/)
-pnpm playwright:smoke  # Curated Playwright core smoke lane (~5 min)
+pnpm test    # Vitest unit tests
+cargo test   # Rust tests (from src-tauri/)
+
+# Or, run Rust tests from root project directory
+cargo test --manifest-path src-tauri/Cargo.toml
+
+# E2E tests
+pnpm playwright:smoke       # Curated Playwright core smoke lane (~5 min)
 pnpm playwright:regression  # Full Playwright regression suite
 ```
 
@@ -223,8 +228,8 @@ tolaria/
 │   │   ├── frontmatter/          # Frontmatter module
 │   │   │   ├── mod.rs, yaml.rs, ops.rs
 │   │   ├── git/                  # Git module
-│   │   │   ├── mod.rs, commit.rs, status.rs, history.rs, clone.rs, connect.rs
-│   │   │   ├── conflict.rs, remote.rs, pulse.rs
+│   │   │   ├── mod.rs, command.rs, remote_config.rs, commit.rs, status.rs
+│   │   │   ├── history.rs, clone.rs, connect.rs, conflict.rs, remote.rs, pulse.rs
 │   │   ├── telemetry.rs          # Sentry init + path scrubber
 │   │   ├── search.rs             # Keyword search (walkdir-based)
 │   │   ├── ai_agents.rs          # CLI-agent request normalization + adapter dispatch
@@ -472,6 +477,7 @@ BASE_URL="http://localhost:5173" npx playwright test tests/smoke/<slug>.spec.ts
 4. **Permission-mode UI and request plumbing**: Edit `src/lib/aiAgentPermissionMode.ts`, `src/components/AiPanel*.tsx`, `src/hooks/useCliAiAgent.ts`, and `src/utils/streamAiAgent.ts`
 5. **Shared CLI runtime behavior**: Edit `src-tauri/src/cli_agent_runtime.rs` for process lifecycle, prompt wrapping, version probing, and common Tolaria MCP path handling.
 6. **Agent-specific arguments/events**: Edit the per-agent adapter modules (`claude_cli.rs`, `codex_cli.rs`, `opencode_*`, `pi_*`, `gemini_*`, `kiro_*`). Keep Codex Safe on `read-only` + `untrusted` and Codex Power User on active-vault `workspace-write` + `never`, keep Pi, Gemini, and Kiro on transient MCP config, and do not use dangerous permission bypasses unless an ADR explicitly designs a new mode. Pi's transient agent directory must be seeded from the user's existing Pi agent directory before Tolaria MCP is merged so standalone provider/auth setup keeps working. Gemini Power User intentionally uses Gemini's `yolo` mode per ADR-0103. Kiro receives prompt content over stdin and writes Tolaria MCP config into `.kiro/settings/mcp.json` in the active vault.
+7. **Availability probing**: Edit `src/hooks/useAiAgentsStatus.ts` and `src-tauri/src/ai_agents.rs` for AI-agent install/status detection. Keep renderer probing deferred until after first paint, skip it when AI features or AI surfaces are unavailable, and keep backend per-agent CLI checks parallel so missing tools do not serialize shell startup cost.
 
 ### Work with external MCP setup
 

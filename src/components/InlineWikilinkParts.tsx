@@ -170,6 +170,7 @@ export function InlineWikilinkEditorField({
   disabled,
   inputRef,
   dataTestId,
+  placeholderClassName,
   editorClassName,
   editorStyle,
   onCompositionEnd,
@@ -188,9 +189,10 @@ export function InlineWikilinkEditorField({
   disabled: boolean
   inputRef: React.Ref<HTMLDivElement>
   dataTestId: string
+  placeholderClassName?: string
   editorClassName?: string
   editorStyle?: CSSProperties
-  onCompositionEnd: () => void
+  onCompositionEnd: (editor: HTMLDivElement) => void
   onCompositionStart: () => void
   onInput: () => void
   onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void
@@ -220,8 +222,11 @@ export function InlineWikilinkEditorField({
     <div className="relative">
       {value.length === 0 && placeholder && (
         <div
-          className="pointer-events-none absolute inset-0 flex items-center text-muted-foreground"
-          style={{ padding: '8px 10px', fontSize: 13 }}
+          className={cn(
+            'pointer-events-none absolute inset-0 text-muted-foreground',
+            placeholderClassName ?? 'flex items-center',
+          )}
+          style={placeholderClassName ? undefined : { padding: '8px 10px', fontSize: 13 }}
         >
           {placeholder}
         </div>
@@ -303,7 +308,7 @@ function inlineWikilinkEditorListenerMap({
   const handleSelectionChange = () => onSelectionChange()
   return [
     ['compositionstart', () => onCompositionStart()],
-    ['compositionend', () => onCompositionEnd()],
+    ['compositionend', (event) => onCompositionEnd(event.currentTarget as HTMLDivElement)],
     ['input', () => onInput()],
     ['keydown', (event) => onKeyDown(withNativeEvent(event) as unknown as React.KeyboardEvent<HTMLDivElement>)],
     ['cut', (event) => onCut(withNativeEvent(event) as unknown as React.ClipboardEvent<HTMLDivElement>)],

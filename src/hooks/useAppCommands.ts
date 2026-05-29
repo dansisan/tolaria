@@ -123,7 +123,9 @@ interface AppCommandsConfig {
   onOpenInNewWindow?: () => void
   onRevealActiveFile?: (path: string) => void
   onCopyActiveFilePath?: (path: string) => void
+  onCopyActiveDeepLink?: (path: string) => void
   onOpenActiveFileExternal?: (path: string) => void
+  onExportNoteAsPdf?: () => void
   onRevealSelectedFolder?: () => void
   onCopySelectedFolderPath?: () => void
   onToggleFavorite?: (path: string) => void
@@ -224,6 +226,7 @@ type CommandRegistryVaultActions = Pick<
   | 'onOpenInNewWindow'
   | 'onRevealActiveFile'
   | 'onCopyActiveFilePath'
+  | 'onCopyActiveDeepLink'
   | 'onOpenActiveFileExternal'
   | 'onRestoreDeletedNote'
   | 'canRestoreDeletedNote'
@@ -257,6 +260,7 @@ type CommandRegistryNoteActions = Pick<
   | 'onCustomizeNoteListColumns'
   | 'canCustomizeNoteListColumns'
   | 'noteListColumnsLabel'
+  | 'onExportNoteAsPdf'
 >
 
 function aiFeaturesAreEnabled(config: Pick<AppCommandsConfig, 'aiFeaturesEnabled'>): boolean {
@@ -342,6 +346,7 @@ function createMenuEventActionHandlers(
   | 'onToggleDiff'
   | 'onToggleAIChat'
   | 'onToggleTableOfContents'
+  | 'onExportNoteAsPdf'
   | 'onToggleOrganized'
   | 'onGoBack'
   | 'onGoForward'
@@ -371,6 +376,7 @@ function createMenuEventActionHandlers(
     onToggleDiff: config.onToggleDiff,
     onToggleAIChat: enabledAiChatToggle(config),
     onToggleTableOfContents: config.onToggleTableOfContents,
+    onExportNoteAsPdf: config.onExportNoteAsPdf,
     onToggleOrganized: config.onToggleOrganized,
     onGoBack: config.onGoBack,
     onGoForward: config.onGoForward,
@@ -534,6 +540,7 @@ function createCommandRegistryVaultConfig(
     onOpenInNewWindow: config.onOpenInNewWindow,
     onRevealActiveFile: config.onRevealActiveFile,
     onCopyActiveFilePath: config.onCopyActiveFilePath,
+    onCopyActiveDeepLink: config.onCopyActiveDeepLink,
     onOpenActiveFileExternal: config.onOpenActiveFileExternal,
     onRestoreDeletedNote: config.onRestoreDeletedNote,
     canRestoreDeletedNote: config.canRestoreDeletedNote,
@@ -582,6 +589,7 @@ function createCommandRegistryNoteConfig(
     onCustomizeNoteListColumns: config.onCustomizeNoteListColumns,
     canCustomizeNoteListColumns: config.canCustomizeNoteListColumns,
     noteListColumnsLabel: config.noteListColumnsLabel,
+    onExportNoteAsPdf: config.onExportNoteAsPdf,
   }
 }
 

@@ -8,6 +8,7 @@ interface NoteListSearchContext {
   typeEntryMap: Record<string, VaultEntry>
   displayPropsOverride?: string[] | null
   dateDisplayFormat?: DateDisplayFormat
+  fullTextResultPaths?: Set<string>
 }
 
 function normalizeQuery(query: string): string {
@@ -59,6 +60,7 @@ export function matchesNoteListQuery(
 ): boolean {
   const normalizedQuery = normalizeQuery(query)
   if (!normalizedQuery) return true
+  if (context.fullTextResultPaths?.has(entry.path)) return true
 
   if (normalizedQuery.startsWith('#')) {
     const spaceIndex = normalizedQuery.indexOf(' ')

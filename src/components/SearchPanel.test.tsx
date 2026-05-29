@@ -13,6 +13,15 @@ import { mockInvoke } from '../mock-tauri'
 const mockInvokeFn = vi.mocked(mockInvoke)
 
 const NOW = Math.floor(Date.now() / 1000)
+const SEARCH_INPUT_PLACEHOLDER = 'Search in all notes...'
+
+type MockSearchResult = {
+  title: string
+  path: string
+  snippet: string
+  score: number
+  note_type: string | null
+}
 
 const MOCK_ENTRIES: VaultEntry[] = [
   {
@@ -67,6 +76,139 @@ const MOCK_ENTRIES: VaultEntry[] = [
   },
 ]
 
+const THREE_RESULT_ENTRIES: VaultEntry[] = [
+  ...MOCK_ENTRIES,
+  {
+    ...MOCK_ENTRIES[0],
+    path: '/vault/topic/search.md',
+    filename: 'search.md',
+    title: 'Search Patterns',
+  },
+]
+
+const THREE_SEARCH_RESULTS: MockSearchResult[] = [
+  { title: 'Result One', path: '/vault/essay/ai-apis.md', snippet: 'First result', score: 0.9, note_type: null },
+  { title: 'Result Two', path: '/vault/event/retreat.md', snippet: 'Second result', score: 0.8, note_type: null },
+  { title: 'Result Three', path: '/vault/topic/search.md', snippet: 'Third result', score: 0.7, note_type: null },
+]
+
+const API_SEARCH_RESULT: MockSearchResult = {
+  title: 'How to Design AI-first APIs',
+  path: '/vault/essay/ai-apis.md',
+  snippet: 'Content',
+  score: 0.9,
+  note_type: null,
+}
+
+function renderSearchPanel({
+  entries = MOCK_ENTRIES,
+  onClose = vi.fn(),
+  onSelectNote = vi.fn(),
+}: {
+  entries?: VaultEntry[]
+  onClose?: () => void
+  onSelectNote?: (entry: VaultEntry) => void
+} = {}) {
+  render(
+    <SearchPanel open={true} vaultPath="/vault" entries={entries} onSelectNote={onSelectNote} onClose={onClose} />,
+  )
+}
+
+function mockSearchResults(results: MockSearchResult[], elapsed_ms = 20) {
+  mockInvokeFn.mockResolvedValue({ results, elapsed_ms })
+}
+
+async function renderSearchWithResults({
+  elapsedMs = 20,
+  entries = THREE_RESULT_ENTRIES,
+  results = THREE_SEARCH_RESULTS,
+  query = 'test',
+  visibleTitle = 'Search Patterns',
+  onSelectNote = vi.fn(),
+}: {
+  elapsedMs?: number
+  entries?: VaultEntry[]
+  results?: MockSearchResult[]
+  query?: string
+  visibleTitle?: string
+  onSelectNote?: (entry: VaultEntry) => void
+} = {}) {
+  mockSearchResults(results, elapsedMs)
+  renderSearchPanel({ entries, onSelectNote })
+
+  const input = screen.getByPlaceholderText(SEARCH_INPUT_PLACEHOLDER)
+  fireEvent.change(input, { target: { value: query } })
+
+  await waitFor(() => {
+    expect(screen.getByText(visibleTitle)).toBeInTheDocument()
+  })
+
+  return { input, onSelectNote }
+}
+
+async function renderSingleResultSearch({
+  elapsedMs = 20,
+  entries = MOCK_ENTRIES,
+  query = 'api',
+  result = API_SEARCH_RESULT,
+  visibleTitle = 'How to Design AI-first APIs',
+}: {
+  elapsedMs?: number
+  entries?: VaultEntry[]
+  query?: string
+  result?: MockSearchResult
+  visibleTitle?: string
+} = {}) {
+  return renderSearchWithResults({
+    elapsedMs,
+    entries,
+    results: [result],
+    query,
+    visibleTitle,
+  })
+}
+
+async function expectOnlySecondResultAfterArrowDown(
+  pressArrowDown: (input: HTMLElement) => void,
+) {
+  const { input } = await renderSearchWithResults()
+
+  await act(async () => pressArrowDown(input))
+
+  await waitFor(() => {
+    expectSelectedResult('Refactoring Retreat')
+    expectUnselectedResult('Search Patterns')
+  })
+}
+
+function resultRow(title: string) {
+  return screen.getByText(title).closest('[role="option"]')!
+}
+
+function expectSelectedResult(title: string) {
+  expect(resultRow(title).className).toContain('bg-accent')
+}
+
+function expectUnselectedResult(title: string) {
+  expect(resultRow(title).className).not.toContain('bg-accent')
+}
+
+function dispatchKeyboardEvent(
+  target: Element | Document,
+  type: 'keydown' | 'keyup',
+  key: string,
+  options: { repeat?: boolean; timeStamp?: number } = {},
+) {
+  const event = new KeyboardEvent(type, {
+    key,
+    bubbles: true,
+    cancelable: true,
+    repeat: options.repeat,
+  })
+  if (options.timeStamp !== undefined) Object.defineProperty(event, 'timeStamp', { value: options.timeStamp })
+  fireEvent(target, event)
+}
+
 describe('SearchPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -117,7 +259,7 @@ describe('SearchPanel', () => {
     render(
       <SearchPanel open={true} vaultPath="/vault" entries={MOCK_ENTRIES} onSelectNote={vi.fn()} onClose={onClose} />,
     )
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(document, { key: 'Escape' })
     expect(onClose).toHaveBeenCalled()
   })
 
@@ -217,6 +359,65 @@ describe('SearchPanel', () => {
     })
   })
 
+  it('moves down one result when ArrowDown is pressed in the input', async () => {
+    await expectOnlySecondResultAfterArrowDown((input) => fireEvent.keyDown(input, { key: 'ArrowDown' }))
+  })
+
+  it('ignores duplicate native ArrowDown keydown events for one press', async () => {
+    await expectOnlySecondResultAfterArrowDown((input) => {
+      fireEvent.keyDown(input, { key: 'ArrowDown' })
+      dispatchKeyboardEvent(input, 'keydown', 'ArrowDown', { repeat: true })
+    })
+  })
+
+  it('ignores a native ArrowDown duplicate bridged through an immediate keyup', async () => {
+    const { input, onSelectNote } = await renderSearchWithResults()
+
+    await act(async () => {
+      dispatchKeyboardEvent(input, 'keydown', 'ArrowDown')
+      dispatchKeyboardEvent(input, 'keyup', 'ArrowDown')
+      dispatchKeyboardEvent(input, 'keydown', 'ArrowDown')
+      dispatchKeyboardEvent(input, 'keydown', 'Enter')
+    })
+
+    expect(onSelectNote).toHaveBeenCalledWith(THREE_RESULT_ENTRIES[1])
+  })
+
+  it('allows a second ArrowDown press after the native duplicate window', async () => {
+    const { input } = await renderSearchWithResults()
+
+    await act(async () => {
+      dispatchKeyboardEvent(input, 'keydown', 'ArrowDown')
+      dispatchKeyboardEvent(input, 'keyup', 'ArrowDown')
+      await new Promise(resolve => setTimeout(resolve, 520))
+      dispatchKeyboardEvent(input, 'keydown', 'ArrowDown')
+    })
+
+    await waitFor(() => expectSelectedResult('Search Patterns'))
+  })
+
+  it('keeps keyboard selection when a stationary mousemove lands on another row', async () => {
+    const { input } = await renderSearchWithResults()
+
+    await act(async () => {
+      fireEvent.keyDown(input, { key: 'ArrowDown' })
+    })
+    fireEvent.mouseMove(resultRow('Search Patterns'), { movementX: 0, movementY: 0 })
+
+    await waitFor(() => {
+      expectSelectedResult('Refactoring Retreat')
+      expectUnselectedResult('Search Patterns')
+    })
+  })
+
+  it('still opens clicked search results', async () => {
+    const { onSelectNote } = await renderSearchWithResults()
+
+    fireEvent.click(resultRow('Search Patterns'))
+
+    expect(onSelectNote).toHaveBeenCalledWith(THREE_RESULT_ENTRIES[2])
+  })
+
   it('selects result on Enter and calls onSelectNote', async () => {
     mockInvokeFn.mockResolvedValue({
       results: [
@@ -249,18 +450,7 @@ describe('SearchPanel', () => {
   })
 
   it('shows result count and elapsed time', async () => {
-    mockInvokeFn.mockResolvedValue({
-      results: [
-        { title: 'Result', path: '/vault/essay/ai-apis.md', snippet: 'Content', score: 0.9, note_type: null },
-      ],
-      elapsed_ms: 123,
-    })
-
-    render(
-      <SearchPanel open={true} vaultPath="/vault" entries={MOCK_ENTRIES} onSelectNote={vi.fn()} onClose={vi.fn()} />,
-    )
-
-    fireEvent.change(screen.getByPlaceholderText('Search in all notes...'), { target: { value: 'test' } })
+    await renderSingleResultSearch({ elapsedMs: 123, query: 'test' })
 
     await waitFor(() => {
       expect(screen.getByText(/1 result/)).toBeInTheDocument()
@@ -269,18 +459,7 @@ describe('SearchPanel', () => {
   })
 
   it('displays note type badge from vault entries', async () => {
-    mockInvokeFn.mockResolvedValue({
-      results: [
-        { title: 'How to Design AI-first APIs', path: '/vault/essay/ai-apis.md', snippet: 'Content', score: 0.9, note_type: null },
-      ],
-      elapsed_ms: 20,
-    })
-
-    render(
-      <SearchPanel open={true} vaultPath="/vault" entries={MOCK_ENTRIES} onSelectNote={vi.fn()} onClose={vi.fn()} />,
-    )
-
-    fireEvent.change(screen.getByPlaceholderText('Search in all notes...'), { target: { value: 'api' } })
+    await renderSingleResultSearch()
 
     await waitFor(() => {
       expect(screen.getByText('Essay')).toBeInTheDocument()
@@ -339,18 +518,7 @@ describe('SearchPanel', () => {
   })
 
   it('shows metadata subtitle with word count and links', async () => {
-    mockInvokeFn.mockResolvedValue({
-      results: [
-        { title: 'How to Design AI-first APIs', path: '/vault/essay/ai-apis.md', snippet: 'Content', score: 0.9, note_type: null },
-      ],
-      elapsed_ms: 20,
-    })
-
-    render(
-      <SearchPanel open={true} vaultPath="/vault" entries={MOCK_ENTRIES} onSelectNote={vi.fn()} onClose={vi.fn()} />,
-    )
-
-    fireEvent.change(screen.getByPlaceholderText('Search in all notes...'), { target: { value: 'api' } })
+    await renderSingleResultSearch()
 
     await waitFor(() => {
       expect(screen.getByText(/1,247 words/)).toBeInTheDocument()
@@ -362,18 +530,7 @@ describe('SearchPanel', () => {
     const noLinksEntries = MOCK_ENTRIES.map(e =>
       e.path === '/vault/essay/ai-apis.md' ? { ...e, outgoingLinks: [] } : e,
     )
-    mockInvokeFn.mockResolvedValue({
-      results: [
-        { title: 'How to Design AI-first APIs', path: '/vault/essay/ai-apis.md', snippet: '', score: 0.9, note_type: null },
-      ],
-      elapsed_ms: 20,
-    })
-
-    render(
-      <SearchPanel open={true} vaultPath="/vault" entries={noLinksEntries} onSelectNote={vi.fn()} onClose={vi.fn()} />,
-    )
-
-    fireEvent.change(screen.getByPlaceholderText('Search in all notes...'), { target: { value: 'api' } })
+    await renderSingleResultSearch({ entries: noLinksEntries, result: { ...API_SEARCH_RESULT, snippet: '' } })
 
     await waitFor(() => {
       expect(screen.getByText(/1,247 words/)).toBeInTheDocument()

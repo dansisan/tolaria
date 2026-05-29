@@ -18,14 +18,15 @@ import {
 import {
   GitBranch,
   Code,
-  Sparkle,
   ListBullets,
   SidebarSimple,
   Trash,
   Archive,
   ArrowUUpLeft,
   ClipboardText,
+  FilePdf,
   FolderOpen,
+  Link,
   MapTrifold,
   Star,
   CheckCircle,
@@ -58,6 +59,8 @@ interface BreadcrumbBarProps {
   onToggleOrganized?: () => void
   onRevealFile?: (path: string) => void
   onCopyFilePath?: (path: string) => void
+  onCopyDeepLink?: (entry: VaultEntry) => void
+  onExportPdf?: () => void
   onDelete?: () => void
   onArchive?: () => void
   onUnarchive?: () => void
@@ -332,21 +335,6 @@ function NeighborhoodAction({
   )
 }
 
-function AIChatAction({ showAIChat, locale = 'en', onToggleAIChat }: Pick<BreadcrumbBarProps, 'showAIChat' | 'locale' | 'onToggleAIChat'>) {
-  return (
-    <ToggleIconAction
-      active={!!showAIChat}
-      activeClassName="text-primary"
-      activeLabel={translate(locale, 'editor.toolbar.closeAi')}
-      inactiveLabel={translate(locale, 'editor.toolbar.openAi')}
-      onClick={onToggleAIChat}
-      shortcut={formatShortcutDisplay({ display: '⌘⇧L' })}
-    >
-      <Sparkle size={16} weight={showAIChat ? 'fill' : 'regular'} className={BREADCRUMB_ICON_CLASS} />
-    </ToggleIconAction>
-  )
-}
-
 function TableOfContentsAction({
   showTableOfContents,
   locale = 'en',
@@ -414,9 +402,10 @@ function InspectorAction({
       }}
       onClick={onToggleInspector}
       className="hover:text-foreground"
+      testId="breadcrumb-properties-button"
       tooltipAlign="end"
     >
-      <SidebarSimple size={16} weight="regular" className={BREADCRUMB_ICON_CLASS} style={{ transform: 'scaleX(-1)' }} />
+      <SidebarSimple size={16} weight="regular" className={BREADCRUMB_ICON_CLASS} />
     </IconActionButton>
   )
 }
@@ -451,6 +440,10 @@ function archiveAction(
 
 function pathAction(action: ((path: string) => void) | undefined, path: string): (() => void) | undefined {
   return action ? () => action(path) : undefined
+}
+
+function entryAction(action: ((entry: VaultEntry) => void) | undefined, entry: VaultEntry): (() => void) | undefined {
+  return action ? () => action(entry) : undefined
 }
 
 function ArchiveMenuIcon({ archived }: { archived: boolean }) {
@@ -817,8 +810,6 @@ function BreadcrumbActions({
   forceRawMode,
   noteWidth,
   onToggleNoteWidth,
-  showAIChat,
-  onToggleAIChat,
   showTableOfContents,
   onToggleTableOfContents,
   inspectorCollapsed,
@@ -827,6 +818,8 @@ function BreadcrumbActions({
   onToggleOrganized,
   onRevealFile,
   onCopyFilePath,
+  onCopyDeepLink,
+  onExportPdf,
   onDelete,
   onArchive,
   onUnarchive,
@@ -854,9 +847,6 @@ function BreadcrumbActions({
       <OverflowToolbarAction>
         <NoteWidthAction noteWidth={noteWidth} locale={locale} onToggleNoteWidth={onToggleNoteWidth} />
       </OverflowToolbarAction>
-      {onToggleAIChat ? (
-        <AIChatAction showAIChat={showAIChat} locale={locale} onToggleAIChat={onToggleAIChat} />
-      ) : null}
       <OverflowToolbarAction>
         <TableOfContentsAction
           showTableOfContents={showTableOfContents}
@@ -877,6 +867,8 @@ function BreadcrumbActions({
         onToggleTableOfContents={onToggleTableOfContents}
         onRevealFile={onRevealFile}
         onCopyFilePath={onCopyFilePath}
+        onCopyDeepLink={onCopyDeepLink}
+        onExportPdf={onExportPdf}
         onArchive={onArchive}
         onUnarchive={onUnarchive}
         onDelete={onDelete}
@@ -899,6 +891,8 @@ function BreadcrumbOverflowMenu({
   onToggleTableOfContents,
   onRevealFile,
   onCopyFilePath,
+  onCopyDeepLink,
+  onExportPdf,
   onArchive,
   onUnarchive,
   onDelete,
@@ -916,6 +910,8 @@ function BreadcrumbOverflowMenu({
   | 'onToggleTableOfContents'
   | 'onRevealFile'
   | 'onCopyFilePath'
+  | 'onCopyDeepLink'
+  | 'onExportPdf'
   | 'onArchive'
   | 'onUnarchive'
   | 'onDelete'
@@ -927,9 +923,11 @@ function BreadcrumbOverflowMenu({
   const runDiffAction = availableDiffAction(showDiffToggle, onToggleDiff)
   const runRevealAction = pathAction(onRevealFile, entry.path)
   const runCopyPathAction = pathAction(onCopyFilePath, entry.path)
+  const runCopyDeepLinkAction = entryAction(onCopyDeepLink, entry)
   const runArchiveAction = archiveAction(entry.archived, onArchive, onUnarchive)
   const runNeighborhoodAction = neighborhoodAction(entry, onEnterNeighborhood)
   const diffLabel = translate(locale, 'editor.toolbar.gitDiff')
+  const exportPdfLabel = translate(locale, 'editor.toolbar.exportPdf')
   const noteWidthLabel = translate(locale, noteWidthLabelKey(noteWidth))
   const archiveLabel = translate(locale, archiveLabelKey(entry.archived))
   const tableOfContentsLabel = translate(locale, showTableOfContents ? 'editor.toolbar.closeTableOfContents' : 'editor.toolbar.openTableOfContents')
@@ -956,6 +954,10 @@ function BreadcrumbOverflowMenu({
           <GitBranch size={16} />
           {diffLabel}
         </DropdownMenuItem>
+        <DropdownMenuItem disabled={!onExportPdf} onSelect={onExportPdf}>
+          <FilePdf size={16} />
+          {exportPdfLabel}
+        </DropdownMenuItem>
         {showResponsiveActions && (
           <>
             <DropdownMenuItem disabled={!runNeighborhoodAction} onSelect={runNeighborhoodAction}>
@@ -980,6 +982,10 @@ function BreadcrumbOverflowMenu({
             </DropdownMenuItem>
           </>
         )}
+        <DropdownMenuItem disabled={!runCopyDeepLinkAction} onSelect={runCopyDeepLinkAction}>
+          <Link size={16} />
+          {translate(locale, 'editor.toolbar.copyNoteDeepLink')}
+        </DropdownMenuItem>
         <DropdownMenuItem disabled={!runArchiveAction} onSelect={runArchiveAction}>
           <ArchiveMenuIcon archived={entry.archived} />
           {archiveLabel}

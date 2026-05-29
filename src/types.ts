@@ -144,6 +144,13 @@ export interface AiWorkspaceConversationSetting {
   title: string
 }
 
+export interface AiWorkspaceConversationSetting {
+  archived?: boolean | null
+  id: string
+  target_id?: string | null
+  title: string
+}
+
 export interface GitPullResult {
   status: 'up_to_date' | 'updated' | 'conflict' | 'no_remote' | 'error'
   message: string

@@ -34,6 +34,23 @@ function mockFileHistory(path: string) {
   ]
 }
 
+function stripMockFrontmatter(content: string): string {
+  const lineEnding = content.startsWith('---\r\n')
+    ? '\r\n'
+    : content.startsWith('---\n') ? '\n' : null
+  if (!lineEnding) return content
+
+  const afterOpen = content.slice(3 + lineEnding.length)
+  const closeIndex = afterOpen.indexOf(`${lineEnding}---`)
+  if (closeIndex === -1) return content
+
+  return afterOpen.slice(closeIndex + lineEnding.length + 3).trimStart()
+}
+
+function mockSearchContent(content: string, excludeFrontmatter?: boolean): string {
+  return excludeFrontmatter ? stripMockFrontmatter(content) : content
+}
+
 function mockModifiedFiles(): ModifiedFile[] {
   return [
     { path: '/Users/luca/Laputa/26q1-laputa-app.md', relativePath: '26q1-laputa-app.md', status: 'modified' },
@@ -114,9 +131,20 @@ let mockSettings: Settings = {
   release_channel: null,
   theme_mode: null,
   ui_language: null,
+  date_display_format: null,
   note_width_mode: null,
   sidebar_type_pluralization_enabled: null,
+  initial_h1_auto_rename_enabled: null,
+  ai_features_enabled: null,
   default_ai_agent: 'claude_code',
+  default_ai_target: null,
+  ai_model_providers: null,
+  ai_workspace_conversations: null,
+  hide_gitignored_files: null,
+  all_notes_show_pdfs: null,
+  all_notes_show_images: null,
+  all_notes_show_unsupported: null,
+  multi_workspace_enabled: null,
 }
 
 const DEFAULT_MOCK_VAULT_PATH = '/Users/mock/demo-vault-v2'
@@ -512,9 +540,20 @@ export const mockHandlers: Record<string, (args: any) => any> = {
       release_channel: s.release_channel,
       theme_mode: s.theme_mode ?? null,
       ui_language: s.ui_language ?? null,
+      date_display_format: s.date_display_format ?? null,
       note_width_mode: s.note_width_mode ?? null,
       sidebar_type_pluralization_enabled: s.sidebar_type_pluralization_enabled ?? null,
+      initial_h1_auto_rename_enabled: s.initial_h1_auto_rename_enabled ?? null,
+      ai_features_enabled: s.ai_features_enabled ?? null,
       default_ai_agent: s.default_ai_agent ?? null,
+      default_ai_target: s.default_ai_target ?? null,
+      ai_model_providers: s.ai_model_providers ?? null,
+      ai_workspace_conversations: s.ai_workspace_conversations ?? null,
+      hide_gitignored_files: s.hide_gitignored_files ?? null,
+      all_notes_show_pdfs: s.all_notes_show_pdfs ?? null,
+      all_notes_show_images: s.all_notes_show_images ?? null,
+      all_notes_show_unsupported: s.all_notes_show_unsupported ?? null,
+      multi_workspace_enabled: s.multi_workspace_enabled ?? null,
     }
     return null
   },
@@ -541,12 +580,12 @@ export const mockHandlers: Record<string, (args: any) => any> = {
   migrate_is_a_to_type: () => 0,
   batch_archive_notes: (args: { paths: string[] }) => args.paths.length,
   batch_trash_notes: (args: { paths: string[] }) => args.paths.length,
-  search_vault: (args: { query: string; mode: string }) => {
+  search_vault: (args: { query: string; mode: string; excludeFrontmatter?: boolean }) => {
     const q = (args.query ?? '').toLowerCase()
     if (!q) return { results: [], elapsed_ms: 0, query: q, mode: args.mode }
     const matches = MOCK_ENTRIES
       .filter(e => {
-        const content = MOCK_CONTENT[e.path] ?? ''
+        const content = mockSearchContent(MOCK_CONTENT[e.path] ?? '', args.excludeFrontmatter)
         return e.title.toLowerCase().includes(q) || content.toLowerCase().includes(q)
       })
       .slice(0, 20)

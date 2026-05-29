@@ -238,6 +238,26 @@ describe('BreadcrumbBar — file actions', () => {
 
     expect(onCopyFilePath).toHaveBeenCalledWith('/vault/note/test.md')
   })
+
+  it('copies the current note deep link from the overflow menu', async () => {
+    const onCopyDeepLink = vi.fn()
+    render(<BreadcrumbBar entry={baseEntry} {...defaultProps} onCopyDeepLink={onCopyDeepLink} />)
+
+    const menu = await openOverflowMenu()
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Copy note deeplink' }))
+
+    expect(onCopyDeepLink).toHaveBeenCalledWith(baseEntry)
+  })
+
+  it('exports the current note as PDF from the overflow menu', async () => {
+    const onExportPdf = vi.fn()
+    render(<BreadcrumbBar entry={baseEntry} {...defaultProps} onExportPdf={onExportPdf} />)
+
+    const menu = await openOverflowMenu()
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Export note as PDF' }))
+
+    expect(onExportPdf).toHaveBeenCalledOnce()
+  })
 })
 
 describe('BreadcrumbBar — organized shortcut hint', () => {
@@ -559,7 +579,7 @@ describe('BreadcrumbBar — action buttons always right-aligned', () => {
       const menu = await openOverflowMenu()
       const menuLabels = within(menu).getAllByRole('menuitem').map((item) => item.textContent)
       expect(menuLabels[0]).toBe('Git diff')
-      expect(menuLabels.slice(-2)).toEqual(['Archive this note', 'Delete this note'])
+      expect(menuLabels.slice(-3)).toEqual(['Copy note deeplink', 'Archive this note', 'Delete this note'])
     } finally {
       restoreMeasurement()
     }
@@ -583,6 +603,7 @@ describe('BreadcrumbBar — action buttons always right-aligned', () => {
     expect(within(menu).queryByRole('menuitem', { name: 'Reveal in Finder' })).not.toBeInTheDocument()
     expect(within(menu).queryByRole('menuitem', { name: 'Copy file path' })).not.toBeInTheDocument()
     expect(within(menu).queryByRole('menuitem', { name: "Open note's neighborhood" })).not.toBeInTheDocument()
+    expect(within(menu).getByRole('menuitem', { name: 'Copy note deeplink' })).toBeInTheDocument()
   })
 
   it('exposes lower-priority actions when overflow hides their toolbar buttons', async () => {
@@ -610,6 +631,7 @@ describe('BreadcrumbBar — action buttons always right-aligned', () => {
       expect(within(menu).getByRole('menuitem', { name: 'Reveal in Finder' })).toBeInTheDocument()
       expect(within(menu).getByRole('menuitem', { name: 'Copy file path' })).toBeInTheDocument()
       expect(within(menu).getByRole('menuitem', { name: "Open note's neighborhood" })).toBeInTheDocument()
+      expect(within(menu).getByRole('menuitem', { name: 'Copy note deeplink' })).toBeInTheDocument()
     } finally {
       restoreMeasurement()
     }
@@ -674,18 +696,17 @@ describe('BreadcrumbBar — note width toggle', () => {
 })
 
 describe('BreadcrumbBar — AI panel toggle', () => {
-  it('hides the AI panel action when no toggle callback is available', () => {
+  it('keeps the AI panel action out of the breadcrumb bar', () => {
     render(<BreadcrumbBar entry={baseEntry} {...defaultProps} />)
     expect(screen.queryByRole('button', { name: 'Open the AI panel' })).not.toBeInTheDocument()
   })
 
-  it('shows and runs the AI panel action when a toggle callback is available', () => {
+  it('does not render the breadcrumb AI panel action when a toggle callback is available', () => {
     const onToggleAIChat = vi.fn()
     render(<BreadcrumbBar entry={baseEntry} {...defaultProps} onToggleAIChat={onToggleAIChat} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open the AI panel' }))
-
-    expect(onToggleAIChat).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('button', { name: 'Open the AI panel' })).not.toBeInTheDocument()
+    expect(onToggleAIChat).not.toHaveBeenCalled()
   })
 })
 

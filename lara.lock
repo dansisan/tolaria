@@ -59,6 +59,8 @@ files:
     command.note.removeIcon: 4bccbad66025e506b37b4218498b299c
     command.note.changeType: 4a54ffd47ed1f65ee97f34bfe8c3de14
     command.note.moveToFolder: 3a0f26c42b9168ad839960d134065905
+    command.note.copyDeepLink: 8de1795f59af124594dc4decf77909a1
+    command.note.exportPdf: 7a39acf8742a59d1a4f7ae064b6219a0
     command.note.openNewWindow: 6f67b2857093fa0fd45b1122dff4865d
     command.git.initialize: 54a57cdc7105db6fb22dca661ce01ad6
     command.git.commitPush: 8cb5faa4019716f43dd69c41496b1d46
@@ -304,7 +306,7 @@ files:
     ai.panel.empty.checkingDescription: 31e41510d851c366860377ba0c956f0b
     ai.panel.empty.missingTitle: a2b764da52cb43b191bb4ecfd8ea4d26
     ai.panel.empty.missingDescription: 91825c7d86b1d588d44a33e1d94af950
-    ai.panel.empty.withContextTitle: 66f02985937083e4ef62b98cc9f25aee
+    ai.panel.empty.withContextTitle: cea2547385aeeb68fa494bb3b09b98f5
     ai.panel.empty.noContextTitle: e919aeb0a49b58e494e43e5f6f6597c9
     ai.panel.empty.withContextDescription: dd8faefcc8160a2db800a41d6628facb
     ai.panel.empty.noContextDescription: 6a6e610835808016d1f2790c3f991a54
@@ -312,11 +314,18 @@ files:
     ai.panel.placeholder.missing: 547c492026d115608067988b7cfbb9a9
     ai.panel.placeholder.ready: 31f5265c2e0432a7ca10d08e5c6f3114
     ai.panel.send: 747c6a3564774149c989884e0c581d53
-    ai.workspace.title: d5b381672258b0bb54ede1e886895b3e
+    ai.message.regenerate: e464a5330788a9f79d06c96989f840cb
+    ai.message.copy: 53fa249ce3d02c8a686b657b31d02ee7
+    ai.message.fork: f5aace5e5b5e7b0954651a2da44b6755
+    ai.workspace.title: 375099f0c804e924c1dc275370710d92
     ai.workspace.newChat: a917baaf1484ec5dc85f19ab8fc4f4e9
     ai.workspace.collapseSidebar: 9ecc763686b7c61547281f3e05ffd06f
     ai.workspace.expandSidebar: 281b619f3da2ba27e604302c3c00db56
     ai.workspace.close: 184649ab030e9a609488608221c28d8c
+    ai.workspace.expandPanel: edbe17b531457367c1412e4b6349c194
+    ai.workspace.restorePanel: 64eb6176c678c6b395cfc93bac02a16f
+    ai.workspace.restoreGuidance: 2bd339d85ee3b33e513359ce781b60cc
+    ai.workspace.closeChat: 6c5be35688a466297db40c3a65ac9805
     ai.workspace.popOut: 85ec25ec056b3082651e6e3fcfa57416
     ai.workspace.dock: 72e81ed23007ec6fb9820b9abec353c4
     ai.workspace.settings: 2c178b1d7a60a3c2b37ca4221d322899
@@ -326,7 +335,7 @@ files:
     ai.workspace.hideArchived: e7c72757d5bc7330d876eeb1b6ce9c53
     ai.workspace.noActiveChats: f0cdbf09f23eb9a2efbb5977bcc39c1a
     ai.workspace.noArchivedChats: 68410efd12fc0308ce1ed2225000d4d5
-    ai.workspace.chatTitle: 2ecae1c7ffb3296a789ff8f3b3ed2922
+    ai.workspace.chatTitle: 189013cfac88018c68ec02e8edc2379b
     ai.workspace.renameChat: 0feba25e166f55afc51c4ebb33d8d757
     ai.workspace.status.archived: 7d69b3cb4cada18ae61811304f8fbcb5
     ai.workspace.status.idle: e599161956d626eda4cb0a5ffb85271c
@@ -515,8 +524,26 @@ files:
     editor.toolbar.delete: f48134a07b016a1de05d4ba6d2fbfb41
     editor.toolbar.revealFile: 76f4ed52da9937ae432dcf5a108fabb4
     editor.toolbar.copyFilePath: 64c6cec5ca57efbb8c9c93ae5fbccd27
+    editor.toolbar.copyNoteDeepLink: 0fff274a7c47e7c12457c0b7412e86ce
+    editor.toolbar.exportPdf: 7a39acf8742a59d1a4f7ae064b6219a0
     editor.toolbar.moreActions: 89e19353176b94068dec4c768c25e70b
     editor.toolbar.openProperties: 948b90b60b8ce827f179e8c5b85b112e
+    editor.exportPdf.unavailable: 2fce9834984172b64b66767485d815e9
+    editor.exportPdf.failed: bf3fa78ff5725f5cbde8979b67ec2e2a
+    filePreview.copyDeepLink: b75833669968adbef634495636e3fe50
+    deepLinks.copied: 6ada57681192daf3b4afa07ce7a30575
+    deepLinks.error.ambiguousVault: 4365c6d5cf8c2c1165259b32d24a6274
+    deepLinks.error.copyFailed: 57b74ecce2d00b4c327d15830f79410d
+    deepLinks.error.invalidScheme: 58eaa7ac701a0508cbae90c5d3837ce4
+    deepLinks.error.malformedUrl: 4f85323322ef0a1d627df621edb749c7
+    deepLinks.error.missingFile: 79a0c73176508c58b4d785fabaf7d8cc
+    deepLinks.error.missingPath: a6bb1c92f1a38476ff603a2d3ff81223
+    deepLinks.error.missingVault: e2936e1f599c7ed229efb5d4a122fc4b
+    deepLinks.error.openFailed: 97901feafe25688fcc3fc4dcfaf82619
+    deepLinks.error.outsideVault: fda2fd5675b596df7ba0e0b1a11ec47d
+    deepLinks.error.unavailableVault: 911dfaf8e855bd8cadefe7df9a98a7e8
+    deepLinks.error.unknownVault: b4940569e884833f50466177dab1f62f
+    deepLinks.error.unsafePath: e09caab43be8c2372bfc94e947ea34e6
     editor.slash.math: a49950aa047c2292e989e368a97a3aae
     tableOfContents.title: f61d6c3e3733db355168b7e1aee6780b
     tableOfContents.close: d3292972a10edd1a06a627f3552f760a
@@ -709,3 +736,4 @@ files:
     locale.plPL: c730389bc8d99e59c867766babdd48b5
     locale.beBY: 0a6de4460095f398e8a45ed512a7538f
     locale.beLatn: 9c454dccccd6aaac0121a45b923dc5ad
+    locale.idID: cc1c9b57607b4439578b68074a5e2d80

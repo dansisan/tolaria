@@ -34,6 +34,8 @@ type BreadcrumbActions = Pick<
   | 'onEnterNeighborhood'
   | 'onRevealFile'
   | 'onCopyFilePath'
+  | 'onCopyDeepLink'
+  | 'onExportPdf'
   | 'onDeleteNote'
   | 'onArchiveNote'
   | 'onUnarchiveNote'
@@ -202,6 +204,8 @@ function ActiveTabBreadcrumb({
       onEnterNeighborhood={actions.onEnterNeighborhood}
       onRevealFile={actions.onRevealFile}
       onCopyFilePath={actions.onCopyFilePath}
+      onCopyDeepLink={actions.onCopyDeepLink}
+      onExportPdf={actions.onExportPdf}
       onDelete={bindPath(actions.onDeleteNote, path)}
       onArchive={bindPath(actions.onArchiveNote, path)}
       onUnarchive={bindPath(actions.onUnarchiveNote, path)}
@@ -267,6 +271,8 @@ function buildBreadcrumbActions(model: EditorContentModel): BreadcrumbActions {
     onEnterNeighborhood: model.onEnterNeighborhood,
     onRevealFile: model.onRevealFile,
     onCopyFilePath: model.onCopyFilePath,
+    onCopyDeepLink: model.onCopyDeepLink,
+    onExportPdf: model.onExportPdf,
     onDeleteNote: model.onDeleteNote,
     onArchiveNote: model.onArchiveNote,
     onUnarchiveNote: model.onUnarchiveNote,
@@ -383,7 +389,7 @@ function EditorCanvas({
       className="editor-scroll-area"
       style={cssVars as React.CSSProperties}
     >
-      <div className="editor-content-wrapper">
+      <div className="editor-content-wrapper" data-note-pdf-export-root="true">
         <SingleEditorView
           editor={editor}
           entries={entries}

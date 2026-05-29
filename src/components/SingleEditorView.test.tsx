@@ -14,6 +14,7 @@ const state = vi.hoisted(() => ({
   capturedBlockNoteOnChange: null as null | (() => void),
   capturedMantineGetStyleNonce: null as null | (() => string),
   blockNoteViewError: null as Error | null,
+  blockNoteViewErrorOnce: false,
   hoverGuardMock: vi.fn(),
   imageDropState: { isDragOver: false },
   linkActivationMock: vi.fn(),
@@ -40,6 +41,10 @@ vi.mock('@blocknote/react', () => ({
   }) => {
     if (state.blockNoteViewError) {
       const error = state.blockNoteViewError
+      if (state.blockNoteViewErrorOnce) {
+        state.blockNoteViewError = null
+        state.blockNoteViewErrorOnce = false
+      }
       throw error
     }
 
@@ -453,6 +458,7 @@ describe('SingleEditorView', () => {
     state.capturedBlockNoteOnChange = null
     state.capturedMantineGetStyleNonce = null
     state.blockNoteViewError = null
+    state.blockNoteViewErrorOnce = false
     state.imageDropState.isDragOver = false
     state.personMentionCandidates = []
     state.wikilinkEntriesRef.current = []
@@ -500,13 +506,42 @@ describe('SingleEditorView', () => {
       expect(editor.replaceBlocks.mock.calls[0][1]).toEqual([
         expect.objectContaining({
           id: expect.any(String),
-          children: [
-            expect.objectContaining({
-              id: expect.any(String),
-            }),
-          ],
+          children: [],
+        }),
+        expect.objectContaining({
+          id: expect.any(String),
+          content: [{ type: 'text', text: 'Recovered child', styles: {} }],
+          children: [],
         }),
       ])
+    } finally {
+      consoleError.mockRestore()
+    }
+  })
+
+  it('remounts after a BlockNote table row index render error', async () => {
+    state.blockNoteViewError = new RangeError(
+      'Index 1 out of range for <tableRow(tableCell(tableParagraph("A")))>',
+    )
+    state.blockNoteViewErrorOnce = true
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const editor = createEditor()
+
+    try {
+      render(
+        <SingleEditorView
+          editor={editor as never}
+          entries={[makeEntry()]}
+          onNavigateWikilink={vi.fn()}
+        />,
+        { wrapper: TooltipProvider, onRecoverableError: () => {} },
+      )
+
+      await waitFor(() => {
+        expect(screen.getByTestId('blocknote-view')).toBeInTheDocument()
+      })
+      expect(screen.getByTestId('blocknote-view')).toHaveAttribute('data-editable', 'true')
+      expect(editor.replaceBlocks).not.toHaveBeenCalled()
     } finally {
       consoleError.mockRestore()
     }
