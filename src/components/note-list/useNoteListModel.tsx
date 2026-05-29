@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useCallback } from 'react'
+import { useEffect, useMemo, useCallback, useRef } from 'react'
 import type {
   VaultEntry,
   SidebarSelection,
@@ -13,6 +13,7 @@ import type { NoteListFilter } from '../../utils/noteListHelpers'
 import { countByFilter, countAllByFilter, countAllNotesByFilter } from '../../utils/noteListHelpers'
 import type { AllNotesFileVisibility } from '../../utils/allNotesFileVisibility'
 import type { GitRepositoryOption } from '../../utils/gitRepositories'
+import type { ImmediateCreateOptions } from '../../hooks/useNoteCreation'
 import { NoteItem } from '../NoteItem'
 import { prefetchNoteContent } from '../../hooks/useTabManagement'
 import type { MultiSelectState } from '../../hooks/useMultiSelect'
@@ -211,6 +212,7 @@ function useNoteListContent({
   const {
     closeSearch,
     isSearching,
+    openSearchWithQuery,
     query,
     search,
     searchInputRef,
@@ -282,6 +284,7 @@ function useNoteListContent({
     searched,
     searchedGroups,
     closeSearch,
+    openSearchWithQuery,
     setSearch,
     sortPrefs,
     toggleSearch,
@@ -312,7 +315,7 @@ interface UseNoteListInteractionStateParams {
   onCopyFilePath?: (path: string) => void
   onAutoTriggerDiff?: () => void
   onDiscardFile?: (relativePath: string) => Promise<void>
-  onCreateNote: (type?: string) => void
+  onCreateNote: (type?: string, options?: ImmediateCreateOptions) => void
   onBulkArchive?: (paths: string[]) => void
   onBulkDeletePermanently?: (paths: string[]) => void
   locale: AppLocale
@@ -505,7 +508,7 @@ export interface NoteListProps {
   getNoteStatus?: (path: string) => NoteStatus
   sidebarCollapsed?: boolean
   onSelectNote: (entry: VaultEntry) => void
-  onClearTagFilter?: () => void
+  onSearchChange?: (search: string) => void
   onReplaceActiveTab: (entry: VaultEntry) => void
   onEnterNeighborhood?: (entry: VaultEntry) => void
   onCreateNote: (type?: string) => void
@@ -545,7 +548,6 @@ function buildNoteListLayoutModel(params: {
   filterCounts: ReturnType<typeof useFilterCounts>
   onNoteListFilterChange: (filter: NoteListFilter) => void
   onOpenType: (entry: VaultEntry) => void
-  onClearTagFilter?: () => void
   locale: AppLocale
   content: ReturnType<typeof useNoteListContent> & {
     handleSearchKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void
@@ -575,6 +577,7 @@ function buildNoteListLayoutModel(params: {
     onOpenType: params.onOpenType,
     toggleSearch: params.content.toggleSearch,
     setSearch: params.content.setSearch,
+    openSearchWithQuery: params.content.openSearchWithQuery,
     handleSearchKeyDown: params.content.handleSearchKeyDown,
     handleListKeyDown: params.interaction.handleListKeyDown,
     noteListPanelRef: params.interaction.noteListKeyboard.panelRef,
@@ -595,8 +598,6 @@ function buildNoteListLayoutModel(params: {
     handleClickNote: params.interaction.handleClickNote,
     isArchivedView: params.content.isArchivedView,
     isChangesView: params.selection.kind === 'filter' && params.selection.filter === 'changes',
-    isTagView: params.selection.kind === 'tag',
-    onClearTagFilter: params.onClearTagFilter,
     gitRepositories: params.gitRepositories ?? [],
     selectedGitRepositoryPath: params.selectedGitRepositoryPath ?? '',
     onGitRepositoryChange: params.onGitRepositoryChange,
@@ -638,7 +639,7 @@ export function useNoteListModel({
   getNoteStatus,
   sidebarCollapsed,
   onReplaceActiveTab,
-  onClearTagFilter,
+  onSearchChange,
   onEnterNeighborhood,
   onCreateNote,
   onBulkArchive,
@@ -688,6 +689,10 @@ export function useNoteListModel({
     visibleNotesRef,
     allNotesFileVisibility,
   })
+  const onSearchChangeRef = useRef(onSearchChange)
+  useEffect(() => { onSearchChangeRef.current = onSearchChange })
+  useEffect(() => { onSearchChangeRef.current?.(content.search) }, [content.search])
+
   const interaction = useNoteListInteractionState({
     searched: content.searched,
     searchedGroups: content.searchedGroups,
@@ -762,7 +767,6 @@ export function useNoteListModel({
     sidebarCollapsed,
     loading,
     onOpenType: onReplaceActiveTab,
-    onClearTagFilter,
     modifiedFilesError,
     gitRepositories,
     selectedGitRepositoryPath,

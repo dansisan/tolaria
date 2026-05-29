@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 import { Hash } from '@phosphor-icons/react'
-import type { VaultEntry, SidebarSelection } from '../../types'
-import { isSelectionActive } from '../SidebarParts'
+import type { VaultEntry } from '../../types'
 import { SidebarGroupHeader } from './SidebarGroupHeader'
 import { SIDEBAR_ITEM_PADDING, SIDEBAR_SECTION_CONTENT_PADDING_BOTTOM } from './sidebarStyles'
 
@@ -15,6 +14,10 @@ function buildTagCounts(entries: VaultEntry[]): { tag: string; count: number }[]
   return Array.from(counts.entries())
     .map(([tag, count]) => ({ tag, count }))
     .sort((a, b) => a.tag.localeCompare(b.tag))
+}
+
+function isTagActive(tag: string, currentSearch: string): boolean {
+  return currentSearch.toLowerCase() === `#${tag.toLowerCase()}`
 }
 
 function TagItem({
@@ -50,16 +53,16 @@ function TagItem({
 
 export function TagsSection({
   entries,
-  selection,
+  currentSearch,
   collapsed,
   onToggle,
-  onSelect,
+  onTagSearch,
 }: {
   entries: VaultEntry[]
-  selection: SidebarSelection
+  currentSearch: string
   collapsed: boolean
   onToggle: () => void
-  onSelect: (selection: SidebarSelection) => void
+  onTagSearch: (tag: string) => void
 }) {
   const tags = useMemo(() => buildTagCounts(entries), [entries])
 
@@ -70,18 +73,15 @@ export function TagsSection({
       <SidebarGroupHeader label="TAGS" collapsed={collapsed} onToggle={onToggle} count={tags.length} />
       {!collapsed && (
         <div style={{ paddingBottom: SIDEBAR_SECTION_CONTENT_PADDING_BOTTOM }}>
-          {tags.map(({ tag, count }) => {
-            const tagSelection: SidebarSelection = { kind: 'tag', tag }
-            return (
-              <TagItem
-                key={tag}
-                tag={tag}
-                count={count}
-                isActive={isSelectionActive(selection, tagSelection)}
-                onSelect={() => onSelect(tagSelection)}
-              />
-            )
-          })}
+          {tags.map(({ tag, count }) => (
+            <TagItem
+              key={tag}
+              tag={tag}
+              count={count}
+              isActive={isTagActive(tag, currentSearch)}
+              onSelect={() => onTagSearch(tag)}
+            />
+          ))}
         </div>
       )}
     </div>

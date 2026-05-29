@@ -43,6 +43,15 @@ function resolveSearchableText(entry: VaultEntry, context: NoteListSearchContext
   ]
 }
 
+function matchesTagQuery(entry: VaultEntry, tagPrefix: string): boolean {
+  if (!tagPrefix) return entry.inlineTags.length > 0
+  return entry.inlineTags.some((t) => t.toLowerCase().startsWith(tagPrefix))
+}
+
+function matchesWords(texts: string[], words: string[]): boolean {
+  return words.every((word) => texts.some((text) => text.toLowerCase().includes(word)))
+}
+
 export function matchesNoteListQuery(
   entry: VaultEntry,
   query: string,
@@ -50,7 +59,18 @@ export function matchesNoteListQuery(
 ): boolean {
   const normalizedQuery = normalizeQuery(query)
   if (!normalizedQuery) return true
-  return resolveSearchableText(entry, context).some((value) => value.toLowerCase().includes(normalizedQuery))
+
+  if (normalizedQuery.startsWith('#')) {
+    const spaceIndex = normalizedQuery.indexOf(' ')
+    const tagPart = spaceIndex === -1 ? normalizedQuery.slice(1) : normalizedQuery.slice(1, spaceIndex)
+    if (!matchesTagQuery(entry, tagPart)) return false
+    if (spaceIndex === -1) return true
+    const textWords = normalizedQuery.slice(spaceIndex + 1).trim().split(/\s+/).filter(Boolean)
+    return textWords.length === 0 || matchesWords(resolveSearchableText(entry, context), textWords)
+  }
+
+  const words = normalizedQuery.split(/\s+/).filter(Boolean)
+  return matchesWords(resolveSearchableText(entry, context), words)
 }
 
 export function filterEntriesByNoteListQuery(

@@ -1,6 +1,6 @@
 import { useCallback, memo } from 'react'
 import type {
-  VaultEntry, FolderNode, SidebarSelection, ViewDefinition, ViewFile,
+  FolderCreationParent, FolderNode, SidebarSelection, VaultEntry, ViewDefinition, ViewFile,
 } from '../types'
 import {
   KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent,
@@ -39,6 +39,8 @@ interface SidebarProps {
   entries: VaultEntry[]
   selection: SidebarSelection
   onSelect: (selection: SidebarSelection) => void
+  onTagSearch?: (tag: string) => void
+  currentSearch?: string
   onSelectNote?: (entry: VaultEntry) => void
   onCreateType?: (type: string) => void
   onCreateNewType?: () => void
@@ -57,7 +59,7 @@ interface SidebarProps {
   onUpdateViewDefinition?: (filename: string, patch: Partial<ViewDefinition>, rootPath?: string) => void
   onReorderViews?: (orderedFilenames: string[]) => void
   folders?: FolderNode[]
-  onCreateFolder?: (name: string) => Promise<boolean> | boolean
+  onCreateFolder?: (name: string, parent?: FolderCreationParent) => Promise<boolean> | boolean
   onRenameFolder?: (folderPath: string, nextName: string) => Promise<boolean> | boolean
   onDeleteFolder?: (folderPath: string) => void
   folderFileActions?: FolderFileActions
@@ -84,6 +86,8 @@ interface SidebarNavigationProps extends Pick<
   | 'entries'
   | 'selection'
   | 'onSelect'
+  | 'onTagSearch'
+  | 'currentSearch'
   | 'onSelectFavorite'
   | 'onReorderFavorites'
   | 'views'
@@ -474,13 +478,13 @@ function SidebarNavigation(props: SidebarNavigationProps) {
         toggleGroup={props.toggleGroup}
         locale={props.locale}
       />
-      {!props.loading && (
+      {!props.loading && props.onTagSearch && (
         <TagsSection
           entries={props.entries}
-          selection={props.selection}
+          currentSearch={props.currentSearch ?? ''}
           collapsed={props.groupCollapsed.tags}
           onToggle={() => props.toggleGroup('tags')}
-          onSelect={props.onSelect}
+          onTagSearch={props.onTagSearch}
         />
       )}
     </nav>
@@ -605,6 +609,8 @@ function SidebarRuntimeNavigation({
       entries={props.entries}
       selection={props.selection}
       onSelect={props.onSelect}
+      onTagSearch={props.onTagSearch}
+      currentSearch={props.currentSearch}
       onSelectFavorite={props.onSelectFavorite}
       onReorderFavorites={props.onReorderFavorites}
       views={props.views}

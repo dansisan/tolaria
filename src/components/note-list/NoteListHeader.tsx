@@ -39,8 +39,6 @@ interface NoteListHeaderProps {
   typeDocument: VaultEntry | null
   isEntityView: boolean
   isChangesView?: boolean
-  isTagView?: boolean
-  onClearTagFilter?: () => void
   listSort: SortOption
   listDirection: SortDirection
   customProperties: string[]
@@ -60,31 +58,6 @@ interface NoteListHeaderProps {
   onSearchChange: (value: string) => void
   onSearchKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void
   onGitRepositoryChange?: (path: string) => void
-}
-
-function TagSearchRow({
-  title,
-  onClearTagFilter,
-}: {
-  title: string
-  onClearTagFilter: () => void
-}) {
-  return (
-    <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border bg-muted/40 px-4">
-      <span className="flex-1 truncate font-mono text-[12px] text-muted-foreground">{title}</span>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-xs"
-        className="!h-5 !w-5 !min-w-0 !rounded !p-0 !text-muted-foreground hover:!bg-accent hover:!text-foreground [&_svg]:!size-3"
-        onClick={onClearTagFilter}
-        title="Clear tag filter"
-        aria-label="Clear tag filter"
-      >
-        <X size={12} />
-      </Button>
-    </div>
-  )
 }
 
 function dispatchExpandSidebarFromHeader() {
@@ -120,12 +93,22 @@ function HeaderTitle({
 }: Pick<NoteListHeaderProps, 'title' | 'typeDocument' | 'onOpenType'>) {
   const handleClick = typeDocument ? () => onOpenType(typeDocument) : undefined
 
+  if (typeDocument && handleClick) {
+    return (
+      <button
+        type="button"
+        className="m-0 min-w-0 flex-1 truncate border-0 bg-transparent p-0 text-left text-[14px] font-semibold"
+        onClick={handleClick}
+        data-testid="type-header-link"
+      >
+        {title}
+      </button>
+    )
+  }
+
   return (
     <h3
       className="m-0 min-w-0 flex-1 truncate text-[14px] font-semibold"
-      style={typeDocument ? { cursor: 'pointer' } : undefined}
-      onClick={handleClick}
-      data-testid={typeDocument ? 'type-header-link' : undefined}
     >
       {title}
     </h3>
@@ -298,8 +281,6 @@ export function NoteListHeader({
   typeDocument,
   isEntityView,
   isChangesView = false,
-  isTagView = false,
-  onClearTagFilter,
   listSort,
   listDirection,
   customProperties,
@@ -320,14 +301,14 @@ export function NoteListHeader({
   onSearchKeyDown,
   onGitRepositoryChange,
 }: NoteListHeaderProps) {
-  const { onMouseDown: onDragMouseDown } = useDragRegion()
+  const { dragRegionRef } = useDragRegion<HTMLDivElement>()
   const collapsedSidebarPadding = sidebarCollapsed && isMac()
     ? COLLAPSED_SIDEBAR_MAC_CHROME_PADDING
     : undefined
 
   return (
     <>
-      <div className="flex h-[52px] shrink-0 items-center justify-between border-b border-border px-4" onMouseDown={onDragMouseDown} style={{ cursor: 'default', paddingLeft: collapsedSidebarPadding }}>
+      <div ref={dragRegionRef} className="flex h-[52px] shrink-0 items-center justify-between border-b border-border px-4" style={{ cursor: 'default', paddingLeft: collapsedSidebarPadding }}>
         <HeaderLeading
           title={title}
           typeDocument={typeDocument}
@@ -354,9 +335,6 @@ export function NoteListHeader({
         locale={locale}
         onGitRepositoryChange={onGitRepositoryChange}
       />
-      {isTagView && onClearTagFilter && (
-        <TagSearchRow title={title} onClearTagFilter={onClearTagFilter} />
-      )}
       <SearchRow
         searchVisible={searchVisible}
         search={search}

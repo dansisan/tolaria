@@ -7,9 +7,9 @@ import {
   useListPropertyPicker,
   useMultiSelectKeyboard,
   useNoteListInteractions,
-  useNoteListSearch,
   useNoteListSort,
 } from './noteListHooks'
+import { useNoteListSearchState } from './useNoteListSearchState'
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {}
@@ -141,7 +141,7 @@ describe('noteListHooks extra', () => {
   })
 
   it('toggles search visibility and clears the search when closing it', () => {
-    const { result } = renderHook(() => useNoteListSearch())
+    const { result } = renderHook(() => useNoteListSearchState())
 
     act(() => {
       result.current.toggleSearch()
@@ -149,7 +149,6 @@ describe('noteListHooks extra', () => {
     })
 
     expect(result.current.searchVisible).toBe(true)
-    expect(result.current.query).toBe('hello')
 
     act(() => {
       result.current.toggleSearch()

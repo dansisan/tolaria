@@ -42,7 +42,9 @@ export function useNoteListSearchState() {
     setDebouncedQuery('')
   }, [])
 
-  const openSearch = useCallback(() => {
+  const openSearchWithQuery = useCallback((q: string) => {
+    setSearch(q)
+    setDebouncedQuery(normalizeSearch(q))
     setSearchVisible(true)
   }, [])
 
@@ -64,7 +66,7 @@ export function useNoteListSearchState() {
   return {
     closeSearch,
     isSearching,
-    openSearch,
+    openSearchWithQuery,
     query,
     search,
     searchInputRef,

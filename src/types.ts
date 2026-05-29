@@ -128,12 +128,20 @@ export interface Settings {
   default_ai_agent?: AiAgentId | null
   default_ai_target?: string | null
   ai_model_providers?: AiModelProvider[] | null
+  ai_workspace_conversations?: AiWorkspaceConversationSetting[] | null
   hide_gitignored_files?: boolean | null
   all_notes_show_pdfs?: boolean | null
   all_notes_show_images?: boolean | null
   all_notes_show_unsupported?: boolean | null
   multi_workspace_enabled?: boolean | null
   frontmatter_created_key?: string | null
+}
+
+export interface AiWorkspaceConversationSetting {
+  archived?: boolean | null
+  id: string
+  target_id?: string | null
+  title: string
 }
 
 export interface GitPullResult {
@@ -144,7 +152,7 @@ export interface GitPullResult {
 }
 
 export interface GitPushResult {
-  status: 'ok' | 'rejected' | 'auth_error' | 'network_error' | 'error'
+  status: 'ok' | 'rejected' | 'auth_error' | 'network_error' | 'no_remote' | 'error'
   message: string
 }
 
@@ -239,7 +247,6 @@ export type SidebarSelection =
   | { kind: 'folder'; path: string; rootPath?: string }
   | { kind: 'entity'; entry: VaultEntry }
   | { kind: 'view'; filename: string; rootPath?: string }
-  | { kind: 'tag'; tag: string }
 
 // --- Custom Views ---
 
@@ -279,4 +286,14 @@ export interface FolderNode {
   path: string
   rootPath?: string
   children: FolderNode[]
+}
+
+/**
+ * Context for a folder-create request: where the new folder should land.
+ * `path` is vault-relative (`''` means vault root); `rootPath` identifies the
+ * target vault when multiple workspaces are mounted.
+ */
+export interface FolderCreationParent {
+  path: string
+  rootPath?: string
 }
