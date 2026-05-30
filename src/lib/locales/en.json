@@ -179,6 +179,8 @@
   "settings.sidebarTypePluralization.description": "When enabled, Tolaria automatically pluralizes type section labels unless a type defines its own sidebar label.",
   "settings.vaultContent.hideGitignored": "Hide files and folders ignored by Git",
   "settings.vaultContent.hideGitignoredDescription": "Keeps generated and local-only vault files out of notes, search, quick open, and folders.",
+  "settings.vaultContent.frontmatterCreatedKey": "Created-date frontmatter key",
+  "settings.vaultContent.frontmatterCreatedKeyDescription": "The frontmatter property name used to record when a note was created.",
   "settings.allNotesVisibility.title": "All Notes visibility",
   "settings.allNotesVisibility.description": "Choose which non-Markdown file categories appear in All Notes. Folder browsing still shows files in their folders.",
   "settings.allNotesVisibility.pdfs": "Show PDFs",

@@ -137,6 +137,8 @@ interface EditorProps {
   /** Registers a hook that flushes the raw editor buffer into app state before external actions. */
   flushPendingRawContentRef?: React.MutableRefObject<((path: string) => void) | null>
   locale?: AppLocale
+  /** Called when an inline tag is clicked in the editor, to search for that tag. */
+  onClickTag?: (tag: string) => void
 }
 
 function useEditorModeExclusion({

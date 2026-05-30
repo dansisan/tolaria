@@ -119,6 +119,7 @@ interface SettingsDraft {
   defaultNoteWidth: NoteWidthMode
   sidebarTypePluralizationEnabled: boolean
   initialH1AutoRename: boolean
+  frontmatterCreatedKey: string
   hideGitignoredFiles: boolean
   allNotesFileVisibility: AllNotesFileVisibility
   multiWorkspaceEnabled: boolean
@@ -168,6 +169,8 @@ interface SettingsBodyProps {
   systemLocale: AppLocale
   initialH1AutoRename: boolean
   setInitialH1AutoRename: (value: boolean) => void
+  frontmatterCreatedKey: string
+  setFrontmatterCreatedKey: (value: string) => void
   hideGitignoredFiles: boolean
   setHideGitignoredFiles: (value: boolean) => void
   allNotesFileVisibility: AllNotesFileVisibility
@@ -222,6 +225,7 @@ function createSettingsDraft(
     defaultNoteWidth: normalizeNoteWidthMode(settings.note_width_mode) ?? DEFAULT_NOTE_WIDTH_MODE,
     sidebarTypePluralizationEnabled: settings.sidebar_type_pluralization_enabled ?? true,
     initialH1AutoRename: settings.initial_h1_auto_rename_enabled ?? true,
+    frontmatterCreatedKey: settings.frontmatter_created_key ?? 'created',
     hideGitignoredFiles: shouldHideGitignoredFiles(settings),
     allNotesFileVisibility: resolveAllNotesFileVisibility(settings),
     multiWorkspaceEnabled: settings.multi_workspace_enabled === true,
@@ -269,6 +273,7 @@ function buildSettingsFromDraft(settings: Settings, draft: SettingsDraft): Setti
     note_width_mode: draft.defaultNoteWidth,
     sidebar_type_pluralization_enabled: draft.sidebarTypePluralizationEnabled,
     initial_h1_auto_rename_enabled: draft.initialH1AutoRename,
+    frontmatter_created_key: draft.frontmatterCreatedKey,
     ai_features_enabled: draft.aiFeaturesEnabled,
     default_ai_agent: draft.defaultAiAgent,
     default_ai_target: draft.defaultAiTarget,
@@ -578,6 +583,8 @@ function SettingsBodyFromDraft({
       setSidebarTypePluralizationEnabled={(value) => updateDraft('sidebarTypePluralizationEnabled', value)}
       initialH1AutoRename={draft.initialH1AutoRename}
       setInitialH1AutoRename={(value) => updateDraft('initialH1AutoRename', value)}
+      frontmatterCreatedKey={draft.frontmatterCreatedKey}
+      setFrontmatterCreatedKey={(value) => updateDraft('frontmatterCreatedKey', value)}
       hideGitignoredFiles={draft.hideGitignoredFiles}
       setHideGitignoredFiles={setHideGitignoredFiles}
       allNotesFileVisibility={draft.allNotesFileVisibility}
@@ -708,6 +715,8 @@ function SettingsContentSections({
   setSidebarTypePluralizationEnabled,
   initialH1AutoRename,
   setInitialH1AutoRename,
+  frontmatterCreatedKey,
+  setFrontmatterCreatedKey,
   hideGitignoredFiles,
   setHideGitignoredFiles,
   allNotesFileVisibility,
@@ -725,6 +734,8 @@ function SettingsContentSections({
         setSidebarTypePluralizationEnabled={setSidebarTypePluralizationEnabled}
         initialH1AutoRename={initialH1AutoRename}
         setInitialH1AutoRename={setInitialH1AutoRename}
+        frontmatterCreatedKey={frontmatterCreatedKey}
+        setFrontmatterCreatedKey={setFrontmatterCreatedKey}
         hideGitignoredFiles={hideGitignoredFiles}
         setHideGitignoredFiles={setHideGitignoredFiles}
         allNotesFileVisibility={allNotesFileVisibility}
