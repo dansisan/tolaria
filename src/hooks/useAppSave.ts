@@ -9,19 +9,10 @@ import { createTranslator, type AppLocale } from '../lib/i18n'
 import { canWritePathToVault } from '../utils/vaultPathContainment'
 import { vaultPathForEntry } from '../utils/workspaces'
 import { notePathsMatch } from '../utils/notePathIdentity'
-import { runFrontmatterAndApply } from './frontmatterOps'
-import { cacheNoteContent } from './useTabManagement'
-import { formatLocalISODatetime } from '../utils/dateDisplay'
 
 interface TabState {
   entry: VaultEntry
   content: string
-}
-
-function hasFrontmatterModified(content: string): boolean {
-  const end = content.indexOf('\n---', 3)
-  const frontmatter = end === -1 ? content : content.slice(0, end)
-  return /^modified:/m.test(frontmatter)
 }
 
 const UNTITLED_RENAME_DEBOUNCE_MS = 2500
@@ -699,30 +690,14 @@ function useEditorPersistence({
     loadModifiedFiles()
   }, [loadModifiedFiles])
 
+  // The `modified` frontmatter date is now stamped on the write path (Rust
+  // `save_note_content`), so it never rewrites the content the editor is showing.
   const onNotePersisted = useCallback((path: string, content: string) => {
     onInternalVaultWrite?.(path)
     clearUnsaved(path)
     if (path.endsWith('.yml')) reloadViews?.()
     scheduleUntitledRename(path, content)
-    if (hasFrontmatterModified(content)) {
-      void runFrontmatterAndApply({
-        op: 'update',
-        path,
-        key: 'modified',
-        value: formatLocalISODatetime(new Date()),
-        callbacks: {
-          updateTab: (p, c) => setTabs((prev: unknown[]) => prev.map((t: unknown) => {
-            const tab = t as { entry: { path: string }; content: string }
-            return tab.entry.path === p ? { ...tab, content: c } : tab
-          })),
-          updateEntry,
-          cacheContent: cacheNoteContent,
-          toast: () => {},
-        },
-        options: { silent: true },
-      })
-    }
-  }, [clearUnsaved, onInternalVaultWrite, reloadViews, scheduleUntitledRename, setTabs, updateEntry])
+  }, [clearUnsaved, onInternalVaultWrite, reloadViews, scheduleUntitledRename])
 
   const {
     handleSave: handleSaveRaw,

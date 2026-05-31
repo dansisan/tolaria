@@ -150,8 +150,12 @@ pub async fn save_note_content(
     vault_path: Option<PathBuf>,
 ) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
+        let stamped = crate::frontmatter::stamp_modified_date(
+            &content,
+            &chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+        );
         with_writable_note_path(path, vault_path, |validated_path| {
-            vault::save_note_content(validated_path, &content)
+            vault::save_note_content(validated_path, &stamped)
         })
     })
     .await
@@ -369,6 +373,27 @@ mod tests {
             get_note_content(note, Some(root)).unwrap(),
             "# Windows-Sensitive Path\n\nBody\n"
         );
+    }
+
+    #[tokio::test]
+    async fn save_note_content_refreshes_existing_modified_frontmatter() {
+        let dir = TempDir::new().unwrap();
+        let root = vault_root(&dir);
+        let note = root.join("note.md");
+
+        save_note_content(
+            note.clone(),
+            "---\ntitle: Note\nmodified: 2020-01-01 00:00:00\n---\n# Note\n\nBody\n".to_string(),
+            Some(root.clone()),
+        )
+        .await
+        .unwrap();
+
+        let saved = get_note_content(note, Some(root)).unwrap();
+        // The stale timestamp is replaced; the body the editor manages is untouched.
+        assert!(!saved.contains("2020-01-01"));
+        assert!(saved.contains("modified:"));
+        assert!(saved.contains("# Note\n\nBody"));
     }
 
     #[tokio::test]

@@ -7,8 +7,26 @@ mod yaml;
 use std::fs;
 use std::path::Path;
 
-pub use ops::update_frontmatter_content;
+pub use ops::{frontmatter_has_key, update_frontmatter_content};
 pub use yaml::{format_yaml_key, FrontmatterValue};
+
+/// Refresh the `modified` frontmatter timestamp to `timestamp`, but only when the
+/// note already declares a `modified` key. Returns the content unchanged otherwise
+/// — never adds frontmatter or the key to notes that don't use it.
+///
+/// This runs on the write path (see `save_note_content`) so the date stays current
+/// and portable across machines, without rewriting the content the editor is showing.
+pub fn stamp_modified_date(content: &str, timestamp: &str) -> String {
+    if !frontmatter_has_key(content, "modified") {
+        return content.to_string();
+    }
+    update_frontmatter_content(
+        content,
+        "modified",
+        Some(FrontmatterValue::String(timestamp.to_string())),
+    )
+    .unwrap_or_else(|_| content.to_string())
+}
 
 fn is_markdown_path(path: &Path) -> bool {
     path.extension()
@@ -78,6 +96,28 @@ mod tests {
         let result = with_frontmatter("/nonexistent/path/file.md", |c| Ok(c.to_string()));
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("does not exist"));
+    }
+
+    #[test]
+    fn stamp_modified_date_updates_existing_key() {
+        let content = "---\ntitle: Note\nmodified: 2020-01-01 00:00:00\n---\n# Note\n\nBody";
+        let stamped = stamp_modified_date(content, "2026-05-31 14:45:00");
+        assert!(stamped.contains("2026-05-31 14:45:00"));
+        assert!(!stamped.contains("2020-01-01"));
+        // Body is untouched — the editor's content is unaffected.
+        assert!(stamped.contains("# Note\n\nBody"));
+    }
+
+    #[test]
+    fn stamp_modified_date_leaves_notes_without_a_modified_key_alone() {
+        let content = "---\ntitle: Note\n---\n# Note\n\nBody";
+        assert_eq!(stamp_modified_date(content, "2026-05-31 14:45:00"), content);
+    }
+
+    #[test]
+    fn stamp_modified_date_does_not_add_frontmatter_to_plain_notes() {
+        let content = "# Note\n\nJust body, no frontmatter";
+        assert_eq!(stamp_modified_date(content, "2026-05-31 14:45:00"), content);
     }
 
     #[test]

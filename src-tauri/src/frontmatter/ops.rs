@@ -199,6 +199,23 @@ pub fn update_frontmatter_content(
     .apply_to_content(DocumentText(&updated))
 }
 
+/// Returns true when the content's frontmatter block already declares `key`
+/// (exact, top-level match). Used to avoid adding a key to notes that don't use it.
+pub fn frontmatter_has_key(content: &str, key: &str) -> bool {
+    let Ok(Some(block)) = split_frontmatter_block(content) else {
+        return false;
+    };
+    let target = PropertyKey(key);
+    block
+        .body
+        .lines()
+        .map(FrontmatterLine)
+        .any(|line| {
+            line.key()
+                .is_some_and(|candidate| target.matches(candidate, KeyMatchMode::Exact))
+        })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
