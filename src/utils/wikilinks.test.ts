@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { preProcessWikilinks, injectWikilinks, restoreWikilinksInBlocks, splitFrontmatter, countWords, extractOutgoingLinks, extractBacklinkContext, extractSnippet } from './wikilinks'
+import { preProcessWikilinks, injectWikilinks, restoreWikilinksInBlocks, splitFrontmatter, countWords, extractOutgoingLinks, extractAttachmentLinks, extractBacklinkContext, extractSnippet } from './wikilinks'
 
 interface TestBlock {
   type?: string
@@ -721,5 +721,41 @@ describe('extractSnippet', () => {
     const snippet = extractSnippet(content)
     expect(snippet).toContain('fn main()')
     expect(snippet).toContain('Some text.')
+  })
+})
+
+describe('extractAttachmentLinks', () => {
+  it('extracts image and file link destinations', () => {
+    const content = '# Note\n\n![Diagram](attachments/diagram.png)\n\n[spec](docs/spec.pdf)'
+    expect(extractAttachmentLinks(content)).toEqual(['attachments/diagram.png', 'docs/spec.pdf'])
+  })
+
+  it('deduplicates repeated references', () => {
+    const content = '![a](attachments/a.png) then again ![a](attachments/a.png)'
+    expect(extractAttachmentLinks(content)).toEqual(['attachments/a.png'])
+  })
+
+  it('skips external links, anchors, and mail', () => {
+    const content = '[web](https://example.com) [a](#section) [m](mailto:x@y.com)'
+    expect(extractAttachmentLinks(content)).toEqual([])
+  })
+
+  it('strips titles and fragments and unescapes destinations', () => {
+    const content = '![x](attachments/a.png "cap") [y](<attachments/my file.png>) [z](attachments/w\\)p.png#frag)'
+    expect(extractAttachmentLinks(content)).toEqual([
+      'attachments/a.png',
+      'attachments/my file.png',
+      'attachments/w)p.png',
+    ])
+  })
+
+  it('ignores destinations inside fenced code blocks', () => {
+    const content = '```\n![x](attachments/in-code.png)\n```\n\n![y](attachments/real.png)'
+    expect(extractAttachmentLinks(content)).toEqual(['attachments/real.png'])
+  })
+
+  it('returns empty for content with no links', () => {
+    expect(extractAttachmentLinks('')).toEqual([])
+    expect(extractAttachmentLinks('no links here')).toEqual([])
   })
 })

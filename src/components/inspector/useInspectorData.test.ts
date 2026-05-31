@@ -42,6 +42,33 @@ describe('buildInspectorLinkIndex', () => {
     ])
   })
 
+  it('indexes notes that reference an image via markdown attachment links', () => {
+    const image = makeEntry({
+      path: '/vault/attachments/diagram.png',
+      filename: 'diagram.png',
+      title: 'diagram.png',
+      isA: undefined,
+    })
+    const referencingNote = makeEntry({
+      path: '/vault/note/design.md',
+      filename: 'design.md',
+      title: 'Design',
+      attachmentLinks: ['attachments/diagram.png'],
+    })
+    const unrelatedNote = makeEntry({
+      path: '/vault/note/other.md',
+      filename: 'other.md',
+      title: 'Other',
+      attachmentLinks: ['attachments/something-else.png'],
+    })
+
+    const index = buildInspectorLinkIndex([image, referencingNote, unrelatedNote])
+
+    expect(index.attachmentBacklinks.get(image.path)).toEqual([
+      { entry: referencingNote, context: null },
+    ])
+  })
+
   it('reuses the cached index for the same entries array', () => {
     const entries = [
       makeEntry({

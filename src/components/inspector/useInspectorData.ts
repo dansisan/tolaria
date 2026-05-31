@@ -6,6 +6,8 @@ import type { ReferencedByItem, BacklinkItem } from '../InspectorPanels'
 interface InspectorLinkIndex {
   referencedBy: Map<string, ReferencedByItem[]>
   backlinks: Map<string, BacklinkItem[]>
+  /** Notes that reference a file (e.g. an image) via a markdown link/image destination. */
+  attachmentBacklinks: Map<string, BacklinkItem[]>
 }
 
 interface EntryLookup {
@@ -130,17 +132,29 @@ function indexBacklinkEntries(
   }
 }
 
+function indexAttachmentBacklinkEntries(
+  sourceEntry: VaultEntry,
+  lookup: EntryLookup,
+  attachmentBacklinks: Map<string, BacklinkItem[]>,
+): void {
+  for (const matchedPath of collectMatchedPaths(sourceEntry.attachmentLinks ?? [], lookup, sourceEntry.path, (target) => target)) {
+    pushToResultMap(attachmentBacklinks, matchedPath, { entry: sourceEntry, context: null })
+  }
+}
+
 export function buildInspectorLinkIndex(entries: VaultEntry[]): InspectorLinkIndex {
   const lookup = buildEntryLookup(entries)
   const referencedBy = new Map<string, ReferencedByItem[]>()
   const backlinks = new Map<string, BacklinkItem[]>()
+  const attachmentBacklinks = new Map<string, BacklinkItem[]>()
 
   for (const sourceEntry of entries) {
     indexReferencedByEntries(sourceEntry, lookup, referencedBy)
     indexBacklinkEntries(sourceEntry, lookup, backlinks)
+    indexAttachmentBacklinkEntries(sourceEntry, lookup, attachmentBacklinks)
   }
 
-  return { referencedBy, backlinks }
+  return { referencedBy, backlinks, attachmentBacklinks }
 }
 
 export function getInspectorLinkIndex(entries: VaultEntry[]): InspectorLinkIndex {
@@ -167,10 +181,15 @@ export function useBacklinks(entry: VaultEntry | null, entries: VaultEntry[], re
   return useMemo(() => {
     if (!entry) return []
 
-    const backlinks = linkIndex.backlinks.get(entry.path) ?? []
-    if (referencedBy.length === 0) return backlinks
-
+    const wikilinkBacklinks = linkIndex.backlinks.get(entry.path) ?? []
+    const attachmentBacklinks = linkIndex.attachmentBacklinks.get(entry.path) ?? []
     const referencedByPaths = new Set(referencedBy.map((item) => item.entry.path))
-    return backlinks.filter((item) => !referencedByPaths.has(item.entry.path))
+
+    const merged = new Map<string, BacklinkItem>()
+    for (const item of [...wikilinkBacklinks, ...attachmentBacklinks]) {
+      if (referencedByPaths.has(item.entry.path)) continue
+      if (!merged.has(item.entry.path)) merged.set(item.entry.path, item)
+    }
+    return [...merged.values()]
   }, [entry, linkIndex, referencedBy])
 }

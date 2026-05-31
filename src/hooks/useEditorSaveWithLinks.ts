@@ -1,6 +1,6 @@
 import { startTransition, useCallback, useRef, type MutableRefObject } from 'react'
 import { useEditorSave } from './useEditorSave'
-import { extractOutgoingLinks, extractSnippet, countWords, splitFrontmatter } from '../utils/wikilinks'
+import { extractOutgoingLinks, extractAttachmentLinks, extractSnippet, countWords, splitFrontmatter } from '../utils/wikilinks'
 import { deriveRawEditorEntryState } from './rawEditorEntryState'
 import { deriveDisplayTitleState } from '../utils/noteTitle'
 import { detectFrontmatterState } from '../utils/frontmatter'
@@ -29,11 +29,14 @@ function syncOutgoingLinks(options: {
 }): void {
   const { content, path, prevLinksKeyRef, updateEntry } = options
   const links = content.includes('[[') ? extractOutgoingLinks(content) : []
-  const key = links.join('\0')
+  const attachmentLinks = content.includes('](') ? extractAttachmentLinks(content) : []
+  const key = links.length === 0 && attachmentLinks.length === 0
+    ? ''
+    : JSON.stringify([links, attachmentLinks])
   if (key === prevLinksKeyRef.current) return
 
   prevLinksKeyRef.current = key
-  updateEntry(path, { outgoingLinks: links })
+  updateEntry(path, { outgoingLinks: links, attachmentLinks })
 }
 
 function resolveFrontmatterPatch(options: {
@@ -107,6 +110,7 @@ export function useEditorSaveWithLinks(config: {
   const saveContent = useCallback((path: string, content: string) => {
     updateEntry(path, {
       outgoingLinks: extractOutgoingLinks(content),
+      attachmentLinks: extractAttachmentLinks(content),
       snippet: extractSnippet(content),
       wordCount: countWords(content),
       modifiedAt: Math.floor(Date.now() / 1000),

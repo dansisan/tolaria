@@ -57,6 +57,9 @@ export interface VaultEntry {
   listPropertiesDisplay: string[]
   /** All wikilink targets found in the note content. Extracted from [[target]] patterns. */
   outgoingLinks: string[]
+  /** Vault-relative file references (e.g. `attachments/foo.png`) found in the note body.
+   * Extracted from markdown link/image destinations. Powers "Referenced By" for non-note files. */
+  attachmentLinks?: string[]
   /** All inline #tag references found in the note body. */
   inlineTags: string[]
   /** Custom scalar and scalar-array frontmatter properties (non-relationship, non-structural). */

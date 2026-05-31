@@ -73,6 +73,7 @@ describe('useEditorSaveWithLinks', () => {
 
     expect(updateEntry).toHaveBeenCalledWith('/note.md', {
       outgoingLinks: ['PageA', 'PageB'],
+      attachmentLinks: [],
     })
   })
 
@@ -85,6 +86,7 @@ describe('useEditorSaveWithLinks', () => {
     expect(updateEntry).toHaveBeenCalledTimes(2)
     expect(updateEntry).toHaveBeenCalledWith('/note.md', {
       outgoingLinks: ['Alpha'],
+      attachmentLinks: [],
     })
     expect(updateEntry).toHaveBeenCalledWith('/note.md', {
       title: 'note',
@@ -108,6 +110,7 @@ describe('useEditorSaveWithLinks', () => {
     expect(updateEntry).toHaveBeenCalledTimes(2)
     expect(updateEntry).toHaveBeenCalledWith('/note.md', {
       outgoingLinks: ['Alpha'],
+      attachmentLinks: [],
     })
     expect(updateEntry).toHaveBeenCalledWith('/note.md', {
       title: 'note',
@@ -121,6 +124,7 @@ describe('useEditorSaveWithLinks', () => {
     expect(updateEntry).toHaveBeenCalledTimes(3)
     expect(updateEntry).toHaveBeenLastCalledWith('/note.md', {
       outgoingLinks: ['Alpha', 'Beta'],
+      attachmentLinks: [],
     })
   })
 
@@ -147,6 +151,7 @@ describe('useEditorSaveWithLinks', () => {
 
     expect(updateEntry).toHaveBeenCalledWith('/note.md', {
       outgoingLinks: ['Target'],
+      attachmentLinks: [],
     })
   })
 

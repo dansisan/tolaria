@@ -351,6 +351,63 @@ export function extractOutgoingLinks(content: MarkdownSource): WikilinkTarget[] 
   return [...new Set(links)].sort()
 }
 
+/** True for markdown link destinations that point outside the vault (web, mail, anchors). */
+function isExternalDestination(dest: string): boolean {
+  return dest === ''
+    || dest.startsWith('#')
+    || dest.includes('://')
+    || dest.startsWith('mailto:')
+    || dest.startsWith('tel:')
+    || dest.startsWith('data:')
+}
+
+/** Reverse the on-disk escaping of a markdown link destination: angle-bracket
+ * form `<...>` (with `>` written as `%3E`) and backslash escapes. */
+function unescapeMarkdownDestination(raw: string): string {
+  const inner = raw.startsWith('<') && raw.endsWith('>') && raw.length >= 2
+    ? raw.slice(1, -1).replaceAll('%3E', '>')
+    : raw
+  return inner.replace(/\\(.)/g, '$1')
+}
+
+/** Strip an optional link title and any query/fragment, returning just the path. */
+function destinationPath(raw: string): string {
+  const url = raw.startsWith('<') ? raw : (raw.split(/\s/)[0] ?? raw)
+  const unescaped = unescapeMarkdownDestination(url.trim())
+  return unescaped.split('#')[0].split('?')[0]
+}
+
+/** Offset of the first unescaped `)` in `s`, skipping `\)` escapes. */
+function findUnescapedCloseParen(s: string): number {
+  let escaped = false
+  for (let i = 0; i < s.length; i += 1) {
+    if (escaped) escaped = false
+    else if (s[i] === '\\') escaped = true
+    else if (s[i] === ')') return i
+  }
+  return -1
+}
+
+/** Extract vault-relative file references from markdown link/image destinations
+ * in the note body, e.g. `![alt](attachments/foo.png)`. External links are skipped.
+ * Mirrors the Rust `extract_attachment_links` so save-time stays in sync with the scan. */
+export function extractAttachmentLinks(content: MarkdownSource): string[] {
+  const links: string[] = []
+  const searchableContent = blankFencedCodeLines(content)
+  let searchFrom = 0
+  for (;;) {
+    const rel = searchableContent.indexOf('](', searchFrom)
+    if (rel === -1) break
+    const open = rel + 2
+    const close = findUnescapedCloseParen(searchableContent.slice(open))
+    if (close === -1) break
+    const dest = destinationPath(searchableContent.slice(open, open + close))
+    if (!isExternalDestination(dest)) links.push(dest)
+    searchFrom = open + close + 1
+  }
+  return [...new Set(links)].sort()
+}
+
 /** Extract the paragraph surrounding a [[target]] wikilink match from note content.
  * Searches for any target in the set, returns the first matching paragraph trimmed
  * to a max length. Returns null if no match found. */

@@ -319,6 +319,95 @@ pub(super) fn extract_outgoing_links(content: &str) -> Vec<String> {
     links
 }
 
+/// Returns true for a markdown link destination that points outside the vault
+/// (web URLs, mail/tel, data URIs, in-page anchors) and should not be treated
+/// as a vault file reference.
+fn is_external_destination(dest: &str) -> bool {
+    dest.is_empty()
+        || dest.starts_with('#')
+        || dest.contains("://")
+        || dest.starts_with("mailto:")
+        || dest.starts_with("tel:")
+        || dest.starts_with("data:")
+}
+
+/// Reverse the on-disk escaping applied to markdown link destinations:
+/// angle-bracket form `<...>` (with `>` written as `%3E`) and backslash escapes.
+fn unescape_markdown_destination(raw: &str) -> String {
+    let inner = if raw.starts_with('<') && raw.ends_with('>') && raw.len() >= 2 {
+        raw[1..raw.len() - 1].replace("%3E", ">")
+    } else {
+        raw.to_string()
+    };
+    let mut out = String::with_capacity(inner.len());
+    let mut chars = inner.chars();
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            if let Some(next) = chars.next() {
+                out.push(next);
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+/// Strip an optional markdown link title and any query/fragment from a
+/// destination, returning just the path portion (e.g. `attachments/foo.png`).
+fn destination_path(raw: &str) -> String {
+    // Title follows the URL after whitespace: `url "title"` (only outside angle form).
+    let url = if raw.starts_with('<') {
+        raw
+    } else {
+        raw.split_whitespace().next().unwrap_or(raw)
+    };
+    let unescaped = unescape_markdown_destination(url.trim());
+    let without_fragment = unescaped.split('#').next().unwrap_or(&unescaped);
+    let without_query = without_fragment.split('?').next().unwrap_or(without_fragment);
+    without_query.to_string()
+}
+
+/// Byte offset of the first unescaped `)` in `s`, skipping `\)` escapes.
+fn find_unescaped_close_paren(s: &str) -> Option<usize> {
+    let mut escaped = false;
+    for (idx, ch) in s.char_indices() {
+        if escaped {
+            escaped = false;
+        } else if ch == '\\' {
+            escaped = true;
+        } else if ch == ')' {
+            return Some(idx);
+        }
+    }
+    None
+}
+
+/// Extract vault-relative file references from markdown link/image destinations
+/// in the note body, e.g. `![alt](attachments/foo.png)` or `[label](sub/file.pdf)`.
+/// External links (web, mail, anchors) are skipped. Powers "Referenced By"
+/// backlinks for non-note files such as images.
+pub(super) fn extract_attachment_links(content: &str) -> Vec<String> {
+    let mut links = Vec::new();
+    let mut search_from = 0;
+    while let Some(rel) = content[search_from..].find("](") {
+        let abs_open = search_from + rel + 2;
+        // Find the closing paren, skipping backslash-escaped `\)` in the destination.
+        let Some(close) = find_unescaped_close_paren(&content[abs_open..]) else {
+            break;
+        };
+        let raw = &content[abs_open..abs_open + close];
+        let dest = destination_path(raw);
+        if !is_external_destination(&dest) {
+            links.push(dest);
+        }
+        search_from = abs_open + close + 1;
+    }
+    links.sort();
+    links.dedup();
+    links
+}
+
 /// Extract tags from tag lines in note body content (excludes frontmatter).
 /// A tag line is a line whose first character is '#' immediately followed by a letter (no space),
 /// which distinguishes it from Markdown headings ('# heading').
@@ -945,6 +1034,51 @@ mod tests {
         let content = "[[unclosed and [[valid]]";
         let links = extract_outgoing_links(content);
         assert_eq!(links, vec!["unclosed and [[valid"]);
+    }
+
+    // --- extract_attachment_links tests ---
+
+    #[test]
+    fn test_extract_attachment_links_image() {
+        let content = "# Note\n\n![Diagram](attachments/diagram.png)\n";
+        let links = extract_attachment_links(content);
+        assert_eq!(links, vec!["attachments/diagram.png"]);
+    }
+
+    #[test]
+    fn test_extract_attachment_links_plain_link_and_dedup() {
+        let content = "[spec](docs/spec.pdf) and again [spec](docs/spec.pdf)";
+        let links = extract_attachment_links(content);
+        assert_eq!(links, vec!["docs/spec.pdf"]);
+    }
+
+    #[test]
+    fn test_extract_attachment_links_skips_external() {
+        let content = "[web](https://example.com) [mail](mailto:a@b.com) [anchor](#section)";
+        assert!(extract_attachment_links(content).is_empty());
+    }
+
+    #[test]
+    fn test_extract_attachment_links_strips_title_and_fragment() {
+        let content = "![x](attachments/a.png \"a caption\") [y](attachments/b.png#frag)";
+        let links = extract_attachment_links(content);
+        assert_eq!(links, vec!["attachments/a.png", "attachments/b.png"]);
+    }
+
+    #[test]
+    fn test_extract_attachment_links_angle_and_escapes() {
+        let content = "![x](<attachments/my file.png>) [y](attachments/with\\)paren.png)";
+        let links = extract_attachment_links(content);
+        assert_eq!(
+            links,
+            vec!["attachments/my file.png", "attachments/with)paren.png"]
+        );
+    }
+
+    #[test]
+    fn test_extract_attachment_links_empty() {
+        assert!(extract_attachment_links("").is_empty());
+        assert!(extract_attachment_links("no links here").is_empty());
     }
 
     // --- extract_inline_tags tests ---

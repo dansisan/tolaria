@@ -50,7 +50,7 @@ pub use views::{
 
 use file::read_file_metadata;
 use frontmatter::{extract_fm_and_rels, resolve_is_a, resolve_note_width};
-use parsing::{count_body_words, extract_inline_tags, extract_outgoing_links, extract_snippet, extract_title};
+use parsing::{count_body_words, extract_attachment_links, extract_inline_tags, extract_outgoing_links, extract_snippet, extract_title};
 
 use gray_matter::engine::YAML;
 use gray_matter::Matter;
@@ -115,6 +115,7 @@ pub fn parse_md_file(path: &Path, git_dates: Option<(u64, u64)>, fm_created_key:
     let snippet = extract_snippet(&content);
     let word_count = count_body_words(&content);
     let outgoing_links = extract_outgoing_links(&parsed.content);
+    let attachment_links = extract_attachment_links(&parsed.content);
     let mut inline_tags = extract_inline_tags(&content);
     if let Some(fm_tags) = frontmatter.tags.clone() {
         for raw in fm_tags.into_vec() {
@@ -179,6 +180,7 @@ pub fn parse_md_file(path: &Path, git_dates: Option<(u64, u64)>, fm_created_key:
         list_properties_display: frontmatter.list_properties_display.unwrap_or_default(),
         word_count,
         outgoing_links,
+        attachment_links,
         inline_tags,
         properties,
         has_h1,

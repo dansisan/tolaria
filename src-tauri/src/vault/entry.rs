@@ -73,6 +73,11 @@ pub struct VaultEntry {
     /// Extracted from `[[target]]` and `[[target|display]]` patterns.
     #[serde(rename = "outgoingLinks", default)]
     pub outgoing_links: Vec<String>,
+    /// Vault-relative file references found in the note body (excludes frontmatter).
+    /// Extracted from markdown link/image destinations like `](attachments/foo.png)`.
+    /// Powers "Referenced By" backlinks for non-note files such as images.
+    #[serde(rename = "attachmentLinks", default)]
+    pub attachment_links: Vec<String>,
     /// All inline `#tag` references found in the note body (excludes frontmatter).
     #[serde(rename = "inlineTags", default)]
     pub inline_tags: Vec<String>,

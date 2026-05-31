@@ -87,6 +87,7 @@ classDiagram
         +String[] relatedTo
         +Record~string,string[]~ relationships
         +String[] outgoingLinks
+        +String[] attachmentLinks
         +String? status
         +String? noteWidth
         +Number? modifiedAt
@@ -137,6 +138,7 @@ interface VaultEntry {
   relatedTo: string[]       // Related entity links (wikilinks)
   relationships: Record<string, string[]>  // All frontmatter fields containing wikilinks
   outgoingLinks: string[]   // All [[wikilinks]] found in note body
+  attachmentLinks?: string[] // Vault-relative markdown link/image targets (e.g. attachments/foo.png); powers "Referenced By" for non-note files
   status: string | null     // Active, Done, Paused, Archived, Dropped
   noteWidth?: 'normal' | 'wide' | null // Rich-editor width mode from `_width`
   modifiedAt: number | null // Unix timestamp (seconds)
