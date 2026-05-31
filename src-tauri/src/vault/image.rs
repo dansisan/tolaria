@@ -17,6 +17,49 @@ fn sanitize_filename(name: &str) -> String {
 /// Image file extensions considered valid for drag-drop import.
 const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "tiff"];
 
+/// Source extensions that are transcoded to WebP on paste. Everything else
+/// (gif, svg, already-webp, …) is stored as-is.
+const WEBP_SOURCE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg"];
+
+/// WebP encode quality (0–100) for pasted images.
+const WEBP_QUALITY: f32 = 80.0;
+
+/// Lowercased file extension of a filename, or empty string when absent.
+fn extension_of(filename: &str) -> String {
+    Path::new(filename)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase()
+}
+
+/// Replace a filename's extension with `webp`.
+fn with_webp_extension(filename: &str) -> String {
+    Path::new(filename)
+        .with_extension("webp")
+        .to_string_lossy()
+        .to_string()
+}
+
+/// Decode raw image bytes and re-encode them as lossy WebP at [`WEBP_QUALITY`].
+fn encode_webp(bytes: &[u8]) -> Result<Vec<u8>, String> {
+    let img = image::load_from_memory(bytes).map_err(|e| format!("Failed to decode image: {}", e))?;
+    let encoder = webp::Encoder::from_image(&img).map_err(|e| format!("Failed to prepare WebP encoder: {}", e))?;
+    Ok(encoder.encode(WEBP_QUALITY).to_vec())
+}
+
+/// Determine the bytes and filename to persist for a pasted image, transcoding
+/// PNG/JPEG to WebP and falling back to the original on any decode/encode error.
+fn prepare_payload(filename: &str, bytes: Vec<u8>) -> (String, Vec<u8>) {
+    if !WEBP_SOURCE_EXTENSIONS.contains(&extension_of(filename).as_str()) {
+        return (filename.to_string(), bytes);
+    }
+    match encode_webp(&bytes) {
+        Ok(webp_bytes) => (with_webp_extension(filename), webp_bytes),
+        Err(_) => (filename.to_string(), bytes),
+    }
+}
+
 /// Prepare the attachments directory and generate a unique target path.
 fn prepare_attachment_path(vault_path: &str, filename: &str) -> Result<std::path::PathBuf, String> {
     let attachments_dir = Path::new(vault_path).join("attachments");
@@ -36,13 +79,14 @@ fn prepare_attachment_path(vault_path: &str, filename: &str) -> Result<std::path
 pub fn save_image(vault_path: &str, filename: &str, data: &str) -> Result<String, String> {
     use base64::Engine;
 
-    let target_path = prepare_attachment_path(vault_path, filename)?;
-
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(data)
         .map_err(|e| format!("Invalid base64 data: {}", e))?;
 
-    fs::write(&target_path, bytes).map_err(|e| format!("Failed to write image: {}", e))?;
+    let (target_filename, payload) = prepare_payload(filename, bytes);
+    let target_path = prepare_attachment_path(vault_path, &target_filename)?;
+
+    fs::write(&target_path, payload).map_err(|e| format!("Failed to write image: {}", e))?;
 
     Ok(target_path.to_string_lossy().to_string())
 }
@@ -125,6 +169,76 @@ mod tests {
         let data = base64::engine::general_purpose::STANDARD.encode(b"test");
         save_image(vault_path, "img.png", &data).unwrap();
         assert!(attachments.exists());
+    }
+
+    /// Encode a tiny solid-color PNG to base64 for conversion tests.
+    fn sample_png_base64() -> String {
+        use base64::Engine;
+        let img = image::RgbaImage::from_pixel(4, 4, image::Rgba([10, 120, 200, 255]));
+        let mut bytes: Vec<u8> = Vec::new();
+        image::DynamicImage::ImageRgba8(img)
+            .write_to(&mut std::io::Cursor::new(&mut bytes), image::ImageFormat::Png)
+            .unwrap();
+        base64::engine::general_purpose::STANDARD.encode(&bytes)
+    }
+
+    #[test]
+    fn test_save_image_converts_png_to_webp() {
+        let dir = TempDir::new().unwrap();
+        let vault_path = dir.path().to_str().unwrap();
+
+        let saved_path = save_image(vault_path, "screenshot.png", &sample_png_base64()).unwrap();
+
+        assert!(saved_path.ends_with(".webp"), "expected webp output, got {}", saved_path);
+        assert!(!saved_path.contains(".png"));
+        let content = fs::read(&saved_path).unwrap();
+        assert_eq!(&content[0..4], b"RIFF");
+        assert_eq!(&content[8..12], b"WEBP");
+    }
+
+    #[test]
+    fn test_save_image_passes_through_gif() {
+        use base64::Engine;
+
+        let dir = TempDir::new().unwrap();
+        let vault_path = dir.path().to_str().unwrap();
+        let original = b"GIF89a fake gif bytes";
+        let data = base64::engine::general_purpose::STANDARD.encode(original);
+
+        let saved_path = save_image(vault_path, "anim.gif", &data).unwrap();
+
+        assert!(saved_path.ends_with(".gif"));
+        assert_eq!(fs::read(&saved_path).unwrap(), original);
+    }
+
+    #[test]
+    fn test_save_image_passes_through_existing_webp() {
+        use base64::Engine;
+
+        let dir = TempDir::new().unwrap();
+        let vault_path = dir.path().to_str().unwrap();
+        let original = b"already a webp payload";
+        let data = base64::engine::general_purpose::STANDARD.encode(original);
+
+        let saved_path = save_image(vault_path, "img.webp", &data).unwrap();
+
+        assert!(saved_path.ends_with(".webp"));
+        assert_eq!(fs::read(&saved_path).unwrap(), original);
+    }
+
+    #[test]
+    fn test_save_image_falls_back_when_png_undecodable() {
+        use base64::Engine;
+
+        let dir = TempDir::new().unwrap();
+        let vault_path = dir.path().to_str().unwrap();
+        let original = b"not really png";
+        let data = base64::engine::general_purpose::STANDARD.encode(original);
+
+        let saved_path = save_image(vault_path, "broken.png", &data).unwrap();
+
+        assert!(saved_path.ends_with(".png"));
+        assert_eq!(fs::read(&saved_path).unwrap(), original);
     }
 
     #[test]
