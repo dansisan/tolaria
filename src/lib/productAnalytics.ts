@@ -92,6 +92,10 @@ export function trackDateDisplayFormatChanged(format: DateDisplayFormat): void {
   trackEvent('date_display_format_changed', { format })
 }
 
+export function trackNoteBodyFontSizeChanged(fontSize: number): void {
+  trackEvent('note_body_font_size_changed', { fontSize })
+}
+
 export function trackSidebarTypePluralizationChanged(enabled: boolean): void {
   trackEvent('sidebar_type_pluralization_changed', {
     enabled: numericFlag(enabled),

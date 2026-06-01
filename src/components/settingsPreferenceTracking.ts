@@ -5,6 +5,7 @@ import {
   trackDateDisplayFormatChanged,
   trackDefaultNoteWidthChanged,
   trackGitFeaturesEnabledChanged,
+  trackNoteBodyFontSizeChanged,
   trackSidebarTypePluralizationChanged,
 } from '../lib/productAnalytics'
 import { areAiFeaturesEnabled } from '../lib/aiFeatures'
@@ -15,12 +16,14 @@ import {
   type DateDisplayFormat,
 } from '../utils/dateDisplay'
 import { DEFAULT_NOTE_WIDTH_MODE, normalizeNoteWidthMode } from '../utils/noteWidth'
+import { resolveNoteFontSize } from '../utils/noteBodyFontSize'
 
 export interface SettingsPreferenceDraft {
   analytics: boolean
   aiFeaturesEnabled: boolean
   dateDisplayFormat: DateDisplayFormat
   defaultNoteWidth: NoteWidthMode
+  noteBodyFontSize: number
   gitFeaturesEnabled: boolean
   multiWorkspaceEnabled: boolean
   sidebarTypePluralizationEnabled: boolean
@@ -50,6 +53,11 @@ export function trackSettingsPreferenceChanges(settings: Settings, draft: Settin
   const previousNoteWidth = normalizeNoteWidthMode(settings.note_width_mode) ?? DEFAULT_NOTE_WIDTH_MODE
   if (previousNoteWidth !== draft.defaultNoteWidth) {
     trackDefaultNoteWidthChanged(draft.defaultNoteWidth)
+  }
+
+  const previousFontSize = resolveNoteFontSize(settings.note_body_font_size, null)
+  if (previousFontSize !== draft.noteBodyFontSize) {
+    trackNoteBodyFontSizeChanged(draft.noteBodyFontSize)
   }
 
   const previousPluralization = settings.sidebar_type_pluralization_enabled ?? true

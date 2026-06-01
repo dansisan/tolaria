@@ -67,6 +67,7 @@ import {
   type AllNotesFileVisibility,
 } from '../utils/allNotesFileVisibility'
 import { DEFAULT_NOTE_WIDTH_MODE, normalizeNoteWidthMode } from '../utils/noteWidth'
+import { resolveNoteFontSize } from '../utils/noteBodyFontSize'
 import {
   DEFAULT_DATE_DISPLAY_FORMAT,
   normalizeDateDisplayFormat,
@@ -117,6 +118,7 @@ interface SettingsDraft {
   uiLanguage: UiLanguagePreference
   dateDisplayFormat: DateDisplayFormat
   defaultNoteWidth: NoteWidthMode
+  noteBodyFontSize: number
   sidebarTypePluralizationEnabled: boolean
   initialH1AutoRename: boolean
   frontmatterCreatedKey: string
@@ -163,6 +165,8 @@ interface SettingsBodyProps {
   setDateDisplayFormat: (value: DateDisplayFormat) => void
   defaultNoteWidth: NoteWidthMode
   setDefaultNoteWidth: (value: NoteWidthMode) => void
+  noteBodyFontSize: number
+  setNoteBodyFontSize: (value: number) => void
   sidebarTypePluralizationEnabled: boolean
   setSidebarTypePluralizationEnabled: (value: boolean) => void
   locale: AppLocale
@@ -223,6 +227,7 @@ function createSettingsDraft(
     uiLanguage: settings.ui_language ?? SYSTEM_UI_LANGUAGE,
     dateDisplayFormat: normalizeDateDisplayFormat(settings.date_display_format) ?? DEFAULT_DATE_DISPLAY_FORMAT,
     defaultNoteWidth: normalizeNoteWidthMode(settings.note_width_mode) ?? DEFAULT_NOTE_WIDTH_MODE,
+    noteBodyFontSize: resolveNoteFontSize(settings.note_body_font_size, null),
     sidebarTypePluralizationEnabled: settings.sidebar_type_pluralization_enabled ?? true,
     initialH1AutoRename: settings.initial_h1_auto_rename_enabled ?? true,
     frontmatterCreatedKey: settings.frontmatter_created_key ?? 'created',
@@ -271,6 +276,7 @@ function buildSettingsFromDraft(settings: Settings, draft: SettingsDraft): Setti
     ui_language: serializeUiLanguagePreference(draft.uiLanguage),
     date_display_format: draft.dateDisplayFormat,
     note_width_mode: draft.defaultNoteWidth,
+    note_body_font_size: draft.noteBodyFontSize,
     sidebar_type_pluralization_enabled: draft.sidebarTypePluralizationEnabled,
     initial_h1_auto_rename_enabled: draft.initialH1AutoRename,
     frontmatter_created_key: draft.frontmatterCreatedKey,
@@ -579,6 +585,8 @@ function SettingsBodyFromDraft({
       setDateDisplayFormat={(value) => updateDraft('dateDisplayFormat', value)}
       defaultNoteWidth={draft.defaultNoteWidth}
       setDefaultNoteWidth={(value) => updateDraft('defaultNoteWidth', value)}
+      noteBodyFontSize={draft.noteBodyFontSize}
+      setNoteBodyFontSize={(value) => updateDraft('noteBodyFontSize', value)}
       sidebarTypePluralizationEnabled={draft.sidebarTypePluralizationEnabled}
       setSidebarTypePluralizationEnabled={(value) => updateDraft('sidebarTypePluralizationEnabled', value)}
       initialH1AutoRename={draft.initialH1AutoRename}
@@ -711,6 +719,8 @@ function SettingsContentSections({
   setDateDisplayFormat,
   defaultNoteWidth,
   setDefaultNoteWidth,
+  noteBodyFontSize,
+  setNoteBodyFontSize,
   sidebarTypePluralizationEnabled,
   setSidebarTypePluralizationEnabled,
   initialH1AutoRename,
@@ -730,6 +740,8 @@ function SettingsContentSections({
         setDateDisplayFormat={setDateDisplayFormat}
         defaultNoteWidth={defaultNoteWidth}
         setDefaultNoteWidth={setDefaultNoteWidth}
+        noteBodyFontSize={noteBodyFontSize}
+        setNoteBodyFontSize={setNoteBodyFontSize}
         sidebarTypePluralizationEnabled={sidebarTypePluralizationEnabled}
         setSidebarTypePluralizationEnabled={setSidebarTypePluralizationEnabled}
         initialH1AutoRename={initialH1AutoRename}

@@ -125,6 +125,7 @@ export interface Settings {
   ui_language?: AppLocale | null
   date_display_format?: DateDisplayFormat | null
   note_width_mode?: NoteWidthMode | null
+  note_body_font_size?: number | null
   sidebar_type_pluralization_enabled?: boolean | null
   initial_h1_auto_rename_enabled?: boolean | null
   ai_features_enabled?: boolean | null

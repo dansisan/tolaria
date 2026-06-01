@@ -15,6 +15,7 @@ import { normalizeDateDisplayFormat } from '../utils/dateDisplay'
 import { DEFAULT_THEME_MODE, normalizeThemeMode, type ThemeMode } from '../lib/themeMode'
 import type { Settings } from '../types'
 import { normalizeNoteWidthMode } from '../utils/noteWidth'
+import { normalizeNoteFontSize } from '../utils/noteBodyFontSize'
 
 async function invokeNativeIfAvailable<T>(command: string, tauriArgs: Record<string, unknown>): Promise<T | undefined> {
   try {
@@ -50,6 +51,7 @@ const EMPTY_SETTINGS: Settings = {
   ui_language: null,
   date_display_format: null,
   note_width_mode: null,
+  note_body_font_size: null,
   sidebar_type_pluralization_enabled: null,
   default_ai_agent: null,
   ai_features_enabled: null,
@@ -76,6 +78,7 @@ function normalizeSettings(settings: Settings): Settings {
     ui_language: serializeUiLanguagePreference(settings.ui_language),
     date_display_format: normalizeDateDisplayFormat(settings.date_display_format),
     note_width_mode: normalizeNoteWidthMode(settings.note_width_mode),
+    note_body_font_size: normalizeNoteFontSize(settings.note_body_font_size),
     sidebar_type_pluralization_enabled: settings.sidebar_type_pluralization_enabled ?? null,
     ai_features_enabled: settings.ai_features_enabled ?? null,
     default_ai_agent: normalizeStoredAiAgent(settings.default_ai_agent),

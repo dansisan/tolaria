@@ -8,6 +8,15 @@
   position: relative;
 }
 
+/* Note-body font size preference (see useNoteBodyFontSize). Overrides the
+   inline `--editor-font-size` that theme.json sets on these containers, so the
+   body text and the caret/placeholder metrics derived from it scale together.
+   `!important` is required to beat the element's inline custom property. */
+.editor-scroll-area,
+.editor__blocknote-container {
+  --editor-font-size: var(--note-body-font-size, 15px) !important;
+}
+
 .editor__blocknote-container .bn-editor {
   font-family: var(--editor-font-family);
   font-size: var(--editor-font-size);

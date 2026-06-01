@@ -11,6 +11,8 @@ const SUPPORTED_DEFAULT_AI_AGENTS: &[&str] =
 pub const DEFAULT_HIDE_GITIGNORED_FILES: bool = true;
 const SUPPORTED_NOTE_WIDTH_MODES: &[&str] = &["normal", "wide"];
 const SUPPORTED_DATE_DISPLAY_FORMATS: &[&str] = &["us", "european", "friendly", "iso"];
+const MIN_NOTE_FONT_SIZE: u32 = 12;
+const MAX_NOTE_FONT_SIZE: u32 = 22;
 const SUPPORTED_UI_LANGUAGE_ALIASES: &[(&str, &str)] = &[
     ("en", "en"),
     ("en-us", "en"),
@@ -90,6 +92,7 @@ pub struct Settings {
     pub ui_language: Option<String>,
     pub date_display_format: Option<String>,
     pub note_width_mode: Option<String>,
+    pub note_body_font_size: Option<u32>,
     pub sidebar_type_pluralization_enabled: Option<bool>,
     pub initial_h1_auto_rename_enabled: Option<bool>,
     pub ai_features_enabled: Option<bool>,
@@ -147,6 +150,15 @@ pub fn normalize_theme_mode(value: Option<&str>) -> Option<String> {
 pub fn normalize_note_width_mode(value: Option<&str>) -> Option<String> {
     match value.map(|candidate| candidate.trim().to_ascii_lowercase()) {
         Some(mode) if SUPPORTED_NOTE_WIDTH_MODES.contains(&mode.as_str()) => Some(mode),
+        _ => None,
+    }
+}
+
+/// Keep the note-body font size within the range the UI offers (12–22px);
+/// drop anything outside it so the renderer falls back to its default.
+pub fn normalize_note_body_font_size(value: Option<u32>) -> Option<u32> {
+    match value {
+        Some(size) if (MIN_NOTE_FONT_SIZE..=MAX_NOTE_FONT_SIZE).contains(&size) => Some(size),
         _ => None,
     }
 }
@@ -216,6 +228,7 @@ fn normalize_settings(settings: Settings) -> Settings {
         ui_language: normalize_ui_language(settings.ui_language.as_deref()),
         date_display_format: normalize_date_display_format(settings.date_display_format.as_deref()),
         note_width_mode: normalize_note_width_mode(settings.note_width_mode.as_deref()),
+        note_body_font_size: normalize_note_body_font_size(settings.note_body_font_size),
         sidebar_type_pluralization_enabled: settings.sidebar_type_pluralization_enabled,
         initial_h1_auto_rename_enabled: settings.initial_h1_auto_rename_enabled,
         ai_features_enabled: settings.ai_features_enabled,
@@ -453,6 +466,7 @@ mod tests {
             ui_language: Some("zh-Hans".to_string()),
             date_display_format: Some("iso".to_string()),
             note_width_mode: Some("wide".to_string()),
+            note_body_font_size: Some(18),
             sidebar_type_pluralization_enabled: Some(false),
             initial_h1_auto_rename_enabled: Some(false),
             ai_features_enabled: Some(false),
@@ -494,6 +508,7 @@ mod tests {
             ui_language: Some("zh-Hans".to_string()),
             date_display_format: Some("european".to_string()),
             note_width_mode: Some("wide".to_string()),
+            note_body_font_size: Some(18),
             sidebar_type_pluralization_enabled: Some(false),
             initial_h1_auto_rename_enabled: Some(false),
             ai_features_enabled: Some(false),
@@ -516,6 +531,7 @@ mod tests {
         assert_eq!(loaded.ui_language.as_deref(), Some("zh-CN"));
         assert_eq!(loaded.date_display_format.as_deref(), Some("european"));
         assert_eq!(loaded.note_width_mode.as_deref(), Some("wide"));
+        assert_eq!(loaded.note_body_font_size, Some(18));
         assert_eq!(loaded.sidebar_type_pluralization_enabled, Some(false));
         assert_eq!(loaded.initial_h1_auto_rename_enabled, Some(false));
         assert_eq!(loaded.ai_features_enabled, Some(false));
@@ -651,6 +667,21 @@ mod tests {
             ..Default::default()
         });
         assert!(loaded.note_width_mode.is_none());
+    }
+
+    #[test]
+    fn test_out_of_range_note_body_font_size_is_filtered() {
+        let too_large = save_and_reload(Settings {
+            note_body_font_size: Some(48),
+            ..Default::default()
+        });
+        assert!(too_large.note_body_font_size.is_none());
+
+        let in_range = save_and_reload(Settings {
+            note_body_font_size: Some(16),
+            ..Default::default()
+        });
+        assert_eq!(in_range.note_body_font_size, Some(16));
     }
 
     #[test]

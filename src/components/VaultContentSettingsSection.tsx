@@ -3,6 +3,7 @@ import type { TranslationKey, TranslationValues } from '../lib/i18n'
 import type { NoteWidthMode } from '../types'
 import type { AllNotesFileVisibility } from '../utils/allNotesFileVisibility'
 import { DATE_DISPLAY_FORMATS, type DateDisplayFormat } from '../utils/dateDisplay'
+import { NOTE_FONT_SIZE_OPTIONS } from '../utils/noteBodyFontSize'
 import {
   SectionHeading,
   SelectControl,
@@ -20,6 +21,8 @@ interface VaultContentSettingsSectionProps {
   setDateDisplayFormat: (value: DateDisplayFormat) => void
   defaultNoteWidth: NoteWidthMode
   setDefaultNoteWidth: (value: NoteWidthMode) => void
+  noteBodyFontSize: number
+  setNoteBodyFontSize: (value: number) => void
   sidebarTypePluralizationEnabled: boolean
   setSidebarTypePluralizationEnabled: (value: boolean) => void
   initialH1AutoRename: boolean
@@ -51,6 +54,10 @@ function buildNoteWidthOptions(t: Translate): Array<{ value: NoteWidthMode; labe
   }))
 }
 
+function buildNoteFontSizeOptions(): Array<{ value: string; label: string }> {
+  return NOTE_FONT_SIZE_OPTIONS.map((size) => ({ value: String(size), label: `${size}px` }))
+}
+
 function buildDateDisplayOptions(t: Translate): Array<{ value: DateDisplayFormat; label: string }> {
   return DATE_DISPLAY_FORMATS.map((value) => ({
     value,
@@ -64,6 +71,8 @@ export function VaultContentSettingsSection({
   setDateDisplayFormat,
   defaultNoteWidth,
   setDefaultNoteWidth,
+  noteBodyFontSize,
+  setNoteBodyFontSize,
   sidebarTypePluralizationEnabled,
   setSidebarTypePluralizationEnabled,
   initialH1AutoRename,
@@ -110,6 +119,19 @@ export function VaultContentSettingsSection({
             onValueChange={(value) => setDefaultNoteWidth(value as NoteWidthMode)}
             options={buildNoteWidthOptions(t)}
             testId="settings-default-note-width"
+          />
+        </SettingsRow>
+
+        <SettingsRow
+          label={t('settings.noteFontSize.default')}
+          description={t('settings.noteFontSize.defaultDescription')}
+        >
+          <SelectControl
+            ariaLabel={t('settings.noteFontSize.default')}
+            value={String(noteBodyFontSize)}
+            onValueChange={(value) => setNoteBodyFontSize(Number(value))}
+            options={buildNoteFontSizeOptions()}
+            testId="settings-note-body-font-size"
           />
         </SettingsRow>
 

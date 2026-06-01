@@ -713,6 +713,10 @@ Rich Markdown editing supports `normal` and `wide` note widths. The effective mo
 
 Per-note width is persisted as hidden `_width` frontmatter only when the note already has a valid or empty frontmatter block. Notes without frontmatter use the transient cache for the current session, so toggling width never creates frontmatter solely to store UI state. The width class is applied around `SingleEditorView` only; raw CodeMirror mode stays outside `.editor-content-wrapper` and remains full-width.
 
+### Note Body Font Size
+
+The rich-editor body font size is an installation-local preference (`settings.note_body_font_size`, 12–22px, default 15). `src/utils/noteBodyFontSize.ts` owns the range, normalization, and resolution; the Settings → Content dropdown writes it and Rust `normalize_note_body_font_size` drops out-of-range values on load/save. `useNoteBodyFontSize` (wired in `App.tsx`) publishes the resolved size as the document-level `--note-body-font-size` custom property, and an `EditorTheme.css` rule overrides the editor container's inline `--editor-font-size` from it (with `!important`, to beat the per-container inline value `useEditorTheme` sets from `theme.json`). Because every body-text, caret, and placeholder metric derives from `--editor-font-size`, they all scale together. Unlike width, font size is global, not per-note.
+
 ### Arrow Ligature Normalization
 
 Typed ASCII arrow sequences are normalized consistently in both editor modes:
@@ -895,6 +899,7 @@ interface Settings {
   ui_language: AppLocale | null
   date_display_format: 'us' | 'european' | 'friendly' | 'iso' | null
   note_width_mode: 'normal' | 'wide' | null
+  note_body_font_size: number | null // px, 12–22, null = default 15
   sidebar_type_pluralization_enabled: boolean | null // null = default true
   ai_features_enabled: boolean | null // null = default true
   git_enabled: boolean | null // null = default true
