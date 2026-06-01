@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MutableRefObject } from 'react'
 import type { SidebarSelection, VaultEntry } from '../types'
 import {
+  useEscapeNavigation,
   useNeighborhoodEntry,
-  useNeighborhoodEscape,
 } from './useNeighborhoodSelection'
 
 function buildEntry(path: string, title: string): VaultEntry {
@@ -114,19 +114,39 @@ describe('useNeighborhoodEntry', () => {
   })
 })
 
-describe('useNeighborhoodEscape', () => {
-  it('routes Escape to neighborhood history when focus is already outside editable controls', () => {
-    const onBack = vi.fn(() => true)
-    renderHook(() => useNeighborhoodEscape({
-      onBack,
-      selectionRef: ref(alphaSelection),
-      shouldBlockNeighborhoodEscape: false,
-    }))
-
+describe('useEscapeNavigation', () => {
+  function dispatchEscape() {
     const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
     window.dispatchEvent(event)
+    return event
+  }
 
-    expect(onBack).toHaveBeenCalledOnce()
+  it('runs onEscape and consumes the event when focus is outside editable controls', () => {
+    const onEscape = vi.fn(() => true)
+    renderHook(() => useEscapeNavigation({ onEscape, shouldBlockEscape: false }))
+
+    const event = dispatchEscape()
+
+    expect(onEscape).toHaveBeenCalledOnce()
     expect(event.defaultPrevented).toBe(true)
+  })
+
+  it('does not consume the event when onEscape declines (already at the main list)', () => {
+    const onEscape = vi.fn(() => false)
+    renderHook(() => useEscapeNavigation({ onEscape, shouldBlockEscape: false }))
+
+    const event = dispatchEscape()
+
+    expect(onEscape).toHaveBeenCalledOnce()
+    expect(event.defaultPrevented).toBe(false)
+  })
+
+  it('skips navigation while a higher-priority surface is open', () => {
+    const onEscape = vi.fn(() => true)
+    renderHook(() => useEscapeNavigation({ onEscape, shouldBlockEscape: true }))
+
+    dispatchEscape()
+
+    expect(onEscape).not.toHaveBeenCalled()
   })
 })

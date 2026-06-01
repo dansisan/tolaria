@@ -4,8 +4,10 @@ import {
   INBOX_SELECTION,
   getDefaultSelectionForOrganization,
   isExplicitOrganizationEnabled,
+  isPrimaryNoteListSelection,
   sanitizeSelectionForOrganization,
 } from './organizationWorkflow'
+import type { SidebarSelection } from '../types'
 
 describe('organizationWorkflow', () => {
   it('treats the setting as enabled by default', () => {
@@ -32,5 +34,23 @@ describe('organizationWorkflow', () => {
   it('leaves non-Inbox selections unchanged when the workflow is disabled', () => {
     const selection = { kind: 'filter', filter: 'archived' } as const
     expect(sanitizeSelectionForOrganization(selection, false)).toEqual(selection)
+  })
+
+  it('recognizes All Notes and Inbox as primary note lists', () => {
+    expect(isPrimaryNoteListSelection(ALL_NOTES_SELECTION)).toBe(true)
+    expect(isPrimaryNoteListSelection(INBOX_SELECTION)).toBe(true)
+  })
+
+  it('treats secondary views as non-primary so Escape returns home', () => {
+    const secondary: SidebarSelection[] = [
+      { kind: 'filter', filter: 'changes' },
+      { kind: 'filter', filter: 'pulse' },
+      { kind: 'filter', filter: 'archived' },
+      { kind: 'view', filename: 'projects.md' },
+      { kind: 'folder', path: 'Work' },
+    ]
+    for (const selection of secondary) {
+      expect(isPrimaryNoteListSelection(selection)).toBe(false)
+    }
   })
 })

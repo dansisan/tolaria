@@ -386,6 +386,10 @@ The renderer uses `viewOrdering` helpers to convert drag or command-palette move
 - Plain click / `Enter` open the focused note without replacing the current Neighborhood.
 - Cmd/Ctrl-click and Cmd/Ctrl-`Enter` open the note and pivot the note list into that note's Neighborhood.
 
+### Escape navigation
+
+`useEscapeNavigation` (`src/hooks/useNeighborhoodSelection.ts`) owns a single global Escape handler. When no higher-priority surface claims the key — a dialog (`shouldBlockEscape`), the search bar, multi-select, or a focused editor/input — Escape runs the app's `handleEscapeNavigation`: it first unwinds one step of Neighborhood history, and otherwise returns to the main note list from any secondary view (Changes, Pulse, Archived, saved Views, folders). The home target is `getDefaultSelectionForOrganization` (Inbox when explicit organization is on, else All Notes). Escape is a no-op when the user is already in a primary note list (`isPrimaryNoteListSelection` — All Notes or Inbox), so it never bounces between the two. A focused editor is blurred on the first Escape so a second press navigates.
+
 ## Command Surface
 
 `src/shared/appCommandManifest.json` is the cross-runtime source for stable app command IDs, menu structure, display labels, accelerators, deterministic shortcut QA metadata, and native menu enablement groups. The renderer imports it through `src/hooks/appCommandCatalog.ts`, which derives `APP_COMMAND_IDS`, shortcut lookup maps, custom titlebar menu sections, native-menu command membership, and test helpers. Tauri includes the same JSON in `src-tauri/src/menu.rs` and uses it to build custom menu items, emit overridden menu item IDs such as the quick-open alias as their primary command IDs, and toggle state-dependent menu items from manifest groups.

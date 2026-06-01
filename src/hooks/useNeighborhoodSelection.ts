@@ -10,7 +10,7 @@ import {
   popNeighborhoodHistory,
   pushNeighborhoodHistory,
   resolveNeighborhoodSelection,
-  shouldProcessNeighborhoodEscape,
+  shouldProcessEscapeNavigation,
 } from '../utils/neighborhoodHistory'
 
 interface SetSelectionOptions {
@@ -40,13 +40,13 @@ interface UseNeighborhoodHistoryBackOptions {
   setSelection: SetSelection
 }
 
-interface UseNeighborhoodEscapeOptions {
-  onBack: () => boolean
-  selectionRef: MutableRefObject<SidebarSelection>
-  shouldBlockNeighborhoodEscape: boolean
+interface UseEscapeNavigationOptions {
+  /** Runs when Escape should navigate; returns true if it consumed the event. */
+  onEscape: () => boolean
+  shouldBlockEscape: boolean
 }
 
-function focusNoteListOnNextFrame(): void {
+export function focusNoteListOnNextFrame(): void {
   requestAnimationFrame(() => {
     focusNoteListContainer(document)
   })
@@ -117,14 +117,19 @@ export function useNeighborhoodHistoryBack({
   }, [neighborhoodHistoryRef, setSelection])
 }
 
-export function useNeighborhoodEscape({
-  onBack,
-  selectionRef,
-  shouldBlockNeighborhoodEscape,
-}: UseNeighborhoodEscapeOptions): void {
+/**
+ * Global Escape navigation. When no higher-priority surface owns the key
+ * (dialog, search, multi-select, focused editor/input), Escape runs `onEscape`,
+ * which steps back through neighborhood history or returns to the main note
+ * list. A focused editor is blurred first so a second Escape can navigate.
+ */
+export function useEscapeNavigation({
+  onEscape,
+  shouldBlockEscape,
+}: UseEscapeNavigationOptions): void {
   useEffect(() => {
     const handleWindowKeyDown = (event: KeyboardEvent) => {
-      if (!shouldProcessNeighborhoodEscape(event, selectionRef.current, shouldBlockNeighborhoodEscape)) return
+      if (!shouldProcessEscapeNavigation(event, shouldBlockEscape)) return
 
       const activeElement = document.activeElement
       if (isEditorEscapeTarget(activeElement)) {
@@ -136,12 +141,12 @@ export function useNeighborhoodEscape({
 
       if (isEditableElement(activeElement)) return
 
-      if (onBack()) {
+      if (onEscape()) {
         event.preventDefault()
       }
     }
 
     window.addEventListener('keydown', handleWindowKeyDown)
     return () => window.removeEventListener('keydown', handleWindowKeyDown)
-  }, [onBack, selectionRef, shouldBlockNeighborhoodEscape])
+  }, [onEscape, shouldBlockEscape])
 }

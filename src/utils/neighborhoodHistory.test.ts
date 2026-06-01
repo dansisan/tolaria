@@ -8,7 +8,7 @@ import {
   pushNeighborhoodHistory,
   resolveNeighborhoodSelection,
   selectionsEqual,
-  shouldProcessNeighborhoodEscape,
+  shouldProcessEscapeNavigation,
 } from './neighborhoodHistory'
 
 function buildEntry(path: string, title: string): VaultEntry {
@@ -89,22 +89,16 @@ describe('neighborhoodHistory', () => {
     })
   })
 
-  it('only processes Escape when Neighborhood is active and nothing higher priority is open', () => {
-    expect(shouldProcessNeighborhoodEscape(
-      { defaultPrevented: false, key: 'Escape', metaKey: false, ctrlKey: false, altKey: false },
-      alphaSelection,
-      false,
-    )).toBe(true)
-    expect(shouldProcessNeighborhoodEscape(
-      { defaultPrevented: false, key: 'Escape', metaKey: false, ctrlKey: false, altKey: false },
-      inboxSelection,
-      false,
-    )).toBe(false)
-    expect(shouldProcessNeighborhoodEscape(
-      { defaultPrevented: false, key: 'Escape', metaKey: false, ctrlKey: false, altKey: false },
-      alphaSelection,
-      true,
-    )).toBe(false)
+  it('processes a plain Escape unless it is already handled, modified, or blocked', () => {
+    const plainEscape = { defaultPrevented: false, key: 'Escape', metaKey: false, ctrlKey: false, altKey: false }
+    expect(shouldProcessEscapeNavigation(plainEscape, false)).toBe(true)
+    // Blocked while a dialog or other higher-priority surface is open.
+    expect(shouldProcessEscapeNavigation(plainEscape, true)).toBe(false)
+    // Already consumed by a closer handler (search bar, multi-select, etc.).
+    expect(shouldProcessEscapeNavigation({ ...plainEscape, defaultPrevented: true }, false)).toBe(false)
+    // Modifier chords and non-Escape keys are ignored.
+    expect(shouldProcessEscapeNavigation({ ...plainEscape, metaKey: true }, false)).toBe(false)
+    expect(shouldProcessEscapeNavigation({ ...plainEscape, key: 'Enter' }, false)).toBe(false)
   })
 
   it('detects editable targets that belong to the editor surfaces', () => {

@@ -81,9 +81,8 @@ export function popNeighborhoodHistory(history: SidebarSelection[]) {
   }
 }
 
-export function shouldProcessNeighborhoodEscape(
+export function shouldProcessEscapeNavigation(
   event: Pick<KeyboardEvent, 'defaultPrevented' | 'key' | 'metaKey' | 'ctrlKey' | 'altKey'>,
-  selection: SidebarSelection,
   blocked: boolean,
 ): boolean {
   return !event.defaultPrevented
@@ -91,7 +90,6 @@ export function shouldProcessNeighborhoodEscape(
     && !event.metaKey
     && !event.ctrlKey
     && !event.altKey
-    && selection.kind === 'entity'
     && !blocked
 }
 

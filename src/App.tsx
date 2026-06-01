@@ -71,8 +71,9 @@ import { useNoteRetargetingUi } from './hooks/useNoteRetargetingUi'
 import { useVaultBridge } from './hooks/useVaultBridge'
 import { useSavedViewOrdering } from './hooks/useSavedViewOrdering'
 import {
+  focusNoteListOnNextFrame,
+  useEscapeNavigation,
   useNeighborhoodEntry,
-  useNeighborhoodEscape,
   useNeighborhoodHistoryBack,
   useSelectionSanitizer,
 } from './hooks/useNeighborhoodSelection'
@@ -117,8 +118,10 @@ import {
 import { isActiveVaultUnavailableError } from './utils/vaultErrors'
 import { hasNoteIconValue } from './utils/noteIcon'
 import {
+  getDefaultSelectionForOrganization,
   INBOX_SELECTION,
   isExplicitOrganizationEnabled,
+  isPrimaryNoteListSelection,
   sanitizeSelectionForOrganization,
 } from './utils/organizationWorkflow'
 import { requestPlainTextPaste } from './utils/plainTextPaste'
@@ -1574,10 +1577,22 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     || showFeedback
   )
 
-  useNeighborhoodEscape({
-    onBack: handleNeighborhoodHistoryBack,
-    selectionRef,
-    shouldBlockNeighborhoodEscape,
+  // Escape steps back through neighborhood history, then falls back to the main
+  // note list (Inbox when organizing, otherwise All Notes) from secondary views
+  // like Changes, Pulse, saved Views, or folders. It is a no-op when the user is
+  // already in a primary note list so it never bounces between All Notes/Inbox.
+  const homeSelection = getDefaultSelectionForOrganization(vaultConfig.inbox?.explicitOrganization)
+  const handleEscapeNavigation = useCallback(() => {
+    if (handleNeighborhoodHistoryBack()) return true
+    if (isPrimaryNoteListSelection(selectionRef.current)) return false
+    handleSetSelection(homeSelection)
+    focusNoteListOnNextFrame()
+    return true
+  }, [handleNeighborhoodHistoryBack, handleSetSelection, homeSelection])
+
+  useEscapeNavigation({
+    onEscape: handleEscapeNavigation,
+    shouldBlockEscape: shouldBlockNeighborhoodEscape,
   })
 
   const noteListColumnsLabel = useMemo(() => {
