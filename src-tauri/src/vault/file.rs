@@ -170,6 +170,28 @@ pub fn save_note_content(path: &str, content: &str) -> Result<(), String> {
     .map_err(|e| note_io_error(NoteIoOperation::Save, NotePathDisplay::new(path), &e))
 }
 
+/// Read a note file's current on-disk content, returning None when it is absent
+/// or unreadable (e.g. a brand-new note that has never been saved).
+fn read_existing_note_content(path: &str) -> Option<String> {
+    let normalized_path = RawNotePath(path).normalized_for_file_io();
+    fs::read_to_string(Path::new(normalized_path.as_ref())).ok()
+}
+
+/// Save note content and report the attachment links that were dropped — present
+/// in the previous on-disk version but absent now. The frontend uses these to
+/// prune attachments whose last reference was just removed. New files report none.
+pub fn save_note_content_tracking_removed_attachments(
+    path: &str,
+    content: &str,
+) -> Result<Vec<String>, String> {
+    let previous = read_existing_note_content(path);
+    save_note_content(path, content)?;
+    Ok(match previous {
+        Some(prev) => super::parsing::removed_attachment_links(&prev, content),
+        None => Vec::new(),
+    })
+}
+
 /// Create a new note file without overwriting any existing file.
 pub fn create_note_content(path: &str, content: &str) -> Result<(), String> {
     let normalized_path = RawNotePath(path).normalized_for_file_io();
@@ -220,6 +242,25 @@ mod tests {
             RawNotePath(path).normalized_for_file_io(),
             r"\\?\C:\Users\alex\Documents\Tolaria\Getting Started\untitled-project.md"
         );
+    }
+
+    #[test]
+    fn save_note_content_tracking_reports_removed_attachment() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let note = dir.path().join("note.md");
+        let note_path = note.to_str().unwrap();
+
+        let removed = save_note_content_tracking_removed_attachments(
+            note_path,
+            "![a](attachments/a.png)\n![b](attachments/b.png)\n",
+        )
+        .unwrap();
+        assert!(removed.is_empty(), "new file drops nothing");
+
+        let removed =
+            save_note_content_tracking_removed_attachments(note_path, "![b](attachments/b.png)\n")
+                .unwrap();
+        assert_eq!(removed, vec!["attachments/a.png"]);
     }
 
     #[test]

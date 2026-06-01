@@ -120,6 +120,31 @@ pub fn copy_image_to_vault(vault_path: &str, source_path: &str) -> Result<String
     Ok(target_path.to_string_lossy().to_string())
 }
 
+/// True when a vault-relative path points inside the `attachments/` directory.
+/// Guards [`delete_attachment`] so only attachment files can ever be removed.
+fn is_attachments_relative_path(relative_path: &str) -> bool {
+    let normalized = relative_path.replace('\\', "/");
+    normalized.starts_with("attachments/") && !normalized.split('/').any(|seg| seg == "..")
+}
+
+/// Delete an orphaned attachment file. `relative_path` is the vault-relative
+/// reference (e.g. `attachments/123-foo.webp`); `path` is its resolved, already
+/// boundary-validated absolute location. Refuses paths outside `attachments/`
+/// and treats an already-missing file as success (idempotent cleanup).
+pub fn delete_attachment(path: &Path, relative_path: &str) -> Result<(), String> {
+    if !is_attachments_relative_path(relative_path) {
+        return Err(format!(
+            "Refusing to delete non-attachment path: {}",
+            relative_path
+        ));
+    }
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(format!("Failed to delete attachment: {}", e)),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -293,6 +318,43 @@ mod tests {
         let result = copy_image_to_vault(vault_path, source_path.to_str().unwrap());
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Not a supported image"));
+    }
+
+    #[test]
+    fn test_delete_attachment_removes_file() {
+        let dir = TempDir::new().unwrap();
+        let attachments = dir.path().join("attachments");
+        fs::create_dir_all(&attachments).unwrap();
+        let file = attachments.join("a.webp");
+        fs::write(&file, b"data").unwrap();
+
+        delete_attachment(&file, "attachments/a.webp").unwrap();
+        assert!(!file.exists());
+    }
+
+    #[test]
+    fn test_delete_attachment_missing_file_is_ok() {
+        let dir = TempDir::new().unwrap();
+        let file = dir.path().join("attachments/gone.webp");
+        assert!(delete_attachment(&file, "attachments/gone.webp").is_ok());
+    }
+
+    #[test]
+    fn test_delete_attachment_rejects_non_attachment_path() {
+        let dir = TempDir::new().unwrap();
+        let file = dir.path().join("note.md");
+        fs::write(&file, b"keep me").unwrap();
+
+        let result = delete_attachment(&file, "note.md");
+        assert!(result.is_err());
+        assert!(file.exists(), "non-attachment files must never be deleted");
+    }
+
+    #[test]
+    fn test_is_attachments_relative_path_guards_traversal() {
+        assert!(is_attachments_relative_path("attachments/a.webp"));
+        assert!(!is_attachments_relative_path("attachments/../secrets.md"));
+        assert!(!is_attachments_relative_path("other/a.webp"));
     }
 
     #[test]

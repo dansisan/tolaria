@@ -60,6 +60,7 @@ import {
 import { useAiActivity } from './hooks/useAiActivity'
 import { useBulkActions } from './hooks/useBulkActions'
 import { useDeleteActions } from './hooks/useDeleteActions'
+import { useAttachmentCleanup } from './hooks/useAttachmentCleanup'
 import { useFolderActions } from './hooks/useFolderActions'
 import { useFileActions } from './hooks/useFileActions'
 import { useDeepLinks } from './hooks/useDeepLinks'
@@ -1273,6 +1274,8 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     reloadVault: vault.reloadVault,
     setToastMessage,
   })
+
+  useAttachmentCleanup({ entries: vault.entries, vaultPath: resolvedPath })
 
   const handleDeleteType = useCallback((typeName: string) => {
     const typeEntry = visibleEntries.find((entry) => entry.isA === 'Type' && entry.title === typeName)

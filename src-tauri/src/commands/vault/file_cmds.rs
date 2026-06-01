@@ -143,23 +143,38 @@ pub fn validate_note_content(
     )
 }
 
+/// Save note content and return the attachment links dropped from the previous
+/// on-disk version (present before, absent now). The frontend uses these to
+/// delete image attachments whose last reference was just removed.
 #[tauri::command]
 pub async fn save_note_content(
     path: PathBuf,
     content: String,
     vault_path: Option<PathBuf>,
-) -> Result<(), String> {
+) -> Result<Vec<String>, String> {
     tokio::task::spawn_blocking(move || {
         let stamped = crate::frontmatter::stamp_modified_date(
             &content,
             &chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
         );
         with_writable_note_path(path, vault_path, |validated_path| {
-            vault::save_note_content(validated_path, &stamped)
+            vault::save_note_content_tracking_removed_attachments(validated_path, &stamped)
         })
     })
     .await
     .map_err(|e| format!("Task panicked: {e}"))?
+}
+
+/// Delete an orphaned attachment file. `attachment_path` is the vault-relative
+/// reference (e.g. `attachments/123-foo.webp`); the boundary validates it stays
+/// inside the vault, and [`vault::delete_attachment`] confirms it targets the
+/// `attachments/` directory before removing it.
+#[tauri::command]
+pub fn delete_attachment(vault_path: PathBuf, attachment_path: String) -> Result<(), String> {
+    with_boundary(Some(vault_path.to_string_lossy().as_ref()), |boundary| {
+        let resolved = boundary.child_path(&attachment_path)?;
+        vault::delete_attachment(&resolved, &attachment_path)
+    })
 }
 
 #[tauri::command]
@@ -311,6 +326,51 @@ mod tests {
 
     fn note_path(dir: &TempDir, name: &str) -> PathBuf {
         dir.path().join(name)
+    }
+
+    #[tokio::test]
+    async fn save_note_content_reports_removed_attachment_to_caller() {
+        let dir = TempDir::new().unwrap();
+        let root = vault_root(&dir);
+        let note = note_path(&dir, "note.md");
+
+        save_note_content(
+            note.clone(),
+            "![a](attachments/a.png)\n![b](attachments/b.png)\n".to_string(),
+            Some(root.clone()),
+        )
+        .await
+        .unwrap();
+
+        let removed = save_note_content(
+            note,
+            "![b](attachments/b.png)\n".to_string(),
+            Some(root),
+        )
+        .await
+        .unwrap();
+        assert_eq!(removed, vec!["attachments/a.png"]);
+    }
+
+    #[test]
+    fn delete_attachment_removes_file_inside_vault() {
+        let dir = TempDir::new().unwrap();
+        let root = vault_root(&dir);
+        let file = dir.path().join("attachments/orphan.webp");
+        fs::create_dir_all(file.parent().unwrap()).unwrap();
+        fs::write(&file, b"data").unwrap();
+
+        delete_attachment(root, "attachments/orphan.webp".to_string()).unwrap();
+        assert!(!file.exists());
+    }
+
+    #[test]
+    fn delete_attachment_rejects_path_outside_vault() {
+        let dir = TempDir::new().unwrap();
+        let root = vault_root(&dir);
+
+        let result = delete_attachment(root, "../escape.webp".to_string());
+        assert!(result.is_err());
     }
 
     #[tokio::test]

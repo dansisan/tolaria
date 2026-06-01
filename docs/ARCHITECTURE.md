@@ -704,7 +704,7 @@ The vault backend (`src-tauri/src/vault/`) is split into focused submodules:
 | `ignored.rs` | Gitignored-content visibility filtering via batched, pipe-safe `git check-ignore` |
 | `filename_rules.rs` | Cross-platform validation for note filenames, folder names, and custom view filenames |
 | `rename.rs` | `rename_note` / `rename_note_filename` / `move_note_to_folder` — stage crash-safe file moves, update `title` frontmatter when needed, recover unfinished rename transactions, and report backlink rewrite failures |
-| `image.rs` | `save_image` / `copy_image_to_vault` — save editor image attachments with sanitized filenames |
+| `image.rs` | `save_image` / `copy_image_to_vault` — save editor image attachments with sanitized filenames; `delete_attachment` — remove an orphaned attachment file (guarded to the `attachments/` directory) |
 | `migration.rs` | `flatten_vault`, `vault_health_check`, `migrate_is_a_to_type` |
 | `config_seed.rs` | Maintains vault AI guidance (`AGENTS.md`, `CLAUDE.md`, and optional `GEMINI.md` shims), migrates legacy `config/agents.md`, and repairs missing root type scaffolding such as `type.md` and `note.md` |
 | `getting_started.rs` | Clones and normalizes the public Getting Started starter vault |
@@ -736,7 +736,7 @@ The vault backend (`src-tauri/src/vault/`) is split into focused submodules:
 |---------|-------------|
 | `list_vault` | Scan vault (cached), then apply Gitignored-content visibility → `Vec<VaultEntry>` |
 | `get_note_content` | Read note file content |
-| `save_note_content` | Write note content to disk |
+| `save_note_content` | Write note content to disk; returns attachment links dropped vs. the previous on-disk version so the renderer can prune orphaned images |
 | `delete_note` | Permanently delete note from disk (with confirm dialog) |
 | `rename_note` | Crash-safe note rename + `title` frontmatter update + cross-vault wikilinks + failed backlink counts |
 | `move_note_to_folder` | Crash-safe folder move that preserves the filename, reloads the moved note, and rewrites path-based wikilinks |
@@ -833,6 +833,7 @@ The desktop MCP WebSocket bridge is intentionally local-only. `mcp-server/ws-bri
 | `get_build_number` | Get app build number |
 | `save_image` | Save base64 image to `attachments/` and ensure the vault root is in the runtime asset scope |
 | `copy_image_to_vault` | Copy image file to `attachments/` and ensure the vault root is in the runtime asset scope |
+| `delete_attachment` | Delete an orphaned image from `attachments/` after its last note reference is removed (boundary- and prefix-guarded) |
 | `update_menu_state` | Update native menu checkmarks and enabled/disabled state for selection-dependent actions |
 | `trigger_menu_command` | Emit a native menu command ID for deterministic shortcut QA |
 | `update_current_window_min_size` | Update the active Tauri window's minimum size and optionally grow it to fit restored panes |

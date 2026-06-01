@@ -408,6 +408,17 @@ pub(super) fn extract_attachment_links(content: &str) -> Vec<String> {
     links
 }
 
+/// Attachment links present in `previous` content but absent from `current`.
+/// Used to prune attachments whose last reference was just removed from a note.
+pub(super) fn removed_attachment_links(previous: &str, current: &str) -> Vec<String> {
+    let current_links: std::collections::HashSet<String> =
+        extract_attachment_links(current).into_iter().collect();
+    extract_attachment_links(previous)
+        .into_iter()
+        .filter(|link| !current_links.contains(link))
+        .collect()
+}
+
 /// Extract tags from tag lines in note body content (excludes frontmatter).
 /// A tag line is a line whose first character is '#' immediately followed by a letter (no space),
 /// which distinguishes it from Markdown headings ('# heading').
@@ -1050,6 +1061,29 @@ mod tests {
         let content = "[spec](docs/spec.pdf) and again [spec](docs/spec.pdf)";
         let links = extract_attachment_links(content);
         assert_eq!(links, vec!["docs/spec.pdf"]);
+    }
+
+    #[test]
+    fn test_removed_attachment_links_reports_dropped_reference() {
+        let previous = "![a](attachments/a.png)\n![b](attachments/b.png)";
+        let current = "![b](attachments/b.png)";
+        assert_eq!(
+            removed_attachment_links(previous, current),
+            vec!["attachments/a.png"]
+        );
+    }
+
+    #[test]
+    fn test_removed_attachment_links_empty_when_reference_kept() {
+        let content = "![a](attachments/a.png)";
+        assert!(removed_attachment_links(content, content).is_empty());
+    }
+
+    #[test]
+    fn test_removed_attachment_links_ignores_added_references() {
+        let previous = "![a](attachments/a.png)";
+        let current = "![a](attachments/a.png)\n![b](attachments/b.png)";
+        assert!(removed_attachment_links(previous, current).is_empty());
     }
 
     #[test]
