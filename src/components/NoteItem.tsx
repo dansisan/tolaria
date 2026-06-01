@@ -147,7 +147,7 @@ function NoteSnippet({ snippet }: { snippet?: string | null }) {
     <div
       className="text-[12px] leading-[1.5] text-muted-foreground"
       data-testid="note-snippet"
-      style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+      style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
     >
       {snippet}
     </div>
