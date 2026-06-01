@@ -90,6 +90,7 @@ import type { NoteListItem } from './utils/ai-context'
 import { initializeNoteProperties } from './utils/initializeNoteProperties'
 import { filterEntries, filterInboxEntries, type NoteListFilter } from './utils/noteListHelpers'
 import { openNoteInNewWindow } from './utils/openNoteWindow'
+import { resolveAdjacentNote } from './utils/adjacentNote'
 import { isWindows } from './utils/platform'
 import { getPulledVaultUpdateOptions, refreshPulledVaultState } from './utils/pulledVaultRefresh'
 import { isAiWorkspaceWindow, isNoteWindow, getNoteWindowParams, type NoteWindowParams } from './utils/windowMode'
@@ -1255,8 +1256,16 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     return entry ? vaultPathForEntry(entry, resolvedPath) : resolvedPath
   }, [resolvedPath, vault.entries])
 
+  const handleDeselectDeletedNote = useCallback((path: string) => {
+    if (notes.activeTabPathRef.current !== path) return
+    const excluded = new Set(multiSelectionCommandRef.current?.selectedPaths ?? [])
+    const neighbor = resolveAdjacentNote(visibleNotesRef.current, path, excluded)
+    if (neighbor) void handleSelectNote(neighbor)
+    else closeAllTabs()
+  }, [notes.activeTabPathRef, handleSelectNote, closeAllTabs])
+
   const deleteActions = useDeleteActions({
-    onDeselectNote: (path: string) => { if (notes.activeTabPath === path) notes.closeAllTabs() },
+    onDeselectNote: handleDeselectDeletedNote,
     removeEntry: vault.removeEntry,
     removeEntries: vault.removeEntries,
     resolveVaultPathForPath: resolveVaultPathForNotePath,
