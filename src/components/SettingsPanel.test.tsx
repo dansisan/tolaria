@@ -224,7 +224,7 @@ describe('SettingsPanel', () => {
       release_channel: null,
       theme_mode: 'light',
       date_display_format: 'friendly',
-      note_width_mode: 'normal',
+      note_width_mode: 'wide',
       sidebar_type_pluralization_enabled: true,
       hide_gitignored_files: true,
       all_notes_show_pdfs: false,
@@ -430,13 +430,13 @@ describe('SettingsPanel', () => {
     expect(screen.getByText('系统（简体中文）')).toBeInTheDocument()
   })
 
-  it('defaults date display to friendly, note width to normal, and sidebar type pluralization to enabled', () => {
+  it('defaults date display to friendly, note width to wide, and sidebar type pluralization to enabled', () => {
     render(
       <SettingsPanel open={true} settings={emptySettings} onSave={onSave} onClose={onClose} />
     )
 
     expect(screen.getByTestId('settings-date-display-format')).toHaveAttribute('data-value', 'friendly')
-    expect(screen.getByTestId('settings-default-note-width')).toHaveAttribute('data-value', 'normal')
+    expect(screen.getByTestId('settings-default-note-width')).toHaveAttribute('data-value', 'wide')
     expect(
       within(screen.getByTestId('settings-sidebar-type-pluralization')).getByRole('switch')
     ).toHaveAttribute('aria-checked', 'true')

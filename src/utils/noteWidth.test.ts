@@ -14,9 +14,10 @@ describe('noteWidth', () => {
   })
 
   it('resolves note override before the default', () => {
-    expect(resolveNoteWidthMode('wide', 'normal')).toBe('wide')
-    expect(resolveNoteWidthMode(null, 'wide')).toBe('wide')
-    expect(resolveNoteWidthMode(null, 'expanded')).toBe('normal')
+    expect(resolveNoteWidthMode('normal', 'wide')).toBe('normal')
+    expect(resolveNoteWidthMode(null, 'normal')).toBe('normal')
+    // Falls back to the global default ('wide') when nothing valid is set.
+    expect(resolveNoteWidthMode(null, 'expanded')).toBe('wide')
   })
 
   it('toggles between normal and wide', () => {
