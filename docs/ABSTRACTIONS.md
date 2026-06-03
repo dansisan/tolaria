@@ -717,6 +717,12 @@ Per-note width is persisted as hidden `_width` frontmatter only when the note al
 
 The rich-editor body font size is an installation-local preference (`settings.note_body_font_size`, 12–22px, default 15). `src/utils/noteBodyFontSize.ts` owns the range, normalization, and resolution; the Settings → Content dropdown writes it and Rust `normalize_note_body_font_size` drops out-of-range values on load/save. `useNoteBodyFontSize` (wired in `App.tsx`) publishes the resolved size as the document-level `--note-body-font-size` custom property, and an `EditorTheme.css` rule overrides the editor container's inline `--editor-font-size` from it (with `!important`, to beat the per-container inline value `useEditorTheme` sets from `theme.json`). Because every body-text, caret, and placeholder metric derives from `--editor-font-size`, they all scale together. Unlike width, font size is global, not per-note.
 
+### AI Rename of Pasted Images
+
+Pasted/dropped images can be renamed by an external command right after they are saved, before the editor inserts the block. `settings.image_rename_mode` (`'command' | null`, where null = off, `src/utils/imageRename.ts`) plus `settings.image_rename_command` configure it via Settings → Content. `App.tsx` resolves the effective command (`resolveImageRenameCommand`) and threads it to `Editor` → BlockNote's `uploadFile`. In `uploadImageFile`, after `save_image` writes `attachments/{ts}-name.ext`, the `rename_pasted_image` command runs `<command> <absolute-image-path>`, reads the desired filename from stdout, sanitizes it (extension preserved, collision-safe `-N` suffixing), `fs::rename`s within `attachments/`, and returns the new path — so the block is inserted already named. Renaming happens inside the upload promise (during BlockNote's loading state), so there is no autosave race and no reference rewrite. The command is killed after an 8s timeout and any failure falls back to the saved name. Spawning uses `std::process::Command` with no shell (the image path is a single arg, so no injection); the target is fenced to the vault's `attachments/` directory. The default `image_rename_command` (`DEFAULT_IMAGE_RENAME_COMMAND`) pre-fills the Settings field with `~/Code/obsidian-config/scripts/name_image.sh` (a thin `llm` CLI wrapper); `~` is expanded by `expand_tilde` before spawning.
+
+Independently of the rename feature, `portableImageUrls` improves image **alt text** on save: a useless alt — empty, or a bare filename like `image.jpeg` (anything ending in an image extension) — is replaced with a readable label derived from the attachment's filename (`humanizeAttachmentStem`: drop extension and the `save_image` timestamp prefix, separators → spaces, capitalize), so a file renamed to `golden-retriever.webp` serializes as `![Golden retriever](attachments/golden-retriever.webp)`. Real captions (which never end in an image extension) are preserved, and the result is round-trip stable.
+
 ### Arrow Ligature Normalization
 
 Typed ASCII arrow sequences are normalized consistently in both editor modes:
@@ -900,6 +906,8 @@ interface Settings {
   date_display_format: 'us' | 'european' | 'friendly' | 'iso' | null
   note_width_mode: 'normal' | 'wide' | null
   note_body_font_size: number | null // px, 12–22, null = default 15
+  image_rename_mode: 'command' | null // null = off
+  image_rename_command: string | null // external command run to name pasted images
   sidebar_type_pluralization_enabled: boolean | null // null = default true
   ai_features_enabled: boolean | null // null = default true
   git_enabled: boolean | null // null = default true

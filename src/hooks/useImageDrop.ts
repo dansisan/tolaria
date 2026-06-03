@@ -36,8 +36,22 @@ function isImagePath(path: string): boolean {
   return IMAGE_EXTENSIONS.includes(ext)
 }
 
-/** Upload an image file — saves to vault/attachments in Tauri, returns data URL in browser */
-export async function uploadImageFile(file: File, vaultPath?: string): Promise<string> {
+/** Run the optional AI rename command on a just-saved attachment; on any failure keep the saved path. */
+async function applyImageRenameCommand(vaultPath: string, savedPath: string, renameCommand?: string): Promise<string> {
+  if (!renameCommand) return savedPath
+  try {
+    return await invoke<string>('rename_pasted_image', { vaultPath, imagePath: savedPath, command: renameCommand })
+  } catch {
+    return savedPath
+  }
+}
+
+/**
+ * Upload an image file — saves to vault/attachments in Tauri, returns data URL in browser.
+ * When `renameCommand` is set, the saved file is renamed via that command before the URL
+ * is returned (so the editor inserts the final name); failures fall back to the saved name.
+ */
+export async function uploadImageFile(file: File, vaultPath?: string, renameCommand?: string): Promise<string> {
   if (isTauri() && vaultPath) {
     const buf = await file.arrayBuffer()
     const bytes = new Uint8Array(buf)
@@ -49,7 +63,8 @@ export async function uploadImageFile(file: File, vaultPath?: string): Promise<s
       filename: file.name,
       data: base64,
     })
-    return attachmentAssetUrlFromPath({ path: savedPath })
+    const finalPath = await applyImageRenameCommand(vaultPath, savedPath, renameCommand)
+    return attachmentAssetUrlFromPath({ path: finalPath })
   }
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader()

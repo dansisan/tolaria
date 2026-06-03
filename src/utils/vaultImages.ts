@@ -77,6 +77,7 @@ interface PathSegmentComparisonRequest {
 function rewriteMarkdownImages(
   markdown: Markdown,
   transformUrl: (url: MarkdownImageUrl) => MarkdownImageUrl | null,
+  transformAlt?: (alt: string, nextUrl: MarkdownImageUrl) => string,
 ): Markdown {
   let rewritten = ''
   let cursor = 0
@@ -87,13 +88,40 @@ function rewriteMarkdownImages(
 
     rewritten += markdown.slice(cursor, image.start)
     const nextUrl = transformUrl(image.url)
-    rewritten += nextUrl
-      ? `![${image.alt}](${nextUrl}${image.title})`
-      : markdown.slice(image.start, image.end)
+    if (nextUrl) {
+      const nextAlt = transformAlt ? transformAlt(image.alt, nextUrl) : image.alt
+      rewritten += `![${nextAlt}](${nextUrl}${image.title})`
+    } else {
+      rewritten += markdown.slice(image.start, image.end)
+    }
     cursor = image.end
   }
 
   return rewritten + markdown.slice(cursor)
+}
+
+const REPLACEABLE_ALT_PATTERN = /\.(?:png|jpe?g|webp|gif|svg|bmp|tiff?)$/i
+const SAVE_TIMESTAMP_PREFIX = /^\d{10,13}-/
+
+/** A readable label from an attachment filename: drop extension and the
+ *  `save_image` timestamp prefix, turn separators into spaces, capitalize. */
+function humanizeAttachmentStem(url: MarkdownImageUrl): string {
+  const filename = decodePathUrl({ url }).split(/[\\/]/).pop() ?? ''
+  const stem = filename.replace(/\.[^.]+$/, '').replace(SAVE_TIMESTAMP_PREFIX, '')
+  const words = stem.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim()
+  if (!words) return ''
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
+/**
+ * Replace a useless image alt — empty, or a bare filename like `image.jpeg` —
+ * with a readable label derived from the attachment's (possibly AI-renamed)
+ * filename. Real captions, which never end in an image extension, are kept.
+ */
+function improveImageAlt(alt: string, nextUrl: MarkdownImageUrl): string {
+  const trimmed = alt.trim()
+  if (trimmed !== '' && !REPLACEABLE_ALT_PATTERN.test(trimmed)) return alt
+  return humanizeAttachmentStem(nextUrl) || alt
 }
 
 function nextMarkdownImage(markdown: Markdown, startIndex: number): MarkdownImageToken | null {
@@ -332,5 +360,9 @@ export function portableImageUrls(
 ): Markdown {
   if (!vaultPath) return markdown
 
-  return rewriteMarkdownImages(markdown, url => portableImageUrl({ url, vaultPath, notePath }))
+  return rewriteMarkdownImages(
+    markdown,
+    url => portableImageUrl({ url, vaultPath, notePath }),
+    improveImageAlt,
+  )
 }

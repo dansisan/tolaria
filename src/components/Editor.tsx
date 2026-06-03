@@ -105,6 +105,8 @@ interface EditorProps {
   onRenameFilename?: (path: string, newFilenameStem: string) => void
   noteWidth?: NoteWidthMode
   onToggleNoteWidth?: () => void
+  /** External command that renames pasted images, or undefined to keep saved names. */
+  imageRenameCommand?: string
   canGoBack?: boolean
   canGoForward?: boolean
   onGoBack?: () => void
@@ -200,6 +202,7 @@ interface EditorSetupParams {
   tabs: Tab[]
   activeTabPath: string | null
   vaultPath?: string
+  imageRenameCommand?: string
   onContentChange?: (path: string, content: string) => void
   onLoadDiff?: (path: string) => Promise<string>
   onLoadDiffAtCommit?: (path: string, commitHash: string) => Promise<string>
@@ -211,18 +214,20 @@ interface EditorSetupParams {
 }
 
 function useEditorSetup({
-  tabs, activeTabPath, vaultPath, onContentChange,
+  tabs, activeTabPath, vaultPath, imageRenameCommand, onContentChange,
   onLoadDiff, onLoadDiffAtCommit, pendingCommitDiffRequest, onPendingCommitDiffHandled, getNoteStatus,
   rawToggleRef, diffToggleRef,
 }: EditorSetupParams) {
   const vaultPathRef = useRef(vaultPath)
+  const imageRenameCommandRef = useRef(imageRenameCommand)
   const flushPendingEditorChangeRef = useRef<(() => boolean) | null>(null)
   useEffect(() => { vaultPathRef.current = vaultPath }, [vaultPath])
+  useEffect(() => { imageRenameCommandRef.current = imageRenameCommand }, [imageRenameCommand])
 
   const editor = useCreateBlockNote({
     schema,
     domAttributes: RICH_EDITOR_BIDI_DOM_ATTRIBUTES,
-    uploadFile: (file: File) => uploadImageFile(file, vaultPathRef.current),
+    uploadFile: (file: File) => uploadImageFile(file, vaultPathRef.current, imageRenameCommandRef.current),
     _tiptapOptions: { injectNonce: RUNTIME_STYLE_NONCE },
     extensions: [
       createRichEditorTransformErrorRecoveryExtension(),
@@ -620,6 +625,7 @@ export const Editor = memo(function Editor(props: EditorProps) {
     tabs: props.tabs,
     activeTabPath: props.activeTabPath,
     vaultPath: props.vaultPath,
+    imageRenameCommand: props.imageRenameCommand,
     onContentChange: props.onContentChange,
     onLoadDiff: props.onLoadDiff,
     onLoadDiffAtCommit: props.onLoadDiffAtCommit,

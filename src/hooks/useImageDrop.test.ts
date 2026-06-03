@@ -105,6 +105,41 @@ describe('uploadImageFile', () => {
 
     tauriMode = false
   })
+
+  it('renames the saved image via command when one is configured', async () => {
+    tauriMode = true
+    const { invoke, convertFileSrc } = await import('@tauri-apps/api/core')
+    vi.mocked(invoke).mockReset()
+    vi.mocked(invoke).mockResolvedValueOnce('/vault/attachments/123-image.png')   // save_image
+    vi.mocked(invoke).mockResolvedValueOnce('/vault/attachments/golden-retriever.png') // rename_pasted_image
+    vi.mocked(convertFileSrc).mockReturnValue('asset://localhost/vault/attachments/golden-retriever.png')
+
+    const file = new File([new Blob([new Uint8Array([1, 2])])], 'image.png', { type: 'image/png' })
+    const url = await uploadImageFile(file, '/vault', '~/bin/name.sh')
+
+    expect(invoke).toHaveBeenCalledWith('rename_pasted_image', {
+      vaultPath: '/vault',
+      imagePath: '/vault/attachments/123-image.png',
+      command: '~/bin/name.sh',
+    })
+    expect(url).toBe('asset://localhost/vault/attachments/golden-retriever.png')
+    tauriMode = false
+  })
+
+  it('keeps the saved name when the rename command fails', async () => {
+    tauriMode = true
+    const { invoke, convertFileSrc } = await import('@tauri-apps/api/core')
+    vi.mocked(invoke).mockReset()
+    vi.mocked(invoke).mockResolvedValueOnce('/vault/attachments/123-image.png')   // save_image
+    vi.mocked(invoke).mockRejectedValueOnce(new Error('script failed'))            // rename_pasted_image
+    vi.mocked(convertFileSrc).mockReturnValue('asset://localhost/vault/attachments/123-image.png')
+
+    const file = new File([new Blob([new Uint8Array([1, 2])])], 'image.png', { type: 'image/png' })
+    const url = await uploadImageFile(file, '/vault', '~/bin/name.sh')
+
+    expect(url).toBe('asset://localhost/vault/attachments/123-image.png')
+    tauriMode = false
+  })
 })
 
 describe('useImageDrop', () => {

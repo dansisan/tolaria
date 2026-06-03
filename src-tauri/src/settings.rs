@@ -93,6 +93,8 @@ pub struct Settings {
     pub date_display_format: Option<String>,
     pub note_width_mode: Option<String>,
     pub note_body_font_size: Option<u32>,
+    pub image_rename_mode: Option<String>,
+    pub image_rename_command: Option<String>,
     pub sidebar_type_pluralization_enabled: Option<bool>,
     pub initial_h1_auto_rename_enabled: Option<bool>,
     pub ai_features_enabled: Option<bool>,
@@ -150,6 +152,15 @@ pub fn normalize_theme_mode(value: Option<&str>) -> Option<String> {
 pub fn normalize_note_width_mode(value: Option<&str>) -> Option<String> {
     match value.map(|candidate| candidate.trim().to_ascii_lowercase()) {
         Some(mode) if SUPPORTED_NOTE_WIDTH_MODES.contains(&mode.as_str()) => Some(mode),
+        _ => None,
+    }
+}
+
+/// Persist the image-rename mode only when explicitly `command`; everything else
+/// (including the default `off`) is stored as `None`.
+pub fn normalize_image_rename_mode(value: Option<&str>) -> Option<String> {
+    match value.map(|candidate| candidate.trim().to_ascii_lowercase()) {
+        Some(mode) if mode == "command" => Some(mode),
         _ => None,
     }
 }
@@ -229,6 +240,8 @@ fn normalize_settings(settings: Settings) -> Settings {
         date_display_format: normalize_date_display_format(settings.date_display_format.as_deref()),
         note_width_mode: normalize_note_width_mode(settings.note_width_mode.as_deref()),
         note_body_font_size: normalize_note_body_font_size(settings.note_body_font_size),
+        image_rename_mode: normalize_image_rename_mode(settings.image_rename_mode.as_deref()),
+        image_rename_command: normalize_optional_string(settings.image_rename_command),
         sidebar_type_pluralization_enabled: settings.sidebar_type_pluralization_enabled,
         initial_h1_auto_rename_enabled: settings.initial_h1_auto_rename_enabled,
         ai_features_enabled: settings.ai_features_enabled,
@@ -467,6 +480,8 @@ mod tests {
             date_display_format: Some("iso".to_string()),
             note_width_mode: Some("wide".to_string()),
             note_body_font_size: Some(18),
+            image_rename_mode: Some("command".to_string()),
+            image_rename_command: Some("name-image.sh".to_string()),
             sidebar_type_pluralization_enabled: Some(false),
             initial_h1_auto_rename_enabled: Some(false),
             ai_features_enabled: Some(false),
@@ -509,6 +524,8 @@ mod tests {
             date_display_format: Some("european".to_string()),
             note_width_mode: Some("wide".to_string()),
             note_body_font_size: Some(18),
+            image_rename_mode: Some("command".to_string()),
+            image_rename_command: Some("name-image.sh".to_string()),
             sidebar_type_pluralization_enabled: Some(false),
             initial_h1_auto_rename_enabled: Some(false),
             ai_features_enabled: Some(false),
@@ -532,6 +549,8 @@ mod tests {
         assert_eq!(loaded.date_display_format.as_deref(), Some("european"));
         assert_eq!(loaded.note_width_mode.as_deref(), Some("wide"));
         assert_eq!(loaded.note_body_font_size, Some(18));
+        assert_eq!(loaded.image_rename_mode.as_deref(), Some("command"));
+        assert_eq!(loaded.image_rename_command.as_deref(), Some("name-image.sh"));
         assert_eq!(loaded.sidebar_type_pluralization_enabled, Some(false));
         assert_eq!(loaded.initial_h1_auto_rename_enabled, Some(false));
         assert_eq!(loaded.ai_features_enabled, Some(false));
@@ -667,6 +686,27 @@ mod tests {
             ..Default::default()
         });
         assert!(loaded.note_width_mode.is_none());
+    }
+
+    #[test]
+    fn test_image_rename_mode_only_persists_command() {
+        let off = save_and_reload(Settings {
+            image_rename_mode: Some("off".to_string()),
+            ..Default::default()
+        });
+        assert!(off.image_rename_mode.is_none());
+
+        let bogus = save_and_reload(Settings {
+            image_rename_mode: Some("agent".to_string()),
+            ..Default::default()
+        });
+        assert!(bogus.image_rename_mode.is_none());
+
+        let command = save_and_reload(Settings {
+            image_rename_mode: Some("command".to_string()),
+            ..Default::default()
+        });
+        assert_eq!(command.image_rename_mode.as_deref(), Some("command"));
     }
 
     #[test]

@@ -1,6 +1,12 @@
 use std::fs;
-use std::path::Path;
-use std::time::UNIX_EPOCH;
+use std::io::Read;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::time::{Duration, Instant, UNIX_EPOCH};
+
+/// How long an image-rename command may run before it is killed and the
+/// original filename is kept.
+const RENAME_COMMAND_TIMEOUT: Duration = Duration::from_secs(8);
 
 /// Check if a character is safe for use in filenames (alphanumeric, dot, dash, underscore).
 fn is_safe_filename_char(c: char) -> bool {
@@ -143,6 +149,121 @@ pub fn delete_attachment(path: &Path, relative_path: &str) -> Result<(), String>
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(e) => Err(format!("Failed to delete attachment: {}", e)),
     }
+}
+
+/// Run `command <image_path>`, draining stdout on a reader thread so a chatty
+/// script can't deadlock, and killing it if it exceeds [`RENAME_COMMAND_TIMEOUT`].
+/// Returns the first non-empty trimmed stdout line.
+fn run_name_command(command: &str, image_path: &Path) -> Result<String, String> {
+    let program = crate::commands::expand_tilde(command);
+    let mut child = Command::new(program.as_ref())
+        .arg(image_path)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|e| format!("Failed to start rename command: {}", e))?;
+
+    let mut stdout = child.stdout.take().ok_or("Rename command produced no stdout")?;
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let mut buffer = String::new();
+        let _ = stdout.read_to_string(&mut buffer);
+        let _ = tx.send(buffer);
+    });
+
+    let started = Instant::now();
+    let status = loop {
+        if let Some(status) = child.try_wait().map_err(|e| format!("Rename command failed: {}", e))? {
+            break status;
+        }
+        if started.elapsed() > RENAME_COMMAND_TIMEOUT {
+            let _ = child.kill();
+            return Err("Rename command timed out".to_string());
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    };
+
+    if !status.success() {
+        return Err("Rename command exited with a non-zero status".to_string());
+    }
+
+    let output = rx.recv_timeout(Duration::from_secs(1)).unwrap_or_default();
+    output
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .map(str::to_string)
+        .ok_or_else(|| "Rename command produced no name".to_string())
+}
+
+/// Find a collision-free path in `dir` for `stem.ext`, appending `-1`, `-2`, …
+/// when needed. `current` (the file being renamed) never counts as a collision.
+fn unique_attachment_path(dir: &Path, stem: &str, ext: &str, current: &Path) -> PathBuf {
+    let file_name = |suffix: &str| -> String {
+        let base = format!("{}{}", stem, suffix);
+        if ext.is_empty() { base } else { format!("{}.{}", base, ext) }
+    };
+
+    let first = dir.join(file_name(""));
+    if first == current || !first.exists() {
+        return first;
+    }
+    let mut counter = 1;
+    loop {
+        let candidate = dir.join(file_name(&format!("-{}", counter)));
+        if candidate == current || !candidate.exists() {
+            return candidate;
+        }
+        counter += 1;
+    }
+}
+
+/// Rename `image_path` to `<sanitized raw_name stem>.<original ext>` within the
+/// same directory, collision-safe. Returns the new absolute path.
+fn rename_attachment_to_stem(image_path: &Path, raw_name: &str) -> Result<String, String> {
+    let dir = image_path.parent().ok_or("Image has no parent directory")?;
+    let ext = image_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+    let stem_source = Path::new(raw_name)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or(raw_name);
+    let stem = sanitize_filename(stem_source);
+    let stem = stem.trim_matches('_');
+    if stem.is_empty() {
+        return Err("Suggested name was empty after sanitizing".to_string());
+    }
+
+    let target = unique_attachment_path(dir, stem, ext, image_path);
+    if target != image_path {
+        fs::rename(image_path, &target).map_err(|e| format!("Failed to rename attachment: {}", e))?;
+    }
+    Ok(target.to_string_lossy().to_string())
+}
+
+/// Rename a freshly-saved attachment using an external naming command. The image
+/// must live inside the vault's `attachments/` directory. On any failure the
+/// original file is left untouched (the caller falls back to its current name).
+pub fn rename_attachment_via_command(
+    vault_path: &Path,
+    image_path: &Path,
+    command: &str,
+) -> Result<String, String> {
+    let vault = vault_path
+        .canonicalize()
+        .map_err(|e| format!("Invalid vault path: {}", e))?;
+    let image = image_path
+        .canonicalize()
+        .map_err(|e| format!("Image not found: {}", e))?;
+    let relative = image
+        .strip_prefix(&vault)
+        .map_err(|_| "Image is outside the vault".to_string())?;
+    if !relative.starts_with("attachments") {
+        return Err("Only attachments can be renamed".to_string());
+    }
+
+    let raw_name = run_name_command(command, &image)?;
+    rename_attachment_to_stem(&image, &raw_name)
 }
 
 #[cfg(test)]
@@ -318,6 +439,79 @@ mod tests {
         let result = copy_image_to_vault(vault_path, source_path.to_str().unwrap());
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Not a supported image"));
+    }
+
+    fn make_attachment(dir: &TempDir, name: &str) -> std::path::PathBuf {
+        let attachments = dir.path().join("attachments");
+        fs::create_dir_all(&attachments).unwrap();
+        let path = attachments.join(name);
+        fs::write(&path, b"data").unwrap();
+        path
+    }
+
+    #[test]
+    fn test_rename_attachment_to_stem_preserves_extension() {
+        let dir = TempDir::new().unwrap();
+        let image = make_attachment(&dir, "1700000000-image.webp");
+
+        let renamed = rename_attachment_to_stem(&image, "Golden Retriever").unwrap();
+
+        assert!(renamed.ends_with("/Golden_Retriever.webp"), "got {}", renamed);
+        assert!(!image.exists());
+        assert!(std::path::Path::new(&renamed).exists());
+    }
+
+    #[test]
+    fn test_rename_attachment_to_stem_avoids_collisions() {
+        let dir = TempDir::new().unwrap();
+        make_attachment(&dir, "chart.webp");
+        let image = make_attachment(&dir, "1700000000-image.webp");
+
+        let renamed = rename_attachment_to_stem(&image, "chart").unwrap();
+
+        assert!(renamed.ends_with("/chart-1.webp"), "got {}", renamed);
+    }
+
+    #[test]
+    fn test_rename_attachment_to_stem_rejects_empty_name() {
+        let dir = TempDir::new().unwrap();
+        let image = make_attachment(&dir, "1700000000-image.webp");
+        assert!(rename_attachment_to_stem(&image, "   ").is_err());
+        assert!(image.exists(), "original is kept when the name is unusable");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_rename_attachment_via_command_runs_script() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = TempDir::new().unwrap();
+        let image = make_attachment(&dir, "1700000000-image.webp");
+
+        let script = dir.path().join("name.sh");
+        fs::write(&script, "#!/bin/sh\necho sunset-over-water\n").unwrap();
+        fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
+
+        let renamed = rename_attachment_via_command(
+            dir.path(),
+            &image,
+            script.to_str().unwrap(),
+        )
+        .unwrap();
+
+        assert!(renamed.ends_with("/sunset-over-water.webp"), "got {}", renamed);
+        assert!(std::path::Path::new(&renamed).exists());
+    }
+
+    #[test]
+    fn test_rename_attachment_via_command_rejects_path_outside_attachments() {
+        let dir = TempDir::new().unwrap();
+        let note = dir.path().join("note.md");
+        fs::write(&note, b"keep").unwrap();
+
+        let result = rename_attachment_via_command(dir.path(), &note, "/bin/echo");
+        assert!(result.is_err());
+        assert!(note.exists());
     }
 
     #[test]

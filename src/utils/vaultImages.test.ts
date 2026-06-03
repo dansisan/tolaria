@@ -163,6 +163,33 @@ describe('portableImageUrls', () => {
     )
   })
 
+  it('replaces a bare-filename alt with a readable label from the (renamed) file', () => {
+    const url = assetUrl('/vault/attachments/golden-retriever.webp')
+    const markdown = `![image.png](${url})`
+
+    expect(portableImageUrls(markdown, '/vault')).toBe(
+      '![Golden retriever](attachments/golden-retriever.webp)',
+    )
+  })
+
+  it('fills an empty alt and strips the save timestamp prefix', () => {
+    const url = assetUrl('/vault/attachments/1776369786040-sunset-over-water.webp')
+    const markdown = `![](${url})`
+
+    expect(portableImageUrls(markdown, '/vault')).toBe(
+      '![Sunset over water](attachments/1776369786040-sunset-over-water.webp)',
+    )
+  })
+
+  it('keeps a real caption that is not a bare filename', () => {
+    const url = assetUrl('/vault/attachments/golden-retriever.webp')
+    const markdown = `![My very good dog](${url})`
+
+    expect(portableImageUrls(markdown, '/vault')).toBe(
+      '![My very good dog](attachments/golden-retriever.webp)',
+    )
+  })
+
   it('converts legacy asset protocol attachment URLs to relative paths', () => {
     const url = httpAssetUrl('/vault/attachments/legacy.png')
     const markdown = `![screenshot](${url})`

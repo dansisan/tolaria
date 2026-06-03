@@ -296,6 +296,22 @@ pub fn copy_image_to_vault(
     })
 }
 
+/// Rename a freshly-saved attachment using an external naming command
+/// (`<command> <image-path>` → filename on stdout). Returns the new absolute
+/// path, or the original on any failure so paste never breaks.
+#[tauri::command]
+pub async fn rename_pasted_image(
+    vault_path: PathBuf,
+    image_path: PathBuf,
+    command: String,
+) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        vault::rename_attachment_via_command(&vault_path, &image_path, &command)
+    })
+    .await
+    .map_err(|e| format!("Task panicked: {e}"))?
+}
+
 #[tauri::command]
 pub async fn list_vault(path: PathBuf) -> Result<Vec<VaultEntry>, String> {
     tokio::task::spawn_blocking(move || {

@@ -1,6 +1,7 @@
 import { Article } from '@phosphor-icons/react'
 import type { TranslationKey, TranslationValues } from '../lib/i18n'
 import type { NoteWidthMode } from '../types'
+import { IMAGE_RENAME_MODES, type ImageRenameMode } from '../utils/imageRename'
 import type { AllNotesFileVisibility } from '../utils/allNotesFileVisibility'
 import { DATE_DISPLAY_FORMATS, type DateDisplayFormat } from '../utils/dateDisplay'
 import { NOTE_FONT_SIZE_OPTIONS } from '../utils/noteBodyFontSize'
@@ -23,6 +24,10 @@ interface VaultContentSettingsSectionProps {
   setDefaultNoteWidth: (value: NoteWidthMode) => void
   noteBodyFontSize: number
   setNoteBodyFontSize: (value: number) => void
+  imageRenameMode: ImageRenameMode
+  setImageRenameMode: (value: ImageRenameMode) => void
+  imageRenameCommand: string
+  setImageRenameCommand: (value: string) => void
   sidebarTypePluralizationEnabled: boolean
   setSidebarTypePluralizationEnabled: (value: boolean) => void
   initialH1AutoRename: boolean
@@ -58,6 +63,18 @@ function buildNoteFontSizeOptions(): Array<{ value: string; label: string }> {
   return NOTE_FONT_SIZE_OPTIONS.map((size) => ({ value: String(size), label: `${size}px` }))
 }
 
+const IMAGE_RENAME_LABEL_KEYS: Record<ImageRenameMode, TranslationKey> = {
+  off: 'settings.imageRename.off',
+  command: 'settings.imageRename.command',
+}
+
+function buildImageRenameOptions(t: Translate): Array<{ value: ImageRenameMode; label: string }> {
+  return IMAGE_RENAME_MODES.map((value) => ({
+    value,
+    label: t(Reflect.get(IMAGE_RENAME_LABEL_KEYS, value) as Parameters<Translate>[0]),
+  }))
+}
+
 function buildDateDisplayOptions(t: Translate): Array<{ value: DateDisplayFormat; label: string }> {
   return DATE_DISPLAY_FORMATS.map((value) => ({
     value,
@@ -73,6 +90,10 @@ export function VaultContentSettingsSection({
   setDefaultNoteWidth,
   noteBodyFontSize,
   setNoteBodyFontSize,
+  imageRenameMode,
+  setImageRenameMode,
+  imageRenameCommand,
+  setImageRenameCommand,
   sidebarTypePluralizationEnabled,
   setSidebarTypePluralizationEnabled,
   initialH1AutoRename,
@@ -134,6 +155,34 @@ export function VaultContentSettingsSection({
             testId="settings-note-body-font-size"
           />
         </SettingsRow>
+
+        <SettingsRow
+          label={t('settings.imageRename.default')}
+          description={t('settings.imageRename.defaultDescription')}
+        >
+          <SelectControl
+            ariaLabel={t('settings.imageRename.default')}
+            value={imageRenameMode}
+            onValueChange={(value) => setImageRenameMode(value as ImageRenameMode)}
+            options={buildImageRenameOptions(t)}
+            testId="settings-image-rename-mode"
+          />
+        </SettingsRow>
+
+        {imageRenameMode === 'command' && (
+          <SettingsRow
+            label={t('settings.imageRename.commandLabel')}
+            description={t('settings.imageRename.commandDescription')}
+          >
+            <Input
+              value={imageRenameCommand}
+              onChange={(e) => setImageRenameCommand(e.target.value)}
+              placeholder="~/bin/name-image.sh"
+              data-testid="settings-image-rename-command"
+              className="w-64 bg-transparent"
+            />
+          </SettingsRow>
+        )}
 
         <SettingsSwitchRow
           label={t('settings.sidebarTypePluralization.label')}

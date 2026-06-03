@@ -32,6 +32,7 @@ import { useSettings } from './hooks/useSettings'
 import { useNoteWidthMode } from './hooks/useNoteWidthMode'
 import { useNoteBodyFontSize } from './hooks/useNoteBodyFontSize'
 import { resolveNoteFontSize } from './utils/noteBodyFontSize'
+import { resolveImageRenameCommand } from './utils/imageRename'
 import { useNoteActions } from './hooks/useNoteActions'
 import { planNewTypeCreation } from './hooks/useNoteCreation'
 import { useCommitFlow } from './hooks/useCommitFlow'
@@ -322,6 +323,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
   const { settings, loaded: settingsLoaded, saveSettings } = useSettings()
   const aiFeaturesEnabled = areAiFeaturesEnabled(settings)
   useNoteBodyFontSize(resolveNoteFontSize(settings.note_body_font_size, null))
+  const imageRenameCommand = resolveImageRenameCommand(settings.image_rename_mode, settings.image_rename_command) ?? undefined
 
   // onSwitch closure captures `notes` declared below — safe because it's only
   // called on user interaction, never during render (refs inside the hook
@@ -2034,6 +2036,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
               onRenameFilename={activeDeletedFile ? undefined : appSave.handleFilenameRename}
               noteWidth={activeNoteWidth}
               onToggleNoteWidth={handleToggleNoteWidth}
+              imageRenameCommand={imageRenameCommand}
               rawToggleRef={rawToggleRef}
               tableOfContentsToggleRef={tableOfContentsToggleRef}
               pdfExportRef={pdfExportRef}

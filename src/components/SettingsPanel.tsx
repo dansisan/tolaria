@@ -68,6 +68,7 @@ import {
 } from '../utils/allNotesFileVisibility'
 import { DEFAULT_NOTE_WIDTH_MODE, normalizeNoteWidthMode } from '../utils/noteWidth'
 import { resolveNoteFontSize } from '../utils/noteBodyFontSize'
+import { DEFAULT_IMAGE_RENAME_COMMAND, type ImageRenameMode, normalizeImageRenameMode } from '../utils/imageRename'
 import {
   DEFAULT_DATE_DISPLAY_FORMAT,
   normalizeDateDisplayFormat,
@@ -119,6 +120,8 @@ interface SettingsDraft {
   dateDisplayFormat: DateDisplayFormat
   defaultNoteWidth: NoteWidthMode
   noteBodyFontSize: number
+  imageRenameMode: ImageRenameMode
+  imageRenameCommand: string
   sidebarTypePluralizationEnabled: boolean
   initialH1AutoRename: boolean
   frontmatterCreatedKey: string
@@ -167,6 +170,10 @@ interface SettingsBodyProps {
   setDefaultNoteWidth: (value: NoteWidthMode) => void
   noteBodyFontSize: number
   setNoteBodyFontSize: (value: number) => void
+  imageRenameMode: ImageRenameMode
+  setImageRenameMode: (value: ImageRenameMode) => void
+  imageRenameCommand: string
+  setImageRenameCommand: (value: string) => void
   sidebarTypePluralizationEnabled: boolean
   setSidebarTypePluralizationEnabled: (value: boolean) => void
   locale: AppLocale
@@ -228,6 +235,8 @@ function createSettingsDraft(
     dateDisplayFormat: normalizeDateDisplayFormat(settings.date_display_format) ?? DEFAULT_DATE_DISPLAY_FORMAT,
     defaultNoteWidth: normalizeNoteWidthMode(settings.note_width_mode) ?? DEFAULT_NOTE_WIDTH_MODE,
     noteBodyFontSize: resolveNoteFontSize(settings.note_body_font_size, null),
+    imageRenameMode: normalizeImageRenameMode(settings.image_rename_mode),
+    imageRenameCommand: settings.image_rename_command ?? DEFAULT_IMAGE_RENAME_COMMAND,
     sidebarTypePluralizationEnabled: settings.sidebar_type_pluralization_enabled ?? true,
     initialH1AutoRename: settings.initial_h1_auto_rename_enabled ?? true,
     frontmatterCreatedKey: settings.frontmatter_created_key ?? 'created',
@@ -277,6 +286,8 @@ function buildSettingsFromDraft(settings: Settings, draft: SettingsDraft): Setti
     date_display_format: draft.dateDisplayFormat,
     note_width_mode: draft.defaultNoteWidth,
     note_body_font_size: draft.noteBodyFontSize,
+    image_rename_mode: draft.imageRenameMode,
+    image_rename_command: draft.imageRenameCommand,
     sidebar_type_pluralization_enabled: draft.sidebarTypePluralizationEnabled,
     initial_h1_auto_rename_enabled: draft.initialH1AutoRename,
     frontmatter_created_key: draft.frontmatterCreatedKey,
@@ -587,6 +598,10 @@ function SettingsBodyFromDraft({
       setDefaultNoteWidth={(value) => updateDraft('defaultNoteWidth', value)}
       noteBodyFontSize={draft.noteBodyFontSize}
       setNoteBodyFontSize={(value) => updateDraft('noteBodyFontSize', value)}
+      imageRenameMode={draft.imageRenameMode}
+      setImageRenameMode={(value) => updateDraft('imageRenameMode', value)}
+      imageRenameCommand={draft.imageRenameCommand}
+      setImageRenameCommand={(value) => updateDraft('imageRenameCommand', value)}
       sidebarTypePluralizationEnabled={draft.sidebarTypePluralizationEnabled}
       setSidebarTypePluralizationEnabled={(value) => updateDraft('sidebarTypePluralizationEnabled', value)}
       initialH1AutoRename={draft.initialH1AutoRename}
@@ -721,6 +736,10 @@ function SettingsContentSections({
   setDefaultNoteWidth,
   noteBodyFontSize,
   setNoteBodyFontSize,
+  imageRenameMode,
+  setImageRenameMode,
+  imageRenameCommand,
+  setImageRenameCommand,
   sidebarTypePluralizationEnabled,
   setSidebarTypePluralizationEnabled,
   initialH1AutoRename,
@@ -742,6 +761,10 @@ function SettingsContentSections({
         setDefaultNoteWidth={setDefaultNoteWidth}
         noteBodyFontSize={noteBodyFontSize}
         setNoteBodyFontSize={setNoteBodyFontSize}
+        imageRenameMode={imageRenameMode}
+        setImageRenameMode={setImageRenameMode}
+        imageRenameCommand={imageRenameCommand}
+        setImageRenameCommand={setImageRenameCommand}
         sidebarTypePluralizationEnabled={sidebarTypePluralizationEnabled}
         setSidebarTypePluralizationEnabled={setSidebarTypePluralizationEnabled}
         initialH1AutoRename={initialH1AutoRename}

@@ -96,6 +96,10 @@ export function trackNoteBodyFontSizeChanged(fontSize: number): void {
   trackEvent('note_body_font_size_changed', { fontSize })
 }
 
+export function trackImageRenameModeChanged(mode: string): void {
+  trackEvent('image_rename_mode_changed', { mode })
+}
+
 export function trackSidebarTypePluralizationChanged(enabled: boolean): void {
   trackEvent('sidebar_type_pluralization_changed', {
     enabled: numericFlag(enabled),
