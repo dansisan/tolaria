@@ -188,6 +188,7 @@ function InteractiveNoteDetails({
   allEntries,
   typeEntryMap,
   onClickNote,
+  sortedByModified,
 }: {
   entry: VaultEntry
   noteStatus: NoteStatus
@@ -196,6 +197,7 @@ function InteractiveNoteDetails({
   allEntries: VaultEntry[]
   typeEntryMap: Record<string, VaultEntry>
   onClickNote: NoteItemProps['onClickNote']
+  sortedByModified: boolean
 }) {
   return (
     <>
@@ -213,7 +215,7 @@ function InteractiveNoteDetails({
         typeEntryMap={typeEntryMap}
         onClickNote={onClickNote}
       />
-      <NoteDateRow entry={entry} allEntries={allEntries} />
+      <NoteDateRow entry={entry} allEntries={allEntries} sortedByModified={sortedByModified} />
     </>
   )
 }
@@ -239,6 +241,7 @@ function StandardNoteContent({
   allEntries,
   typeEntryMap,
   onClickNote,
+  sortedByModified,
 }: {
   entry: VaultEntry
   isBinary: boolean
@@ -250,6 +253,7 @@ function StandardNoteContent({
   allEntries: VaultEntry[]
   typeEntryMap: Record<string, VaultEntry>
   onClickNote: NoteItemProps['onClickNote']
+  sortedByModified: boolean
 }) {
   const te = typeEntryMap[entry.isA ?? '']
   const TypeIcon = resolveNoteTypeIcon(entry, te?.icon)
@@ -275,6 +279,7 @@ function StandardNoteContent({
             allEntries={allEntries}
             typeEntryMap={typeEntryMap}
             onClickNote={onClickNote}
+            sortedByModified={sortedByModified}
           />
         )}
       </div>
@@ -309,21 +314,24 @@ function NoteTitleRow({
 function NoteDateRow({
   entry,
   allEntries,
+  sortedByModified,
 }: {
   entry: VaultEntry
   allEntries: VaultEntry[]
+  sortedByModified: boolean
 }) {
   const dateDisplayFormat = useDateDisplayFormat()
-  const modifiedLabel = formatTimestampForDateDisplay(getDisplayDate(entry), dateDisplayFormat)
-  const createdLabel = entry.createdAt ? `Created ${formatTimestampForDateDisplay(entry.createdAt, dateDisplayFormat)}` : null
+  // Show the created date by default; only show the modified date when the list
+  // is sorted by it. The day of week is included; no "Created"/"Modified" label.
+  const timestamp = sortedByModified ? getDisplayDate(entry) : (entry.createdAt ?? getDisplayDate(entry))
+  const dateLabel = formatTimestampForDateDisplay(timestamp, dateDisplayFormat, true)
 
-  if (!modifiedLabel && !createdLabel) return null
+  if (!dateLabel) return null
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-[10px] text-muted-foreground" data-testid="note-date-row">
-      <span>{modifiedLabel}</span>
+      <span>{dateLabel}</span>
       <span className="flex min-w-0 items-center justify-end gap-1.5 text-right">
-        {createdLabel && <span>{createdLabel}</span>}
         <WorkspaceBadge entry={entry} allEntries={allEntries} />
       </span>
     </div>
@@ -359,6 +367,8 @@ type NoteItemProps = {
   typeEntryMap: Record<string, VaultEntry>
   allEntries?: VaultEntry[]
   displayPropsOverride?: string[] | null
+  /** When sorting by modified date, show that date; otherwise show the created date. */
+  sortedByModified?: boolean
   onClickNote: (entry: VaultEntry, e: ReactMouseEvent) => void
   onPrefetch?: (entry: VaultEntry) => void
   onContextMenu?: (entry: VaultEntry, e: ReactMouseEvent) => void
@@ -504,6 +514,7 @@ function NoteItemContent({
   allEntries,
   typeEntryMap,
   onClickNote,
+  sortedByModified,
 }: {
   entry: VaultEntry
   isBinary: boolean
@@ -516,6 +527,7 @@ function NoteItemContent({
   allEntries: VaultEntry[]
   typeEntryMap: Record<string, VaultEntry>
   onClickNote: NoteItemProps['onClickNote']
+  sortedByModified: boolean
 }) {
   if (changeStatus) {
     return (
@@ -540,11 +552,12 @@ function NoteItemContent({
       allEntries={allEntries}
       typeEntryMap={typeEntryMap}
       onClickNote={onClickNote}
+      sortedByModified={sortedByModified}
     />
   )
 }
 
-export function NoteItem({ entry, isSelected, isMultiSelected = false, isHighlighted = false, noteStatus = 'clean', changeStatus, typeEntryMap, allEntries, displayPropsOverride, onClickNote, onPrefetch, onContextMenu }: NoteItemProps) {
+export function NoteItem({ entry, isSelected, isMultiSelected = false, isHighlighted = false, noteStatus = 'clean', changeStatus, typeEntryMap, allEntries, displayPropsOverride, sortedByModified = false, onClickNote, onPrefetch, onContextMenu }: NoteItemProps) {
   const isBinary = entry.fileKind === 'binary'
   const previewKind = filePreviewKind(entry)
   const isPreviewableFile = previewKind !== null
@@ -588,6 +601,7 @@ export function NoteItem({ entry, isSelected, isMultiSelected = false, isHighlig
         allEntries={allEntries ?? [entry]}
         typeEntryMap={typeEntryMap}
         onClickNote={onClickNote}
+        sortedByModified={sortedByModified}
       />
     </NoteItemRow>
   )

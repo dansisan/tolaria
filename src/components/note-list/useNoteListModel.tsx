@@ -9,7 +9,7 @@ import type {
   ViewFile,
 } from '../../types'
 import type { AppLocale } from '../../lib/i18n'
-import type { NoteListFilter, RelationshipGroup } from '../../utils/noteListHelpers'
+import type { NoteListFilter, RelationshipGroup, SortOption } from '../../utils/noteListHelpers'
 import { countByFilter, countAllByFilter, countAllNotesByFilter } from '../../utils/noteListHelpers'
 import type { AllNotesFileVisibility } from '../../utils/allNotesFileVisibility'
 import type { GitRepositoryOption } from '../../utils/gitRepositories'
@@ -458,6 +458,7 @@ interface UseRenderItemParams {
   noteListContextMenu?: ((entry: VaultEntry, event: React.MouseEvent) => void) | undefined
   multiSelect: MultiSelectState
   noteListKeyboard: { highlightedPath: string | null }
+  listSort: SortOption
 }
 
 function useRenderItem({
@@ -474,7 +475,9 @@ function useRenderItem({
   noteListContextMenu,
   multiSelect,
   noteListKeyboard,
+  listSort,
 }: UseRenderItemParams) {
+  const sortedByModified = listSort === 'modified'
   const contextMenuHandler = isChangesView && onDiscardFile ? changesContextMenu : noteListContextMenu
 
   return useCallback((entry: VaultEntry, options?: { forceSelected?: boolean }) => (
@@ -490,6 +493,7 @@ function useRenderItem({
         typeEntryMap={typeEntryMap}
         allEntries={entries}
         displayPropsOverride={displayPropsOverride}
+        sortedByModified={sortedByModified}
         onClickNote={handleClickNote}
         onContextMenu={contextMenuHandler}
       />
@@ -505,6 +509,7 @@ function useRenderItem({
         typeEntryMap={typeEntryMap}
         allEntries={entries}
         displayPropsOverride={displayPropsOverride}
+        sortedByModified={sortedByModified}
         onClickNote={handleClickNote}
         onPrefetch={prefetchNoteContent}
         onContextMenu={contextMenuHandler}
@@ -520,6 +525,7 @@ function useRenderItem({
     noteListKeyboard.highlightedPath,
     resolvedGetNoteStatus,
     selectedNotePath,
+    sortedByModified,
     typeEntryMap,
   ])
 }
@@ -767,6 +773,7 @@ export function useNoteListModel({
     noteListContextMenu: interaction.noteListContextMenu.handleNoteContextMenu,
     multiSelect: interaction.multiSelect,
     noteListKeyboard: interaction.noteListKeyboard,
+    listSort: content.listSort,
   })
   const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key !== 'Escape') return

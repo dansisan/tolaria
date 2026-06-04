@@ -48,6 +48,8 @@ export function formatDatePartsForDisplay(
   return `${FRIENDLY_MONTHS[parts.month - 1]} ${parts.day}, ${parts.year}`
 }
 
+const WEEKDAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
+
 function datePartsFromDate(date: Date): DateParts {
   return {
     year: date.getFullYear(),
@@ -59,16 +61,19 @@ function datePartsFromDate(date: Date): DateParts {
 export function formatDateForDisplay(
   date: Date,
   format: DateDisplayFormat = DEFAULT_DATE_DISPLAY_FORMAT,
+  includeWeekday = false,
 ): string {
-  return formatDatePartsForDisplay(datePartsFromDate(date), format)
+  const formatted = formatDatePartsForDisplay(datePartsFromDate(date), format)
+  return includeWeekday ? `${WEEKDAYS_SHORT[date.getDay()]}, ${formatted}` : formatted
 }
 
 export function formatTimestampForDateDisplay(
   timestampSeconds: number | null | undefined,
   format: DateDisplayFormat = DEFAULT_DATE_DISPLAY_FORMAT,
+  includeWeekday = false,
 ): string {
   if (!timestampSeconds) return ''
-  return formatDateForDisplay(new Date(timestampSeconds * 1000), format)
+  return formatDateForDisplay(new Date(timestampSeconds * 1000), format, includeWeekday)
 }
 
 export function parseDateDisplayParts(value: string): DateParts | null {

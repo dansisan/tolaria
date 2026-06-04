@@ -224,7 +224,7 @@ describe('NoteItem', () => {
     expect(screen.getByTestId('note-content-stack').className).toContain('space-y-2')
   })
 
-  it('shows created date on the right side of the date row when available', () => {
+  it('shows the created date with its weekday and no "Created" label by default', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(NOW_SECONDS * 1000))
     const entry = makeEntry({
@@ -237,8 +237,25 @@ describe('NoteItem', () => {
 
     const dateRow = screen.getByTestId('note-date-row')
     expect(dateRow.className).toContain('grid')
-    expect(dateRow).toHaveTextContent('April 8, 2025')
-    expect(dateRow).toHaveTextContent('Created April 5, 2025')
+    expect(dateRow).toHaveTextContent('Sat, April 5, 2025')
+    expect(dateRow).not.toHaveTextContent('Created')
+    expect(dateRow).not.toHaveTextContent('April 8, 2025') // modified date hidden
+  })
+
+  it('shows the modified date when the list is sorted by modified', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(NOW_SECONDS * 1000))
+    const entry = makeEntry({
+      title: 'Dated note',
+      createdAt: NOW_SECONDS - 86400 * 5,
+      modifiedAt: NOW_SECONDS - 86400 * 2,
+    })
+
+    render(<NoteItem entry={entry} isSelected={false} typeEntryMap={{}} onClickNote={vi.fn()} sortedByModified />)
+
+    const dateRow = screen.getByTestId('note-date-row')
+    expect(dateRow).toHaveTextContent('Tue, April 8, 2025')
+    expect(dateRow).not.toHaveTextContent('April 5, 2025') // created date hidden
   })
 
   it('shows the workspace badge after the creation date as an outlined badge', () => {
@@ -294,7 +311,7 @@ describe('NoteItem', () => {
     const dateRow = screen.getByTestId('note-date-row')
     const badge = within(dateRow).getByTestId('workspace-badge')
     expect(screen.getByTestId('note-title-row')).not.toContainElement(badge)
-    expect(dateRow).toHaveTextContent('Created April 10, 2025')
+    expect(dateRow).toHaveTextContent('Thu, April 10, 2025')
     expect(badge).toHaveTextContent('LA')
     expect(badge).toHaveClass('-mr-1.5', 'border', 'bg-transparent', 'opacity-75')
     expect(badge.getAttribute('style')).toContain('border-color: var(--accent-red)')
