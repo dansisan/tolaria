@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { translate, type AppLocale } from '../lib/i18n'
 import { APP_COMMAND_IDS, formatShortcutDisplay, getAppCommandShortcutDisplay } from '../hooks/appCommandCatalog'
 import { extractFrontmatterTitleFromContent, extractH1TitleFromContent } from '../utils/noteTitle'
+import { EDIT_NOTE_TITLE_EVENT } from '../utils/editNoteTitleEvent'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ActionTooltip, type ActionTooltipCopy } from '@/components/ui/action-tooltip'
@@ -87,6 +88,11 @@ function focusFilenameInput(
   inputRef.current?.select()
 }
 
+/** Hand keyboard focus back to the note body (handled by useEditorFocus). */
+function requestEditorBodyFocus(): void {
+  window.dispatchEvent(new CustomEvent('laputa:focus-editor'))
+}
+
 function beginFilenameEditing(
   onRenameFilename: BreadcrumbBarProps['onRenameFilename'],
   filenameStem: string,
@@ -110,7 +116,10 @@ function handleFilenameInputKeyDown(
   cancelEditing: () => void,
 ) {
   switch (event.key) {
+    // Enter and Down both commit and drop back into the note body (Down mirrors
+    // Up-into-title).
     case 'Enter':
+    case 'ArrowDown':
       event.preventDefault()
       submitRename()
       return
@@ -749,6 +758,14 @@ function FilenameCrumb({ content, entry, locale = 'en', onRenameFilename }: Pick
     beginFilenameEditing(onRenameFilename, filenameStem, setDraftStem, setIsEditing)
   }, [onRenameFilename, filenameStem])
 
+  // Up-arrow at the top of the editor body asks to edit the title (see
+  // createEditTitleOnArrowUpExtension).
+  useEffect(() => {
+    if (!onRenameFilename) return
+    window.addEventListener(EDIT_NOTE_TITLE_EVENT, startEditing)
+    return () => window.removeEventListener(EDIT_NOTE_TITLE_EVENT, startEditing)
+  }, [onRenameFilename, startEditing])
+
   const cancelEditing = useCallback(() => {
     setDraftStem(filenameStem)
     setIsEditing(false)
@@ -761,8 +778,14 @@ function FilenameCrumb({ content, entry, locale = 'en', onRenameFilename }: Pick
     onRenameFilename?.(entry.path, nextStem)
   }, [draftStem, filenameStem, onRenameFilename, entry.path])
 
+  // Enter/Escape return focus to the note body; blur-submit leaves focus alone
+  // so clicking elsewhere doesn't yank the cursor back into the editor.
   const handleInputKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
-    handleFilenameInputKeyDown(event, submitRename, cancelEditing)
+    handleFilenameInputKeyDown(
+      event,
+      () => { submitRename(); requestEditorBodyFocus() },
+      () => { cancelEditing(); requestEditorBodyFocus() },
+    )
   }, [submitRename, cancelEditing])
 
   if (isEditing) {

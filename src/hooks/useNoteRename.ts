@@ -17,6 +17,8 @@ interface RenameResult {
   new_path: string
   updated_files: number
   failed_updates?: number
+  /** Other notes whose wikilinks were rewritten — refresh just these in memory. */
+  updated_paths?: string[]
 }
 
 export { slugify }
@@ -236,7 +238,13 @@ export function buildRenamedEntry(entry: VaultEntry, newTitle: string, newPath: 
 
 export function buildFilenameRenamedEntry(entry: VaultEntry, newPath: string): VaultEntry {
   const filename = notePathFilename(newPath)
-  return { ...entry, path: newPath, filename }
+  const oldStem = entry.filename.replace(/\.md$/i, '')
+  const newStem = filename.replace(/\.md$/i, '')
+  // When the title is derived from the filename (no H1 / frontmatter title — the
+  // scanner uses the stem verbatim), keep it in sync with the new filename so the
+  // breadcrumb doesn't keep showing the old name as a stale title until reload.
+  const title = entry.title === oldStem ? newStem : entry.title
+  return { ...entry, path: newPath, filename, title }
 }
 
 export function buildWorkspaceMovedEntry(
@@ -395,6 +403,10 @@ export interface NoteRenameConfig {
   setToastMessage: (msg: string | null) => void
   reloadVault?: () => Promise<unknown>
   onPathRenamed?: (oldPath: string, newPath: string) => void
+  /** Refresh just the given notes in memory (re-parse from disk). Used after a
+   *  rename to update the few notes whose wikilinks changed, instead of
+   *  rescanning the whole vault. */
+  refreshEntries?: (paths: string[]) => void | Promise<void>
 }
 
 interface RenameTabDeps {
@@ -407,13 +419,17 @@ interface RenameTabDeps {
 
 interface ApplyRenameOptions {
   successMessage?: (result: RenameResult) => string
+  /** The note's content is unchanged (filename/move rename) — reuse the open
+   *  editor's in-memory content and treat the path change as a rename, not a
+   *  swap, so the cursor and focus are preserved. */
+  contentPreserved?: boolean
 }
 
 function useRenameResultApplier(
   config: NoteRenameConfig,
   tabDeps: RenameTabDeps,
 ) {
-  const { entries, setToastMessage, reloadVault, onPathRenamed } = config
+  const { entries, setToastMessage, reloadVault, onPathRenamed, refreshEntries } = config
   const { setTabs, activeTabPathRef, handleSwitchTab, updateTabContent } = tabDeps
 
   const tabsRef = useRef(tabDeps.tabs)
@@ -429,23 +445,47 @@ function useRenameResultApplier(
   ) => {
     const currentTabs = tabsRef.current
     const entry = findRenameEntry(entries, currentTabs, oldPath)
-    const newContent = await loadNoteContent({ path: result.new_path })
+    // For content-preserving renames (filename/move) reuse the open tab's
+    // already-flushed content instead of re-reading disk, so the editor never
+    // re-syncs the document.
+    const openTabContent = options?.contentPreserved
+      ? currentTabs.find((tab) => notePathsMatch(tab.entry.path, oldPath))?.content
+      : undefined
+    const newContent = openTabContent ?? await loadNoteContent({ path: result.new_path })
     const newEntry = buildEntry(entry, result.new_path)
     const otherTabPaths = currentTabs
       .filter((tab) => !notePathsMatch(tab.entry.path, oldPath) && !notePathsMatch(tab.entry.path, result.new_path))
       .map((tab) => tab.entry.path)
-    if (!notePathsMatch(oldPath, result.new_path)) onPathRenamed?.(oldPath, result.new_path)
+    if (!notePathsMatch(oldPath, result.new_path)) {
+      // Migrate the editor's cache old→new before the active path changes so the
+      // path change reads as a rename (no re-sync, cursor and focus preserved).
+      if (options?.contentPreserved) {
+        window.dispatchEvent(new CustomEvent('laputa:note-path-renamed', {
+          detail: { oldPath, newPath: result.new_path },
+        }))
+      }
+      onPathRenamed?.(oldPath, result.new_path)
+    }
     setTabs((prev) => prev.map((tab) => notePathsMatch(tab.entry.path, oldPath) ? { entry: newEntry, content: newContent } : tab))
     if (notePathsMatch(activeTabPathRef.current, oldPath)) handleSwitchTab(result.new_path)
     onEntryRenamed(oldPath, newEntry, newContent)
     await reloadTabsAfterRename({ tabPaths: otherTabPaths, updateTabContent })
-    await reloadVaultAfterRename(reloadVault)
+    // The renamed note is already updated in memory. Refresh only the other
+    // notes whose wikilinks were rewritten (re-parse those few from disk)
+    // instead of rescanning the whole vault — a full re-scan re-derives every
+    // entry (incl. git dates) and is what made renames feel slow. Fall back to
+    // a background full reload when incremental refresh isn't wired.
+    if (refreshEntries) {
+      void refreshEntries(result.updated_paths ?? [])
+    } else {
+      void reloadVaultAfterRename(reloadVault)
+    }
     const successMessage = options?.successMessage
       ? options.successMessage(result)
       : renameToastMessage(result.updated_files, result.failed_updates ?? 0)
     setToastMessage(successMessage)
     return result
-  }, [entries, setTabs, activeTabPathRef, handleSwitchTab, updateTabContent, reloadVault, setToastMessage, onPathRenamed])
+  }, [entries, setTabs, activeTabPathRef, handleSwitchTab, updateTabContent, reloadVault, setToastMessage, onPathRenamed, refreshEntries])
 
   return {
     tabsRef,
@@ -464,6 +504,7 @@ async function runRenameAction({
   logLabel,
   successMessage,
   allowUnchangedResult = false,
+  contentPreserved = false,
 }: {
   path: string
   perform: () => Promise<RenameResult>
@@ -481,11 +522,12 @@ async function runRenameAction({
   logLabel: string
   successMessage?: (result: RenameResult) => string
   allowUnchangedResult?: boolean
+  contentPreserved?: boolean
 }): Promise<RenameResult | null> {
   try {
     const result = await perform()
     if (allowUnchangedResult && notePathsMatch(result.new_path, path)) return result
-    await applyRenameResult(path, result, buildEntry, onEntryRenamed, { successMessage })
+    await applyRenameResult(path, result, buildEntry, onEntryRenamed, { successMessage, contentPreserved })
     return result
   } catch (err) {
     console.error(`${logLabel}:`, err)
@@ -544,6 +586,7 @@ function useWorkspaceMoveHandler({
         result.failed_updates ?? 0,
       ),
       allowUnchangedResult: true,
+      contentPreserved: true,
     })
   }, [applyRenameResult, entries, setToastMessage, tabsRef])
 }
@@ -579,6 +622,7 @@ export function useNoteRename(config: NoteRenameConfig, tabDeps: RenameTabDeps) 
       setToastMessage,
       errorMessage: renameErrorMessage,
       logLabel: 'Failed to rename note filename',
+      contentPreserved: true,
     })
   }, [entries, tabsRef, applyRenameResult, setToastMessage])
 
@@ -597,6 +641,7 @@ export function useNoteRename(config: NoteRenameConfig, tabDeps: RenameTabDeps) 
       logLabel: 'Failed to move note to folder',
       successMessage: (result) => moveToastMessage(normalizedFolderPath, result.updated_files, result.failed_updates ?? 0),
       allowUnchangedResult: true,
+      contentPreserved: true,
     })
   }, [entries, tabsRef, applyRenameResult, setToastMessage])
 

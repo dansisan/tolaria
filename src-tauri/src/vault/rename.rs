@@ -21,6 +21,10 @@ pub struct RenameResult {
     pub updated_files: usize,
     /// Number of linked-note rewrites that failed and need manual attention
     pub failed_updates: usize,
+    /// Absolute paths of the other notes whose wikilinks were rewritten, so the
+    /// renderer can refresh just those entries instead of rescanning the vault.
+    #[serde(default)]
+    pub updated_paths: Vec<String>,
 }
 
 #[derive(Clone, Copy)]
@@ -64,6 +68,9 @@ pub struct AutoRenameUntitledRequest<'a> {
 struct WikilinkUpdateSummary {
     updated_files: usize,
     failed_updates: usize,
+    /// Absolute paths of the files whose wikilinks were rewritten, so callers
+    /// can refresh just those entries instead of rescanning the whole vault.
+    updated_paths: Vec<String>,
 }
 
 /// Convert a title to a filename slug (lowercase, hyphens, Unicode letters/digits preserved).
@@ -166,7 +173,10 @@ fn replace_wikilinks_in_files(
     let mut summary = WikilinkUpdateSummary::default();
     for path in files.iter() {
         match rewrite_wikilinks_in_file(path, re, replacement) {
-            Ok(true) => summary.updated_files += 1,
+            Ok(true) => {
+                summary.updated_files += 1;
+                summary.updated_paths.push(path.to_string_lossy().into_owned());
+            }
             Ok(false) => {}
             Err(_) => summary.failed_updates += 1,
         }
@@ -244,6 +254,7 @@ fn finalize_rename(vault: &Path, old_targets: &[&str], new_file: &Path) -> Renam
         new_path,
         updated_files: summary.updated_files,
         failed_updates: summary.failed_updates,
+        updated_paths: summary.updated_paths,
     }
 }
 
@@ -295,6 +306,7 @@ fn unchanged_result(path: &Path) -> RenameResult {
         new_path: path.to_string_lossy().to_string(),
         updated_files: 0,
         failed_updates: 0,
+        updated_paths: Vec::new(),
     }
 }
 
@@ -537,10 +549,16 @@ pub fn move_note_to_workspace(
         )
     };
 
+    let updated_paths = source_summary
+        .updated_paths
+        .into_iter()
+        .chain(destination_summary.updated_paths)
+        .collect();
     Ok(RenameResult {
         new_path: new_file.to_string_lossy().to_string(),
         updated_files: source_summary.updated_files + destination_summary.updated_files,
         failed_updates: source_summary.failed_updates + destination_summary.failed_updates,
+        updated_paths,
     })
 }
 

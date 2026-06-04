@@ -3,6 +3,7 @@ import { render, screen, fireEvent, act, within, waitFor } from '@testing-librar
 import { describe, it, expect, vi } from 'vitest'
 import { BreadcrumbBar } from './BreadcrumbBar'
 import { formatShortcutDisplay } from '../hooks/appCommandCatalog'
+import { EDIT_NOTE_TITLE_EVENT } from '../utils/editNoteTitleEvent'
 import type { VaultEntry } from '../types'
 
 const dragRegionMouseDown = vi.fn()
@@ -463,6 +464,22 @@ describe('BreadcrumbBar — filename controls', () => {
     expect(screen.getByTestId('breadcrumb-filename-input')).toHaveValue('test')
   })
 
+  it('enters title edit when the edit-note-title event fires (Up-arrow from the editor)', () => {
+    renderEditableFilenameBreadcrumb()
+
+    act(() => { window.dispatchEvent(new CustomEvent(EDIT_NOTE_TITLE_EVENT)) })
+
+    expect(screen.getByTestId('breadcrumb-filename-input')).toHaveValue('test')
+  })
+
+  it('ignores the edit-note-title event when the filename is not renameable', () => {
+    renderBreadcrumb()
+
+    act(() => { window.dispatchEvent(new CustomEvent(EDIT_NOTE_TITLE_EVENT)) })
+
+    expect(screen.queryByTestId('breadcrumb-filename-input')).not.toBeInTheDocument()
+  })
+
   it('double-clicking the filename enters edit mode and Enter confirms the rename', () => {
     const { entry, onRenameFilename } = renderEditableFilenameBreadcrumb()
 
@@ -471,6 +488,17 @@ describe('BreadcrumbBar — filename controls', () => {
     fireEvent.keyDown(input, { key: 'Enter' })
 
     expect(onRenameFilename).toHaveBeenCalledWith(entry.path, 'renamed-file')
+  })
+
+  it('pressing Down while editing commits the rename and exits to the body', () => {
+    const { entry, onRenameFilename } = renderEditableFilenameBreadcrumb()
+
+    const input = startFilenameRename()
+    fireEvent.change(input, { target: { value: 'renamed-file' } })
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+
+    expect(onRenameFilename).toHaveBeenCalledWith(entry.path, 'renamed-file')
+    expect(screen.queryByTestId('breadcrumb-filename-input')).not.toBeInTheDocument()
   })
 
   it('pressing Escape while editing cancels the inline rename', () => {

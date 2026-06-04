@@ -667,6 +667,23 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     if (!noteWindowParams && !aiWorkspaceWindow && resolvedPath) vault.markVaultUnavailable(resolvedPath)
   }, [aiWorkspaceWindow, noteWindowParams, resolvedPath, vault])
 
+  // Re-parse only the given notes from disk and update them in memory — used
+  // after a rename to refresh the few notes whose wikilinks changed instead of
+  // rescanning the whole vault.
+  const updateVaultEntry = vault.updateEntry
+  const refreshVaultEntries = useCallback(async (paths: string[]) => {
+    await Promise.all(paths.map(async (path) => {
+      try {
+        const entry = isTauri()
+          ? await invoke<VaultEntry>('reload_vault_entry', { path })
+          : await mockInvoke<VaultEntry>('reload_vault_entry', { path })
+        updateVaultEntry(path, entry)
+      } catch {
+        // Leave the entry stale; the next natural vault reload reconciles it.
+      }
+    }))
+  }, [updateVaultEntry])
+
   const notes = useNoteActions({
     addEntry: vault.addEntry,
     removeEntry: vault.removeEntry,
@@ -674,6 +691,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     flushBeforeNoteSwitch: flushEditorStateBeforeAction,
     flushBeforeNoteMutation: flushEditorStateBeforeAction,
     reloadVault: vault.reloadVault,
+    refreshEntries: refreshVaultEntries,
     setToastMessage,
     updateEntry: vault.updateEntry,
     vaultPath: resolvedPath,

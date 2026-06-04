@@ -1128,6 +1128,46 @@ function usePrepareParsedBlocks(options: {
  * Returns the onChange callback for SingleEditorView and a flush hook for
  * save/navigation paths that need the latest rich-editor content immediately.
  */
+const NOTE_PATH_RENAMED_EVENT = 'laputa:note-path-renamed'
+
+/**
+ * When a content-preserving rename (filename/move) changes the open note's
+ * path, remap the swap engine's path refs and cache old→new so the upcoming
+ * `activeTabPath` change is treated as the same note — no document re-sync, so
+ * the cursor and editor focus are preserved.
+ */
+function useNotePathRenameMigration(options: {
+  editorContentPathRef: EditorContentPathRef
+  prevActivePathRef: MutableRefObject<string | null>
+  tabCacheRef: MutableRefObject<Map<string, CachedTabState>>
+  pendingLocalContentRef: MutableRefObject<PendingLocalContent | null>
+}) {
+  const { editorContentPathRef, prevActivePathRef, tabCacheRef, pendingLocalContentRef } = options
+  useEffect(() => {
+    const handleRenamed = (event: Event) => {
+      const detail = (event as CustomEvent).detail as { oldPath?: string; newPath?: string } | undefined
+      const oldPath = detail?.oldPath
+      const newPath = detail?.newPath
+      if (!oldPath || !newPath || oldPath === newPath) return
+
+      if (editorContentPathRef.current === oldPath) editorContentPathRef.current = newPath
+      if (prevActivePathRef.current === oldPath) prevActivePathRef.current = newPath
+
+      const cached = tabCacheRef.current.get(oldPath)
+      if (cached) {
+        tabCacheRef.current.delete(oldPath)
+        tabCacheRef.current.set(newPath, cached)
+      }
+
+      const pending = pendingLocalContentRef.current
+      if (pending?.path === oldPath) pendingLocalContentRef.current = { ...pending, path: newPath }
+    }
+
+    window.addEventListener(NOTE_PATH_RENAMED_EVENT, handleRenamed)
+    return () => window.removeEventListener(NOTE_PATH_RENAMED_EVENT, handleRenamed)
+  }, [editorContentPathRef, prevActivePathRef, tabCacheRef, pendingLocalContentRef])
+}
+
 export function useEditorTabSwap({ tabs, activeTabPath, editor, onContentChange, rawMode, vaultPath }: UseEditorTabSwapOptions) {
   const tabCacheRef = useRef<Map<string, CachedTabState>>(new Map())
   const pendingLocalContentRef = useRef<PendingLocalContent | null>(null)
@@ -1183,6 +1223,13 @@ export function useEditorTabSwap({ tabs, activeTabPath, editor, onContentChange,
     pendingLocalContentRef,
     vaultPathRef,
     flushPendingEditorChange,
+  })
+
+  useNotePathRenameMigration({
+    editorContentPathRef,
+    prevActivePathRef,
+    tabCacheRef,
+    pendingLocalContentRef,
   })
 
   return { handleEditorChange: handleForegroundEditorChange, flushPendingEditorChange, editorMountedRef }

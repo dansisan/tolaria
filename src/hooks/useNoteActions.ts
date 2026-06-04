@@ -27,6 +27,9 @@ export interface NoteActionsConfig {
   reloadVault?: () => Promise<unknown>
   setToastMessage: (msg: string | null) => void
   updateEntry: (path: string, patch: Partial<VaultEntry>) => void
+  /** Re-parse the given notes from disk and update them in memory (used after a
+   *  rename to refresh only the notes whose wikilinks changed). */
+  refreshEntries?: (paths: string[]) => void | Promise<void>
   vaultPath: string
   defaultWorkspacePath?: string | null
   vaults?: readonly VaultOption[]
@@ -773,7 +776,13 @@ export function useNoteActions(config: NoteActionsConfig) {
 
   const creation = useNoteCreation(config, { openTabWithContent })
   const rename = useNoteRename(
-    { entries, setToastMessage, reloadVault: config.reloadVault, onPathRenamed: handlePathRenamed },
+    {
+      entries,
+      setToastMessage,
+      reloadVault: config.reloadVault,
+      onPathRenamed: handlePathRenamed,
+      refreshEntries: config.refreshEntries,
+    },
     { tabs: tabMgmt.tabs, setTabs, activeTabPathRef, handleSwitchTab, updateTabContent },
   )
 

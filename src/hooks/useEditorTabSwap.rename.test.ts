@@ -152,6 +152,48 @@ describe('useEditorTabSwap untitled rename continuity', () => {
     await expectRenameSessionContinues({ renamedTabArrivesLate: true })
   })
 
+  it('keeps the live editor session through a content-preserving rename of a named note', async () => {
+    setupMountedEditorMocks()
+
+    // Editor body matches the tab content — a content-preserving rename only
+    // changes the path, never the document.
+    const editor = makeMockEditor('# Fresh Title\n\nBody typed live')
+    const onContentChange = vi.fn()
+    const before = makeTab('note-one.md', 'Fresh Title', 'Body typed live')
+    const after = makeTab('note-two.md', 'Fresh Title', 'Body typed live')
+
+    const { result, rerender } = renderHook(
+      ({ tabs, activeTabPath }) => useEditorTabSwap({
+        tabs,
+        activeTabPath,
+        editor: editor as never,
+        onContentChange,
+      }),
+      { initialProps: { tabs: [before], activeTabPath: before.entry.path } },
+    )
+    await act(() => new Promise(r => setTimeout(r, 0)))
+    editor.replaceBlocks.mockClear()
+    editor.tryParseMarkdownToBlocks.mockClear()
+
+    // The rename migration fires before the active path changes.
+    act(() => {
+      window.dispatchEvent(new CustomEvent('laputa:note-path-renamed', {
+        detail: { oldPath: before.entry.path, newPath: after.entry.path },
+      }))
+    })
+    rerender({ tabs: [after], activeTabPath: after.entry.path })
+    await act(() => new Promise(r => setTimeout(r, 0)))
+
+    expect(editor.replaceBlocks).not.toHaveBeenCalled()
+    expect(editor.tryParseMarkdownToBlocks).not.toHaveBeenCalled()
+
+    act(() => { result.current.handleEditorChange() })
+    act(() => { result.current.flushPendingEditorChange() })
+
+    // Edits after the rename are attributed to the new path.
+    expect(onContentChange).toHaveBeenCalledWith('note-two.md', expect.any(String))
+  })
+
   it('does not re-swap the active note when app state catches up with live typing', async () => {
     setupMountedEditorMocks()
 

@@ -111,6 +111,29 @@ describe('rename vault refresh', () => {
     expect(reloadVault).toHaveBeenCalledTimes(1)
   })
 
+  it('refreshes only the rewritten notes (no full vault reload) when refreshEntries is provided', async () => {
+    vi.mocked(mockInvoke).mockImplementation(async (command: string) => {
+      if (command === 'rename_note') {
+        return { new_path: '/vault/new-title.md', updated_files: 1, updated_paths: ['/vault/referrer.md'] }
+      }
+      if (command === 'get_note_content') return '---\ntitle: New Title\n---\n# New Title\n'
+      return ''
+    })
+    const reloadVault = vi.fn().mockResolvedValue([])
+    const refreshEntries = vi.fn().mockResolvedValue(undefined)
+    const { result } = renderHook(() => useNoteRename(
+      { ...makeRenameHookConfig(reloadVault), refreshEntries },
+      makeRenameHookDeps(),
+    ))
+
+    await act(async () => {
+      await result.current.handleRenameNote('/vault/old-title.md', 'New Title', '/vault', vi.fn())
+    })
+
+    expect(refreshEntries).toHaveBeenCalledWith(['/vault/referrer.md'])
+    expect(reloadVault).not.toHaveBeenCalled()
+  })
+
   it('reloads the vault after title frontmatter rename completes', async () => {
     const reloadVault = vi.fn().mockResolvedValue([])
     const config = makeNoteActionsConfig(reloadVault)

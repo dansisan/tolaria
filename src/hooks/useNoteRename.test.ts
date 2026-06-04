@@ -5,6 +5,7 @@ import type { VaultEntry } from '../types'
 import {
   needsRenameOnSave,
   buildRenamedEntry,
+  buildFilenameRenamedEntry,
   renameToastMessage,
   useNoteRename,
 } from './useNoteRename'
@@ -39,6 +40,22 @@ const makeWorkspace = (path: string, alias = 'workspace'): NonNullable<VaultEntr
   mounted: true,
   available: true,
   defaultForNewNotes: false,
+})
+
+describe('buildFilenameRenamedEntry', () => {
+  it('syncs a filename-derived title to the new filename', () => {
+    const entry = makeEntry({ path: '/vault/old-stem.md', filename: 'old-stem.md', title: 'old-stem' })
+    const renamed = buildFilenameRenamedEntry(entry, '/vault/new-stem.md')
+    expect(renamed.filename).toBe('new-stem.md')
+    expect(renamed.title).toBe('new-stem')
+  })
+
+  it('keeps an explicit title (H1/frontmatter) that differs from the filename', () => {
+    const entry = makeEntry({ path: '/vault/old-stem.md', filename: 'old-stem.md', title: 'My Real Title' })
+    const renamed = buildFilenameRenamedEntry(entry, '/vault/new-stem.md')
+    expect(renamed.filename).toBe('new-stem.md')
+    expect(renamed.title).toBe('My Real Title')
+  })
 })
 
 describe('needsRenameOnSave', () => {
