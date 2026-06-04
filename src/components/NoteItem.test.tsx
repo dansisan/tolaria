@@ -237,9 +237,10 @@ describe('NoteItem', () => {
 
     const dateRow = screen.getByTestId('note-date-row')
     expect(dateRow.className).toContain('grid')
-    expect(dateRow).toHaveTextContent('Sat, April 5, 2025')
+    expect(dateRow).toHaveTextContent('Sat, April 5, 2025') // created date, right side
+    expect(dateRow).toHaveTextContent('2 days ago') // relative modified, left side
     expect(dateRow).not.toHaveTextContent('Created')
-    expect(dateRow).not.toHaveTextContent('April 8, 2025') // modified date hidden
+    expect(dateRow).not.toHaveTextContent('April 8, 2025') // absolute modified date hidden
   })
 
   it('shows the modified date when the list is sorted by modified', () => {
@@ -255,6 +256,7 @@ describe('NoteItem', () => {
 
     const dateRow = screen.getByTestId('note-date-row')
     expect(dateRow).toHaveTextContent('Tue, April 8, 2025')
+    expect(dateRow).toHaveTextContent('2 days ago')
     expect(dateRow).not.toHaveTextContent('April 5, 2025') // created date hidden
   })
 

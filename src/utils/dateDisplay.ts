@@ -76,6 +76,41 @@ export function formatTimestampForDateDisplay(
   return formatDateForDisplay(new Date(timestampSeconds * 1000), format, includeWeekday)
 }
 
+function relativeUnit(value: number, singular: string): string {
+  return `${value} ${value === 1 ? singular : `${singular}s`} ago`
+}
+
+/**
+ * A coarse "time since" descriptor for note lists: "just now", "15 mins ago",
+ * "3 hours ago", "5 days ago", "2 months ago", "2 years ago". The count is
+ * rounded to the nearest unit (so 18 months reads "2 years ago"); years are
+ * derived from months so the 30-day/365-day mismatch doesn't pull 18mo down to
+ * "1 year". Rounding promotes cleanly at boundaries (60 min → "1 hour", etc.).
+ * Returns '' for missing timestamps.
+ */
+export function formatRelativeTime(
+  timestampSeconds: number | null | undefined,
+  nowMs: number = Date.now(),
+): string {
+  if (!timestampSeconds) return ''
+  const seconds = Math.max(0, Math.floor(nowMs / 1000) - timestampSeconds)
+  if (seconds < 60) return 'just now'
+
+  const minutes = Math.round(seconds / 60)
+  if (minutes < 60) return relativeUnit(minutes, 'min')
+
+  const hours = Math.round(seconds / 3600)
+  if (hours < 24) return relativeUnit(hours, 'hour')
+
+  const days = Math.round(seconds / 86400)
+  if (days < 30) return relativeUnit(days, 'day')
+
+  const months = Math.round(days / 30)
+  if (months < 12) return relativeUnit(months, 'month')
+
+  return relativeUnit(Math.round(months / 12), 'year')
+}
+
 export function parseDateDisplayParts(value: string): DateParts | null {
   return parseDashDateParts(value) ?? parseSlashDateParts(value)
 }

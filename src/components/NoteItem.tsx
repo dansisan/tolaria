@@ -9,7 +9,7 @@ import {
 import { getTypeColor, getTypeLightColor } from '../utils/typeColors'
 import { resolveIcon } from '../utils/iconRegistry'
 import { getDisplayDate } from '../utils/noteListHelpers'
-import { formatTimestampForDateDisplay } from '../utils/dateDisplay'
+import { formatRelativeTime, formatTimestampForDateDisplay } from '../utils/dateDisplay'
 import { filePreviewKind, type FilePreviewKind } from '../utils/filePreview'
 import { NoteTitleIcon } from './NoteTitleIcon'
 import { PropertyChips } from './note-item/PropertyChips'
@@ -321,17 +321,20 @@ function NoteDateRow({
   sortedByModified: boolean
 }) {
   const dateDisplayFormat = useDateDisplayFormat()
-  // Show the created date by default; only show the modified date when the list
-  // is sorted by it. The day of week is included; no "Created"/"Modified" label.
+  // Right side: the created date by default, or the modified date when sorting
+  // by it — with the day of week, right-justified, no "Created"/"Modified" label.
   const timestamp = sortedByModified ? getDisplayDate(entry) : (entry.createdAt ?? getDisplayDate(entry))
   const dateLabel = formatTimestampForDateDisplay(timestamp, dateDisplayFormat, true)
+  // Left side: a relative "time since modified" descriptor.
+  const relativeLabel = formatRelativeTime(getDisplayDate(entry))
 
-  if (!dateLabel) return null
+  if (!dateLabel && !relativeLabel) return null
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-[10px] text-muted-foreground" data-testid="note-date-row">
-      <span>{dateLabel}</span>
+      <span>{relativeLabel}</span>
       <span className="flex min-w-0 items-center justify-end gap-1.5 text-right">
+        {dateLabel && <span>{dateLabel}</span>}
         <WorkspaceBadge entry={entry} allEntries={allEntries} />
       </span>
     </div>
