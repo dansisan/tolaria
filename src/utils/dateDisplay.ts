@@ -20,6 +20,11 @@ const FRIENDLY_MONTHS = [
   'December',
 ] as const
 
+const SHORT_MONTHS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+] as const
+
 function isDateDisplayFormat(value: string): value is DateDisplayFormat {
   return DATE_DISPLAY_FORMATS.includes(value as DateDisplayFormat)
 }
@@ -41,11 +46,13 @@ export function formatLocalISODatetime(date: Date): string {
 export function formatDatePartsForDisplay(
   parts: DateParts,
   format: DateDisplayFormat = DEFAULT_DATE_DISPLAY_FORMAT,
+  shortMonth = false,
 ): string {
   if (format === 'us') return `${parts.month}/${parts.day}/${parts.year}`
   if (format === 'european') return `${parts.day}/${parts.month}/${parts.year}`
   if (format === 'iso') return `${parts.year}-${twoDigit(parts.month)}-${twoDigit(parts.day)}`
-  return `${FRIENDLY_MONTHS[parts.month - 1]} ${parts.day}, ${parts.year}`
+  const months = shortMonth ? SHORT_MONTHS : FRIENDLY_MONTHS
+  return `${months[parts.month - 1]} ${parts.day}, ${parts.year}`
 }
 
 const WEEKDAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
@@ -62,8 +69,9 @@ export function formatDateForDisplay(
   date: Date,
   format: DateDisplayFormat = DEFAULT_DATE_DISPLAY_FORMAT,
   includeWeekday = false,
+  shortMonth = false,
 ): string {
-  const formatted = formatDatePartsForDisplay(datePartsFromDate(date), format)
+  const formatted = formatDatePartsForDisplay(datePartsFromDate(date), format, shortMonth)
   return includeWeekday ? `${WEEKDAYS_SHORT[date.getDay()]}, ${formatted}` : formatted
 }
 
@@ -71,9 +79,10 @@ export function formatTimestampForDateDisplay(
   timestampSeconds: number | null | undefined,
   format: DateDisplayFormat = DEFAULT_DATE_DISPLAY_FORMAT,
   includeWeekday = false,
+  shortMonth = false,
 ): string {
   if (!timestampSeconds) return ''
-  return formatDateForDisplay(new Date(timestampSeconds * 1000), format, includeWeekday)
+  return formatDateForDisplay(new Date(timestampSeconds * 1000), format, includeWeekday, shortMonth)
 }
 
 function relativeUnit(value: number, singular: string): string {

@@ -237,10 +237,10 @@ describe('NoteItem', () => {
 
     const dateRow = screen.getByTestId('note-date-row')
     expect(dateRow.className).toContain('grid')
-    expect(dateRow).toHaveTextContent('Sat, April 5, 2025') // created date, right side
+    expect(dateRow).toHaveTextContent('Sat, Apr 5, 2025') // created date, right side
     expect(dateRow).toHaveTextContent('2 days ago') // relative modified, left side
     expect(dateRow).not.toHaveTextContent('Created')
-    expect(dateRow).not.toHaveTextContent('April 8, 2025') // absolute modified date hidden
+    expect(dateRow).not.toHaveTextContent('Apr 8, 2025') // absolute modified date hidden
   })
 
   it('shows the modified date when the list is sorted by modified', () => {
@@ -255,9 +255,9 @@ describe('NoteItem', () => {
     render(<NoteItem entry={entry} isSelected={false} typeEntryMap={{}} onClickNote={vi.fn()} sortedByModified />)
 
     const dateRow = screen.getByTestId('note-date-row')
-    expect(dateRow).toHaveTextContent('Tue, April 8, 2025')
+    expect(dateRow).toHaveTextContent('Tue, Apr 8, 2025')
     expect(dateRow).toHaveTextContent('2 days ago')
-    expect(dateRow).not.toHaveTextContent('April 5, 2025') // created date hidden
+    expect(dateRow).not.toHaveTextContent('Apr 5, 2025') // created date hidden
   })
 
   it('shows the workspace badge after the creation date as an outlined badge', () => {
@@ -313,7 +313,7 @@ describe('NoteItem', () => {
     const dateRow = screen.getByTestId('note-date-row')
     const badge = within(dateRow).getByTestId('workspace-badge')
     expect(screen.getByTestId('note-title-row')).not.toContainElement(badge)
-    expect(dateRow).toHaveTextContent('Thu, April 10, 2025')
+    expect(dateRow).toHaveTextContent('Thu, Apr 10, 2025')
     expect(badge).toHaveTextContent('LA')
     expect(badge).toHaveClass('-mr-1.5', 'border', 'bg-transparent', 'opacity-75')
     expect(badge.getAttribute('style')).toContain('border-color: var(--accent-red)')
@@ -331,7 +331,7 @@ describe('NoteItem', () => {
 
     render(<NoteItem entry={entry} isSelected={false} typeEntryMap={{}} onClickNote={vi.fn()} />)
 
-    expect(screen.getByTestId('note-date-row')).toHaveTextContent('April 10, 2025')
+    expect(screen.getByTestId('note-date-row')).toHaveTextContent('Apr 10, 2025')
     expect(screen.queryByText(/Created /)).not.toBeInTheDocument()
   })
 

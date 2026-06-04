@@ -324,7 +324,7 @@ function NoteDateRow({
   // Right side: the created date by default, or the modified date when sorting
   // by it — with the day of week, right-justified, no "Created"/"Modified" label.
   const timestamp = sortedByModified ? getDisplayDate(entry) : (entry.createdAt ?? getDisplayDate(entry))
-  const dateLabel = formatTimestampForDateDisplay(timestamp, dateDisplayFormat, true)
+  const dateLabel = formatTimestampForDateDisplay(timestamp, dateDisplayFormat, true, true)
   // Left side: a relative "time since modified" descriptor.
   const relativeLabel = formatRelativeTime(getDisplayDate(entry))
 

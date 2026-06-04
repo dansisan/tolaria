@@ -24,6 +24,14 @@ describe('dateDisplay', () => {
     expect(formatDatePartsForDisplay(parts, 'iso')).toBe('2026-05-11')
   })
 
+  it('uses three-letter month abbreviations in friendly format when shortMonth is set', () => {
+    expect(formatDatePartsForDisplay({ year: 2026, month: 1, day: 4 }, 'friendly', true)).toBe('Jan 4, 2026')
+    expect(formatDatePartsForDisplay({ year: 2026, month: 9, day: 20 }, 'friendly', true)).toBe('Sep 20, 2026')
+    expect(formatDateForDisplay(new Date(2026, 8, 20), 'friendly', true, true)).toBe('Sun, Sep 20, 2026')
+    // Non-friendly formats are unaffected by shortMonth.
+    expect(formatDatePartsForDisplay({ year: 2026, month: 1, day: 4 }, 'iso', true)).toBe('2026-01-04')
+  })
+
   it('prepends the short weekday when includeWeekday is set', () => {
     const date = new Date(2026, 4, 11) // Monday, May 11, 2026 (local)
 
