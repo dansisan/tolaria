@@ -139,6 +139,55 @@ describe('useNoteListKeyboard', () => {
     expect(scrollIntoView).toHaveBeenCalledWith({ index: 0, behavior: 'auto' })
   })
 
+  it('Home jumps to the top of the list and scrolls there', () => {
+    const open = vi.fn()
+    const { result } = renderHook(() =>
+      useNoteListKeyboard({ items, selectedNotePath: '/c.md', onOpen: open, enabled: true }),
+    )
+    const scrollToIndex = vi.fn()
+    result.current.virtuosoRef.current = { scrollToIndex } as never
+
+    act(() => result.current.handleKeyDown(keyEvent('Home')))
+
+    expect(result.current.highlightedPath).toBe('/a.md')
+    expect(scrollToIndex).toHaveBeenCalledWith({ index: 0, align: 'start', behavior: 'auto' })
+  })
+
+  it('Cmd+Up also jumps to the top of the list', () => {
+    const { result } = renderHook(() =>
+      useNoteListKeyboard({ items, selectedNotePath: '/c.md', onOpen, enabled: true }),
+    )
+    result.current.virtuosoRef.current = { scrollToIndex: vi.fn() } as never
+
+    act(() => result.current.handleKeyDown(keyEvent('ArrowUp', { metaKey: true } as Partial<React.KeyboardEvent>)))
+
+    expect(result.current.highlightedPath).toBe('/a.md')
+  })
+
+  it('End jumps to the bottom of the list and scrolls there', () => {
+    const { result } = renderHook(() =>
+      useNoteListKeyboard({ items, selectedNotePath: '/a.md', onOpen, enabled: true }),
+    )
+    const scrollToIndex = vi.fn()
+    result.current.virtuosoRef.current = { scrollToIndex } as never
+
+    act(() => result.current.handleKeyDown(keyEvent('End')))
+
+    expect(result.current.highlightedPath).toBe('/c.md')
+    expect(scrollToIndex).toHaveBeenCalledWith({ index: 2, align: 'end', behavior: 'auto' })
+  })
+
+  it('Cmd+Down also jumps to the bottom of the list', () => {
+    const { result } = renderHook(() =>
+      useNoteListKeyboard({ items, selectedNotePath: '/a.md', onOpen, enabled: true }),
+    )
+    result.current.virtuosoRef.current = { scrollToIndex: vi.fn() } as never
+
+    act(() => result.current.handleKeyDown(keyEvent('ArrowDown', { metaKey: true } as Partial<React.KeyboardEvent>)))
+
+    expect(result.current.highlightedPath).toBe('/c.md')
+  })
+
   it('ArrowUp clamps at start of list', () => {
     const { result } = renderHook(() =>
       useNoteListKeyboard({ items, selectedNotePath: null, onOpen, enabled: true }),
@@ -178,11 +227,11 @@ describe('useNoteListKeyboard', () => {
     expect(result.current.highlightedPath).toBeNull()
   })
 
-  it('does nothing with modifier keys', () => {
+  it('does nothing for arrow keys with a non-jump modifier (Alt)', () => {
     const { result } = renderHook(() =>
       useNoteListKeyboard({ items, selectedNotePath: null, onOpen, enabled: true }),
     )
-    act(() => result.current.handleKeyDown(keyEvent('ArrowDown', { metaKey: true } as Partial<React.KeyboardEvent>)))
+    act(() => result.current.handleKeyDown(keyEvent('ArrowDown', { altKey: true } as Partial<React.KeyboardEvent>)))
     expect(result.current.highlightedPath).toBeNull()
   })
 

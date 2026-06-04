@@ -270,6 +270,45 @@ function useMoveHighlight({
   }, [highlightedPathRef, items, onPrefetch, scheduleOpen, selectedNotePath, syncHighlightedPath, virtuosoRef])
 }
 
+type ListEdge = 'top' | 'bottom'
+
+function useJumpToEdge({
+  items,
+  syncHighlightedPath,
+  virtuosoRef,
+  onPrefetch,
+  scheduleOpen,
+}: {
+  items: VaultEntry[]
+  syncHighlightedPath: (nextPath: string | null) => void
+  virtuosoRef: React.RefObject<VirtuosoHandle | null>
+  onPrefetch?: (entry: VaultEntry) => void
+  scheduleOpen: (entry: VaultEntry) => void
+}) {
+  return useCallback((edge: ListEdge) => {
+    if (items.length === 0) return
+    const index = edge === 'top' ? 0 : items.length - 1
+    const item = items[index]
+    if (!item) return
+    syncHighlightedPath(item.path)
+    virtuosoRef.current?.scrollToIndex({ index, align: edge === 'top' ? 'start' : 'end', behavior: 'auto' })
+    scheduleOpen(item)
+    onPrefetch?.(item)
+  }, [items, onPrefetch, scheduleOpen, syncHighlightedPath, virtuosoRef])
+}
+
+/** Home / Cmd+Up jump to the top; End / Cmd+Down jump to the bottom. */
+function resolveJumpEdge(
+  event: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'>,
+): ListEdge | null {
+  if (event.altKey || event.shiftKey) return null
+  if (event.key === 'Home' && !event.metaKey && !event.ctrlKey) return 'top'
+  if (event.key === 'End' && !event.metaKey && !event.ctrlKey) return 'bottom'
+  if (usesCommandModifier(event) && event.key === 'ArrowUp') return 'top'
+  if (usesCommandModifier(event) && event.key === 'ArrowDown') return 'bottom'
+  return null
+}
+
 function resolveEntryForActivation(
   items: VaultEntry[],
   highlightedPathRef: React.RefObject<string | null>,
@@ -346,6 +385,7 @@ function useProcessKeyDown({
   items,
   highlightedPathRef,
   moveHighlight,
+  jumpToEdge,
   flushOpen,
   cancelOpen,
   onEnterNeighborhood,
@@ -356,6 +396,7 @@ function useProcessKeyDown({
   items: VaultEntry[]
   highlightedPathRef: React.RefObject<string | null>
   moveHighlight: (direction: 1 | -1) => void
+  jumpToEdge: (edge: ListEdge) => void
   flushOpen: (entry?: VaultEntry) => void
   cancelOpen: () => void
   onEnterNeighborhood?: (entry: VaultEntry) => void | Promise<void>
@@ -374,13 +415,21 @@ function useProcessKeyDown({
       cancelOpen,
       onEnterNeighborhood,
     })) return
+    // Jump to the top/bottom of the list (Home/End, or Cmd/Ctrl+Up/Down) —
+    // checked before the modifier-ignore guard so Cmd+Up/Down aren't swallowed.
+    const jumpEdge = resolveJumpEdge(event)
+    if (jumpEdge) {
+      event.preventDefault()
+      jumpToEdge(jumpEdge)
+      return
+    }
     if (shouldIgnoreListKeyboardEvent(event)) return
     if (handleArrowNavigation(event, moveHighlight)) return
 
     const pendingPath = event.key === 'Enter' ? highlightedPathRef.current : null
     handleEnterShortcutEvent(event, items, highlightedPathRef, flushOpen)
     if (pendingPath) onFocusEditorOnEnter?.(pendingPath)
-  }, [cancelOpen, enabled, flushOpen, highlightedPathRef, items, moveHighlight, onEnterNeighborhood, onFocusEditorOnEnter, onToggleSearchShortcut])
+  }, [cancelOpen, enabled, flushOpen, highlightedPathRef, items, jumpToEdge, moveHighlight, onEnterNeighborhood, onFocusEditorOnEnter, onToggleSearchShortcut])
 }
 
 function useFocusHandlers({
@@ -611,11 +660,19 @@ export function useNoteListKeyboard({
     onPrefetch,
     scheduleOpen,
   })
+  const jumpToEdge = useJumpToEdge({
+    items,
+    syncHighlightedPath,
+    virtuosoRef,
+    onPrefetch,
+    scheduleOpen,
+  })
   const processKeyDown = useProcessKeyDown({
     enabled,
     items,
     highlightedPathRef,
     moveHighlight,
+    jumpToEdge,
     flushOpen,
     cancelOpen,
     onEnterNeighborhood,
