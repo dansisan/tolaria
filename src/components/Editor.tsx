@@ -34,6 +34,7 @@ import { useRawModeWithFlush } from './useRawModeWithFlush'
 import { createArrowLigaturesExtension } from './arrowLigaturesExtension'
 import { createImeCompositionKeyGuardExtension } from './imeCompositionKeyGuardExtension'
 import { createMathInputExtension } from './mathInputExtension'
+import { createCodeFenceOnEnterExtension } from './codeFenceOnEnterExtension'
 import { createEditTitleOnArrowUpExtension } from './editTitleOnArrowUpExtension'
 import { createRichEditorTransformErrorRecoveryExtension } from './richEditorTransformErrorRecoveryExtension'
 import { useFilenameAutolinkGuard } from './useFilenameAutolinkGuard'
@@ -236,6 +237,7 @@ function useEditorSetup({
       createArrowLigaturesExtension(),
       createMathInputExtension(),
       createEditTitleOnArrowUpExtension(),
+      createCodeFenceOnEnterExtension(),
     ],
   })
   useFilenameAutolinkGuard(editor)

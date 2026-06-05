@@ -606,6 +606,7 @@ Defined in `src/components/editorSchema.tsx` and styled in `src/components/Edito
 - Missing common grammars live in `src/utils/codeBlockLanguageCatalog.ts` and are registered lazily from direct `@shikijs/langs` imports by `src/components/codeBlockOptions.ts`; known aliases such as `ps1` and `vb` normalize to canonical picker values during Markdown import.
 - Tolaria keeps `defaultLanguage: "text"` so unlabeled code blocks do not silently become JavaScript at creation time. Parsed unlabeled code blocks then run through Tolaria's lightweight language inference, while explicit fence languages and user dropdown choices still win.
 - Inline-code chip styling remains scoped to `.bn-inline-content code`, so fenced `pre > code` nodes keep the dedicated code-block shell instead of inheriting the muted inline surface.
+- Obsidian-style fence entry: `createCodeFenceOnEnterExtension` (`src/components/codeFenceOnEnterExtension.ts`) converts a paragraph containing only ` ``` ` (optionally ` ```lang `) into a code block on plain Enter, resolving language aliases (`js` → `javascript`) against the same `supportedLanguages` map. It complements BlockNote's built-in input rule, which only fires on ` ``` ` + space.
 
 ### Markdown Math
 
