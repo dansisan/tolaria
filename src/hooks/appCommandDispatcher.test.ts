@@ -143,6 +143,13 @@ describe('appCommandDispatcher', () => {
     expect(findShortcutCommandId('command-or-ctrl-shift', 'v', 'KeyV')).toBe(APP_COMMAND_IDS.editPastePlainText)
   })
 
+  it('maps Cmd+[ / Cmd+] to history navigation alongside the arrow shortcuts', () => {
+    expect(findShortcutCommandId('command-or-ctrl', 'ArrowLeft', 'ArrowLeft')).toBe(APP_COMMAND_IDS.viewGoBack)
+    expect(findShortcutCommandId('command-or-ctrl', 'ArrowRight', 'ArrowRight')).toBe(APP_COMMAND_IDS.viewGoForward)
+    expect(findShortcutCommandId('command-or-ctrl', '[', 'BracketLeft')).toBe(APP_COMMAND_IDS.viewGoBack)
+    expect(findShortcutCommandId('command-or-ctrl', ']', 'BracketRight')).toBe(APP_COMMAND_IDS.viewGoForward)
+  })
+
   it('gives every shortcut command an explicit deterministic QA strategy', () => {
     expect(getDeterministicShortcutQaDefinition(APP_COMMAND_IDS.fileNewNote)).toMatchObject({
       preferredMode: 'native-menu-command',

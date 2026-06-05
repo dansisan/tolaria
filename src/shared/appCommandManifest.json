@@ -282,6 +282,7 @@
       "shortcut": {
         "combo": "command-or-ctrl",
         "key": "ArrowLeft",
+        "aliases": ["["],
         "code": "ArrowLeft",
         "display": "⌘←",
         "accelerator": "CmdOrCtrl+Left"
@@ -294,6 +295,7 @@
       "shortcut": {
         "combo": "command-or-ctrl",
         "key": "ArrowRight",
+        "aliases": ["]"],
         "code": "ArrowRight",
         "display": "⌘→",
         "accelerator": "CmdOrCtrl+Right"
