@@ -681,10 +681,20 @@ export function useNoteListKeyboard({
   })
   const handleKeyDown = useDirectKeyDownHandler(processKeyDown)
   useGlobalKeyboardHandling({ enabled, panelRef, containerRef, processKeyDown })
+  const lastSyncedSelectionRef = useRef<string | null>(null)
   useEffect(() => {
-    void selectedNotePath
     cancelOpen()
-  }, [cancelOpen, selectedNotePath])
+    if (selectedNotePath === lastSyncedSelectionRef.current) return
+    lastSyncedSelectionRef.current = selectedNotePath
+    // When the active note changes (e.g. opened from search, quick-open, or a
+    // wikilink), move the keyboard highlight to it so arrow keys continue from
+    // there — as if it had been clicked in the list. During arrow navigation
+    // the highlight already leads and the selection only catches up to it, so
+    // this is a no-op for keyboard moves.
+    if (selectedNotePath && getItemIndex(itemsRef.current).entryByPath.has(selectedNotePath)) {
+      syncHighlightedPath(selectedNotePath)
+    }
+  }, [cancelOpen, itemsRef, selectedNotePath, syncHighlightedPath])
 
   const highlightedPath = resolveStableHighlightedPath(items, highlightedPathState)
 

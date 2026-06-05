@@ -227,6 +227,25 @@ describe('useNoteListKeyboard', () => {
     expect(result.current.highlightedPath).toBeNull()
   })
 
+  it('moves the highlight to an externally selected note so arrows continue from it', () => {
+    const { result, rerender } = renderHook(
+      ({ sel }: { sel: string | null }) =>
+        useNoteListKeyboard({ items, selectedNotePath: sel, onOpen, enabled: true }),
+      { initialProps: { sel: '/a.md' as string | null } },
+    )
+
+    act(() => result.current.handleKeyDown(keyEvent('ArrowDown')))
+    expect(result.current.highlightedPath).toBe('/b.md')
+
+    // Note opened from outside the list (e.g. via search) jumps the highlight there.
+    rerender({ sel: '/c.md' })
+    expect(result.current.highlightedPath).toBe('/c.md')
+
+    // Arrow now continues from the selected note, not the stale highlight.
+    act(() => result.current.handleKeyDown(keyEvent('ArrowUp')))
+    expect(result.current.highlightedPath).toBe('/b.md')
+  })
+
   it('does nothing for arrow keys with a non-jump modifier (Alt)', () => {
     const { result } = renderHook(() =>
       useNoteListKeyboard({ items, selectedNotePath: null, onOpen, enabled: true }),

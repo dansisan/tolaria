@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useCallback, useRef } from 'react'
+import type { VirtuosoHandle } from 'react-virtuoso'
 import type {
   VaultEntry,
   SidebarSelection,
@@ -662,6 +663,31 @@ function buildNoteListLayoutModel(params: {
   }
 }
 
+/**
+ * Scroll the note list to reveal the active note when it changes — e.g. opened
+ * from search, quick-open, or a wikilink, where it may be off-screen. Uses
+ * minimal scrolling, so an already-visible row doesn't jump, and only acts on
+ * an actual selection change (retrying until the note appears in the list).
+ */
+export function useRevealSelectedNote({
+  selectedNotePath,
+  searched,
+  virtuosoRef,
+}: {
+  selectedNotePath: string | null
+  searched: VaultEntry[]
+  virtuosoRef: React.RefObject<VirtuosoHandle | null>
+}) {
+  const lastRevealedPathRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!selectedNotePath || selectedNotePath === lastRevealedPathRef.current) return
+    const index = searched.findIndex((entry) => entry.path === selectedNotePath)
+    if (index < 0) return
+    lastRevealedPathRef.current = selectedNotePath
+    virtuosoRef.current?.scrollIntoView({ index, behavior: 'auto' })
+  }, [selectedNotePath, searched, virtuosoRef])
+}
+
 export function useNoteListModel({
   entries,
   selection,
@@ -758,6 +784,11 @@ export function useNoteListModel({
     onBulkArchive,
     onBulkDeletePermanently,
     locale,
+  })
+  useRevealSelectedNote({
+    selectedNotePath,
+    searched: content.searched,
+    virtuosoRef: interaction.noteListKeyboard.virtuosoRef,
   })
   const renderItem = useRenderItem({
     entries,
