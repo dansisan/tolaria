@@ -672,7 +672,7 @@ describe('useNoteCreation hook', () => {
     expect(focusListener).toHaveBeenCalledTimes(1)
     const event = focusListener.mock.calls[0][0] as CustomEvent
     expect(event.detail.path).toMatch(/\/test\/vault\/untitled-note-\d+\.md$/)
-    expect(event.detail.selectTitle).toBe(true)
+    expect(event.detail.editTitle).toBe(true)
 
     window.removeEventListener('laputa:focus-editor', focusListener)
   })

@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { focusEditorWithRetries, type FocusableEditor } from './editorFocusUtils'
+import { requestEditNoteTitle } from '../utils/editNoteTitleEvent'
 
 const TAB_SWAP_EVENT_NAME = 'laputa:editor-tab-swapped'
 const FOCUS_EVENT_NAME = 'laputa:focus-editor'
@@ -8,20 +9,30 @@ const SWAP_WAIT_FALLBACK_MS = 250
 interface FocusEventDetail {
   t0?: number
   selectTitle?: boolean
+  /** Open the breadcrumb title (filename) field instead of focusing the body. */
+  editTitle?: boolean
   path?: string | null
+}
+
+interface ScheduledFocusOptions {
+  selectTitle: boolean
+  editTitle: boolean
+  t0: number | undefined
 }
 
 function scheduleEditorFocus(
   editor: FocusableEditor,
   editorMountedRef: React.RefObject<boolean>,
-  selectTitle: boolean,
-  t0: number | undefined,
+  { selectTitle, editTitle, t0 }: ScheduledFocusOptions,
 ): void {
+  const focusAction = editTitle
+    ? () => requestEditNoteTitle()
+    : () => focusEditorWithRetries(editor, selectTitle, t0)
   if (editorMountedRef.current) {
-    requestAnimationFrame(() => focusEditorWithRetries(editor, selectTitle, t0))
+    requestAnimationFrame(focusAction)
     return
   }
-  setTimeout(() => focusEditorWithRetries(editor, selectTitle, t0), 80)
+  setTimeout(focusAction, 80)
 }
 
 function registerPendingTabFocus(
@@ -68,8 +79,9 @@ export function useEditorFocus(
       const detail = (e as CustomEvent).detail as FocusEventDetail | undefined
       const t0 = detail?.t0
       const selectTitle = detail?.selectTitle ?? false
+      const editTitle = detail?.editTitle ?? false
       const targetPath = detail?.path ?? null
-      const scheduleFocus = () => scheduleEditorFocus(editor, editorMountedRef, selectTitle, t0)
+      const scheduleFocus = () => scheduleEditorFocus(editor, editorMountedRef, { selectTitle, editTitle, t0 })
 
       if (!targetPath) {
         scheduleFocus()

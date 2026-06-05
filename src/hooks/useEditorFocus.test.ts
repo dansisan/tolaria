@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { useEditorFocus } from './useEditorFocus'
 import type { FocusableEditor } from './editorFocusUtils'
+import { EDIT_NOTE_TITLE_EVENT } from '../utils/editNoteTitleEvent'
 
 function makeTiptapMock(hasHeading: boolean | Array<number | null> = true, headingNodeSize = 15) {
   const headingSizes = Array.isArray(hasHeading)
@@ -298,6 +299,35 @@ describe('useEditorFocus', () => {
 
       expect(editor.focus).toHaveBeenCalled()
       expectSelectionRange(tiptap, { from: 3, to: 3 })
+    })
+  })
+
+  describe('editTitle behavior', () => {
+    it('requests breadcrumb title edit instead of focusing the body', () => {
+      vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => { cb(0); return 0 })
+      const editTitleListener = vi.fn()
+      window.addEventListener(EDIT_NOTE_TITLE_EVENT, editTitleListener)
+      const { editor } = setup(true)
+
+      window.dispatchEvent(new CustomEvent('laputa:focus-editor', { detail: { editTitle: true } }))
+
+      expect(editTitleListener).toHaveBeenCalledTimes(1)
+      expect(editor.focus).not.toHaveBeenCalled()
+      window.removeEventListener(EDIT_NOTE_TITLE_EVENT, editTitleListener)
+    })
+
+    it('waits for the matching tab swap before requesting the title edit', () => {
+      vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => { cb(0); return 0 })
+      const editTitleListener = vi.fn()
+      window.addEventListener(EDIT_NOTE_TITLE_EVENT, editTitleListener)
+      setup(true)
+
+      window.dispatchEvent(new CustomEvent('laputa:focus-editor', { detail: { editTitle: true, path: '/vault/new-note.md' } }))
+      expect(editTitleListener).not.toHaveBeenCalled()
+
+      window.dispatchEvent(new CustomEvent('laputa:editor-tab-swapped', { detail: { path: '/vault/new-note.md' } }))
+      expect(editTitleListener).toHaveBeenCalledTimes(1)
+      window.removeEventListener(EDIT_NOTE_TITLE_EVENT, editTitleListener)
     })
   })
 })

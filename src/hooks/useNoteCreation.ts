@@ -495,9 +495,14 @@ function addEntryWithMock(entry: VaultEntry, content: string, addEntry: (e: Vaul
 }
 
 /** Dispatch focus-editor event with perf timing marker. */
-function signalFocusEditor(opts?: { selectTitle?: boolean; path?: string }): void {
+function signalFocusEditor(opts?: { selectTitle?: boolean; editTitle?: boolean; path?: string }): void {
   window.dispatchEvent(new CustomEvent('laputa:focus-editor', {
-    detail: { t0: performance.now(), selectTitle: opts?.selectTitle ?? false, path: opts?.path ?? null },
+    detail: {
+      t0: performance.now(),
+      selectTitle: opts?.selectTitle ?? false,
+      editTitle: opts?.editTitle ?? false,
+      path: opts?.path ?? null,
+    },
   }))
 }
 
@@ -762,7 +767,8 @@ async function createNoteImmediate(deps: ImmediateCreateDeps, request: Immediate
   cacheNoteContent(resolved.entry.path, resolved.content, resolved.entry)
   deps.openTabWithContent(resolved.entry, resolved.content)
   addEntryWithMock(resolved.entry, resolved.content, deps.addEntry)
-  signalFocusEditor({ path: resolved.entry.path, selectTitle: true })
+  // A new note starts untitled, so put focus in the breadcrumb title field.
+  signalFocusEditor({ path: resolved.entry.path, editTitle: true })
   return true
 }
 
