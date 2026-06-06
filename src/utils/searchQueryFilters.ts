@@ -10,6 +10,8 @@ import type { FilterCondition, VaultEntry } from '../types'
  *   created:>2024-12-31     → after (also accepts relative phrases in quotes)
  *   created:<"two weeks ago" → before
  *   type:Project status:Active → equals on any built-in or frontmatter field
+ *   deadline:*              → the key exists with a non-empty value
+ *   deadline:""             → the key is missing or empty
  *
  * Only fields that actually exist (built-ins, frontmatter properties,
  * relationships) are treated as tokens; anything else stays plain search text,
@@ -72,7 +74,9 @@ function tokenConditions(options: {
   const { field, operator, value, quoted } = options
   if (operator === '>') return [{ field, op: 'after', value }]
   if (operator === '<') return [{ field, op: 'before', value }]
+  if (quoted && value === '') return [{ field, op: 'is_empty' }]
   if (quoted) return [{ field, op: 'equals', value }]
+  if (value === '*') return [{ field, op: 'is_not_empty' }]
   return shorthandDateConditions(field, value) ?? [{ field, op: 'equals', value }]
 }
 

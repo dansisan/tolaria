@@ -80,6 +80,18 @@ describe('parseSearchQueryFilters', () => {
     expect(parseSearchQueryFilters('re:invent created:2025', known).text).toBe('re:invent')
   })
 
+  it('maps a bare * to an existence check, while a quoted * stays literal', () => {
+    expect(parseSearchQueryFilters('deadline:*').conditions)
+      .toEqual([{ field: 'deadline', op: 'is_not_empty' }])
+    expect(parseSearchQueryFilters('deadline:"*"').conditions)
+      .toEqual([{ field: 'deadline', op: 'equals', value: '*' }])
+  })
+
+  it('maps a quoted empty value to is_empty', () => {
+    expect(parseSearchQueryFilters('favorite:""').conditions)
+      .toEqual([{ field: 'favorite', op: 'is_empty' }])
+  })
+
   it('does not treat tag queries or urls as tokens', () => {
     expect(parseSearchQueryFilters('#guitar').conditions).toEqual([])
     expect(parseSearchQueryFilters('https://example.com').text).toBe('https://example.com')
@@ -125,6 +137,28 @@ describe('end to end with the view filter engine', () => {
     const { conditions } = parseSearchQueryFilters('created:2025-03')
     const matched = notes.filter((entry) => entryMatchesFilterConditions(entry, conditions))
     expect(matched.map((e) => e.title)).toEqual(['In 2025'])
+  })
+
+  it('field:* matches notes where the key has a value, field:"" the rest', () => {
+    const mixed = [
+      makeEntry({ title: 'Has deadline', properties: { deadline: '2026-03-31' } }),
+      makeEntry({ title: 'Empty deadline', properties: { deadline: '' } }),
+      makeEntry({ title: 'No deadline', properties: {} }),
+    ]
+    const favorites = [
+      makeEntry({ title: 'Starred', favorite: true }),
+      makeEntry({ title: 'Plain', favorite: false }),
+    ]
+    const notFavorited = parseSearchQueryFilters('favorite:""').conditions
+    expect(favorites.filter((e) => entryMatchesFilterConditions(e, notFavorited)).map((e) => e.title))
+      .toEqual(['Plain'])
+    const exists = parseSearchQueryFilters('deadline:*').conditions
+    expect(mixed.filter((e) => entryMatchesFilterConditions(e, exists)).map((e) => e.title))
+      .toEqual(['Has deadline'])
+
+    const missing = parseSearchQueryFilters('deadline:""').conditions
+    expect(mixed.filter((e) => entryMatchesFilterConditions(e, missing)).map((e) => e.title))
+      .toEqual(['Empty deadline', 'No deadline'])
   })
 
   it('compares numeric properties with > and <', () => {
