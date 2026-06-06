@@ -804,6 +804,8 @@ interface SearchResult {
 
 The NoteList header search keeps its local title/snippet/property filtering for immediate scoped results, then augments the match set with `search_vault` hits from the visible workspace roots using the command's frontmatter-excluding search option. React stores only matching paths so body-only matches appear in the current list scope without a second content-read pass or rendering private matched text in note rows.
 
+The search box also accepts structured filter tokens (`src/utils/searchQueryFilters.ts`), evaluated with the saved-View filter engine (`entryMatchesFilterConditions`): `created:2025` (year range), `created:2025-03` (month), `created:2025-03-14` (day), `created:>2024-12-31` / `created:<"two weeks ago"` (after/before, relative phrases supported), `rating:>4` (numeric compare when both sides are plain numbers), and `type:Project` / any frontmatter property or relationship as equals. Only fields that exist in the vault tokenize — anything else stays free text, which is matched locally and via `search_vault` (the backend receives only the free-text remainder, and a body hit cannot bypass the structured conditions).
+
 No indexing step required — search runs directly against the filesystem.
 
 ## Vault Management
@@ -953,6 +955,7 @@ Managed by `useSettings` hook and `SettingsPanel` component. `theme_mode` is ins
 - **AI agent sessions** — `ai_agent_message_sent`, `ai_agent_message_blocked`, `ai_agent_response_completed`, `ai_agent_response_failed`, and `ai_agent_permission_mode_changed` use only agent ids, permission modes, counts, and coarse status categories.
 - **AI feature visibility** — `ai_features_visibility_changed` records only whether installation-level AI surfaces were enabled or hidden.
 - **All Notes visibility** — `all_notes_visibility_changed` records only the toggled category and enabled state.
+- **Search filter tokens** — `note_list_search_filter_tokens_used` fires once per entry into token-based searching (not per keystroke) with only the token count and whether free text accompanied it; field names, values, and queries are never sent.
 
 ### Tauri Commands
 - **`reinit_telemetry`** — Re-reads settings and toggles Rust Sentry on/off. Called from frontend when user changes crash reporting setting.

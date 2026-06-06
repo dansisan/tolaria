@@ -26,6 +26,11 @@ export function evaluateView(definition: ViewDefinition, entries: VaultEntry[]):
   return entries.filter((e) => !e.archived && evaluateGroup(definition.filters, e))
 }
 
+/** Evaluate standalone conditions (e.g. search-box filter tokens) against one entry. */
+export function entryMatchesFilterConditions(entry: VaultEntry, conditions: FilterCondition[]): boolean {
+  return conditions.every((condition) => evaluateCondition(condition, entry))
+}
+
 function evaluateGroup(group: FilterGroup, entry: VaultEntry): boolean {
   if ('all' in group) return group.all.every((node) => evaluateNode(node, entry))
   if ('any' in group) return group.any.some((node) => evaluateNode(node, entry))
@@ -213,8 +218,28 @@ type ScalarDateCondition = {
   condVal: string
 }
 
+function pureNumber(value: FieldScalar): number | null {
+  if (typeof value === 'number') return value
+  if (typeof value !== 'string' || !/^-?\d+(\.\d+)?$/.test(value.trim())) return null
+  return Number(value)
+}
+
+/** before/after on two plain numbers compares numerically (e.g. rating:>4). */
+function evaluateNumericCondition(condition: ScalarDateCondition): boolean | null {
+  const { cond, scalar, condVal } = condition
+  if (cond.op !== 'before' && cond.op !== 'after') return null
+
+  const fieldNumber = pureNumber(scalar)
+  const target = pureNumber(condVal)
+  if (fieldNumber == null || target == null) return null
+  return cond.op === 'before' ? fieldNumber < target : fieldNumber > target
+}
+
 function evaluateScalarDateCondition(condition: ScalarDateCondition): boolean | null {
   const { cond, scalar, condVal } = condition
+  const numericResult = evaluateNumericCondition(condition)
+  if (numericResult !== null) return numericResult
+
   if (cond.op === 'before' || cond.op === 'after') {
     return evaluateDateCondition(cond, scalar, condVal)
   }

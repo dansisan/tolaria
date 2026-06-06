@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import type { VaultEntry } from '../../types'
 import { isTauri, mockInvoke } from '../../mock-tauri'
+import { parseSearchQueryFilters, searchFilterFieldPredicate } from '../../utils/searchQueryFilters'
 
 type NoteListSearchQuery = string
 type NotePath = string
@@ -42,8 +43,10 @@ const EMPTY_FULL_TEXT_SEARCH_STATE: FullTextSearchState = {
   resultPaths: new Set(),
 }
 
-function normalizeFullTextQuery(query: NoteListSearchQuery): NoteListSearchQuery {
-  return query.trim().toLowerCase()
+/** Body search receives only the free-text remainder — filter tokens are
+ *  evaluated locally against entry metadata, not note content. */
+function normalizeFullTextQuery(query: NoteListSearchQuery, entries: VaultEntry[]): NoteListSearchQuery {
+  return parseSearchQueryFilters(query.trim().toLowerCase(), searchFilterFieldPredicate(entries)).text
 }
 
 function unique<T extends string>(values: T[]): T[] {
@@ -118,7 +121,7 @@ function createSearchRequest({ entries, query }: { entries: VaultEntry[]; query:
 }
 
 function useFullTextSearchRequest(entries: VaultEntry[], query: NoteListSearchQuery): FullTextSearchRequest | null {
-  const normalizedQuery = normalizeFullTextQuery(query)
+  const normalizedQuery = normalizeFullTextQuery(query, entries)
   return useMemo(() => createSearchRequest({ entries, query: normalizedQuery }), [entries, normalizedQuery])
 }
 

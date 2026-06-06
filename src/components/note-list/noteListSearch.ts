@@ -1,6 +1,8 @@
 import type { VaultEntry } from '../../types'
 import type { DateDisplayFormat } from '../../utils/dateDisplay'
 import type { RelationshipGroup } from '../../utils/noteListHelpers'
+import { parseSearchQueryFilters, searchFilterFieldPredicate, type ParsedSearchQuery } from '../../utils/searchQueryFilters'
+import { entryMatchesFilterConditions } from '../../utils/viewFilters'
 import { resolvePropertyChipLabels } from '../note-item/propertyChipValues'
 
 interface NoteListSearchContext {
@@ -53,6 +55,28 @@ function matchesWords(texts: string[], words: string[]): boolean {
   return words.every((word) => texts.some((text) => text.toLowerCase().includes(word)))
 }
 
+/** Parse filter tokens against the fields known to this vault's entries. */
+export function parseNoteListQuery(query: string, context: NoteListSearchContext): ParsedSearchQuery {
+  return parseSearchQueryFilters(normalizeQuery(query), searchFilterFieldPredicate(context.allEntries))
+}
+
+function matchesQueryText(entry: VaultEntry, text: string, context: NoteListSearchContext): boolean {
+  if (!text) return true
+  if (context.fullTextResultPaths?.has(entry.path)) return true
+
+  if (text.startsWith('#')) {
+    const spaceIndex = text.indexOf(' ')
+    const tagPart = spaceIndex === -1 ? text.slice(1) : text.slice(1, spaceIndex)
+    if (!matchesTagQuery(entry, tagPart)) return false
+    if (spaceIndex === -1) return true
+    const textWords = text.slice(spaceIndex + 1).trim().split(/\s+/).filter(Boolean)
+    return textWords.length === 0 || matchesWords(resolveSearchableText(entry, context), textWords)
+  }
+
+  const words = text.split(/\s+/).filter(Boolean)
+  return matchesWords(resolveSearchableText(entry, context), words)
+}
+
 export function matchesNoteListQuery(
   entry: VaultEntry,
   query: string,
@@ -60,19 +84,10 @@ export function matchesNoteListQuery(
 ): boolean {
   const normalizedQuery = normalizeQuery(query)
   if (!normalizedQuery) return true
-  if (context.fullTextResultPaths?.has(entry.path)) return true
 
-  if (normalizedQuery.startsWith('#')) {
-    const spaceIndex = normalizedQuery.indexOf(' ')
-    const tagPart = spaceIndex === -1 ? normalizedQuery.slice(1) : normalizedQuery.slice(1, spaceIndex)
-    if (!matchesTagQuery(entry, tagPart)) return false
-    if (spaceIndex === -1) return true
-    const textWords = normalizedQuery.slice(spaceIndex + 1).trim().split(/\s+/).filter(Boolean)
-    return textWords.length === 0 || matchesWords(resolveSearchableText(entry, context), textWords)
-  }
-
-  const words = normalizedQuery.split(/\s+/).filter(Boolean)
-  return matchesWords(resolveSearchableText(entry, context), words)
+  const { text, conditions } = parseNoteListQuery(normalizedQuery, context)
+  if (!entryMatchesFilterConditions(entry, conditions)) return false
+  return matchesQueryText(entry, text, context)
 }
 
 export function filterEntriesByNoteListQuery(

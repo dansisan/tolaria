@@ -20,7 +20,8 @@ import { prefetchNoteContent } from '../../hooks/useTabManagement'
 import type { MultiSelectState } from '../../hooks/useMultiSelect'
 import { isDeletedNoteEntry, resolveHeaderTitle, type DeletedNoteEntry } from './noteListUtils'
 import { useNoteListFullTextSearch } from './noteListFullTextSearch'
-import { filterEntriesByNoteListQuery, filterGroupsByNoteListQuery } from './noteListSearch'
+import { filterEntriesByNoteListQuery, filterGroupsByNoteListQuery, parseNoteListQuery } from './noteListSearch'
+import { trackEvent } from '../../lib/telemetry'
 import { useNoteListSearchState } from './useNoteListSearchState'
 import {
   useChangeStatusResolver,
@@ -200,8 +201,25 @@ function useFilteredNoteListSearch({
   }), [dateDisplayFormat, displayPropsOverride, entries, fullTextSearch.resultPaths, typeEntryMap])
   const searched = useMemo(() => filterEntriesByNoteListQuery(sortedEntries, query, searchContext), [query, searchContext, sortedEntries])
   const searchedGroups = useMemo(() => filterGroupsByNoteListQuery(sortedGroups, query, searchContext), [query, searchContext, sortedGroups])
+  useSearchFilterTokenTracking(query, searchContext)
 
   return { isFullTextSearching: fullTextSearch.loading, searched, searchedGroups }
+}
+
+/** Emit one analytics event per entry into token-based searching (not per keystroke). */
+function useSearchFilterTokenTracking(query: string, searchContext: Parameters<typeof parseNoteListQuery>[1]) {
+  const wasTokenizedRef = useRef(false)
+  useEffect(() => {
+    const { text, conditions } = parseNoteListQuery(query, searchContext)
+    const tokenized = conditions.length > 0
+    if (tokenized && !wasTokenizedRef.current) {
+      trackEvent('note_list_search_filter_tokens_used', {
+        token_count: conditions.length,
+        has_free_text: text.length > 0 ? 'true' : 'false',
+      })
+    }
+    wasTokenizedRef.current = tokenized
+  }, [query, searchContext])
 }
 
 function useNoteListContent({
