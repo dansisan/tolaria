@@ -46,6 +46,8 @@ interface NoteListHeaderProps {
   searchVisible: boolean
   search: string
   isSearching: boolean
+  /** Matched note count for the active query, or null when not searching. */
+  searchResultCount?: number | null
   searchInputRef: React.RefObject<HTMLInputElement | null>
   propertyPicker?: ListPropertiesPopoverProps | null
   gitRepositories?: GitRepositoryOption[]
@@ -206,10 +208,20 @@ function HeaderActions({
   )
 }
 
+function SearchResultCount({ count, locale }: { count: number | null | undefined; locale: AppLocale }) {
+  if (count == null) return null
+  return (
+    <div className="mt-1 px-1 text-[11px] text-muted-foreground" data-testid="note-list-search-result-count">
+      {translate(locale, 'noteList.searchResultCount', { count, plural: count === 1 ? '' : 's' })}
+    </div>
+  )
+}
+
 function SearchRow({
   searchVisible,
   search,
   isSearching,
+  searchResultCount,
   searchInputRef,
   locale,
   onSearchChange,
@@ -219,6 +231,7 @@ function SearchRow({
   | 'searchVisible'
   | 'search'
   | 'isSearching'
+  | 'searchResultCount'
   | 'searchInputRef'
   | 'locale'
   | 'onSearchChange'
@@ -272,6 +285,7 @@ function SearchRow({
           </span>
         )}
       </div>
+      {hasSearch && <SearchResultCount count={searchResultCount} locale={locale} />}
     </div>
   )
 }
@@ -288,6 +302,7 @@ export function NoteListHeader({
   searchVisible,
   search,
   isSearching,
+  searchResultCount = null,
   searchInputRef,
   propertyPicker,
   gitRepositories = [],
@@ -339,6 +354,7 @@ export function NoteListHeader({
         searchVisible={searchVisible}
         search={search}
         isSearching={isSearching}
+        searchResultCount={searchResultCount}
         searchInputRef={searchInputRef}
         locale={locale}
         onSearchChange={onSearchChange}

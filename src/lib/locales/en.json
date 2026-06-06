@@ -447,6 +447,7 @@
   "noteList.title.notes": "Notes",
   "noteList.searchPlaceholder": "Search notes...",
   "noteList.searchAction": "Search notes",
+  "noteList.searchResultCount": "{count} result{plural}",
   "noteList.clearSearch": "Clear search",
   "noteList.quickOpenCreate": "Create note \"{title}\"",
   "noteList.createNote": "Create new note",

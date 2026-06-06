@@ -250,6 +250,18 @@ function NoteListBody({
   )
 }
 
+/** Distinct matched notes for the active query (groups may repeat a note). */
+function noteListSearchResultCount({
+  entitySelection,
+  query,
+  searched,
+  searchedGroups,
+}: Pick<NoteListLayoutProps, 'entitySelection' | 'query' | 'searched' | 'searchedGroups'>): number | null {
+  if (!query.trim()) return null
+  if (!entitySelection) return searched.length
+  return new Set(searchedGroups.flatMap((group) => group.entries.map((entry) => entry.path))).size
+}
+
 function NoteListLayoutHeader({
   title,
   typeDocument,
@@ -266,6 +278,10 @@ function NoteListLayoutHeader({
   searchVisible,
   search,
   isSearching,
+  entitySelection,
+  query,
+  searched,
+  searchedGroups,
   searchInputRef,
   propertyPicker,
   handleSortChange,
@@ -291,6 +307,10 @@ function NoteListLayoutHeader({
   | 'searchVisible'
   | 'search'
   | 'isSearching'
+  | 'entitySelection'
+  | 'query'
+  | 'searched'
+  | 'searchedGroups'
   | 'searchInputRef'
   | 'propertyPicker'
   | 'handleSortChange'
@@ -302,6 +322,7 @@ function NoteListLayoutHeader({
 >) {
   return (
     <NoteListHeader
+      searchResultCount={noteListSearchResultCount({ entitySelection, query, searched, searchedGroups })}
       title={title}
       typeDocument={typeDocument}
       isEntityView={isEntityView}
