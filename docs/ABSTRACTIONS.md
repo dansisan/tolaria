@@ -679,6 +679,8 @@ flowchart LR
 
 > Wikilink placeholder tokens use `\u2039` and `\u203A`; math, Mermaid, tldraw, and standalone file-attachment link placeholders use ASCII sentinels with URI-encoded payloads.
 
+Blank-line separators (`src/utils/blankLineSeparators.ts`) ride the same token pattern: on load, runs of 2+ blank lines (outside code fences) become a sentinel paragraph that is injected back as an empty paragraph block; on save, top-level empty paragraphs get the sentinel so `blocksToMarkdownLossy` cannot drop them, and after `compactMarkdown` the sentinel line is removed to leave exactly two blank lines on disk. One blank line therefore means "paragraph break" and two mean "intentional separator" \u2014 durable across external edits, Obsidian, and round trips. Leading/trailing separators are trimmed (they never persisted before).
+
 ### BlockNote-to-Markdown Pipeline (Save)
 
 ```mermaid

@@ -97,6 +97,31 @@
   margin-bottom: var(--editor-paragraph-spacing);
 }
 
+/* --- Book-style paragraph runs --- */
+/* Collapse the gap between directly adjacent paragraphs. A paragraph run then
+   reads like a book: tightly stacked, with first-line indents (below). An
+   intentionally empty paragraph (double Enter) keeps its own line height, so a
+   "double blank line" separator renders as exactly one blank line. */
+.editor__blocknote-container
+  .bn-block-outer:has(+ .bn-block-outer > .bn-block > .bn-block-content[data-content-type="paragraph"])
+  > .bn-block
+  > .bn-block-content[data-content-type="paragraph"] {
+  margin-bottom: 0;
+}
+
+/* Indent the first line of a paragraph that continues a run — i.e. whose
+   previous sibling is a non-empty paragraph without nested children. The first
+   paragraph of a run (after a heading, list, code block, blank separator, …)
+   stays flush left. */
+.editor__blocknote-container
+  .bn-block-outer:has(> .bn-block > .bn-block-content[data-content-type="paragraph"]):not(:has(> .bn-block > .bn-block-group)):not(:has(> .bn-block > .bn-block-content[data-content-type="paragraph"] > .bn-inline-content > .ProseMirror-trailingBreak:only-child))
+  + .bn-block-outer
+  > .bn-block
+  > .bn-block-content[data-content-type="paragraph"]
+  > .bn-inline-content {
+  text-indent: 1.5em;
+}
+
 /* --- Headings --- */
 /* Heading spacing: use margin-top on .bn-block-outer (creates space between blocks)
    and ensure the handle aligns by NOT adding padding/margin on inner elements.

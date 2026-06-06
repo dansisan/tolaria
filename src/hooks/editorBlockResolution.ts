@@ -1,5 +1,6 @@
 import type { useCreateBlockNote } from '@blocknote/react'
 import { preProcessWikilinks, injectWikilinks } from '../utils/wikilinks'
+import { injectBlankLineSeparatorBlocks, preProcessBlankLineSeparators } from '../utils/blankLineSeparators'
 import { preProcessMathMarkdown, injectMathInBlocks } from '../utils/mathMarkdown'
 import { injectDurableEditorMarkdownBlocks, preProcessDurableEditorMarkdown } from '../utils/editorDurableMarkdown'
 import { resolveImageUrls } from '../utils/vaultImages'
@@ -137,14 +138,18 @@ function preProcessEditorMarkdown(
   vaultPath?: VaultPath,
   notePath?: NotePath,
 ): PreprocessedMarkdown {
-  const withDurableBlocks = preProcessDurableEditorMarkdown({ markdown })
+  // Blank-line separators first: the scanner tracks raw code fences, which the
+  // durable-block pre-processor replaces with single-line tokens.
+  const withBlankSeparators = preProcessBlankLineSeparators({ markdown })
+  const withDurableBlocks = preProcessDurableEditorMarkdown({ markdown: withBlankSeparators })
   const withImages = vaultPath ? resolveImageUrls(withDurableBlocks, vaultPath, notePath) : withDurableBlocks
   const withWikilinks = preProcessWikilinks(withImages)
   return preProcessMathMarkdown({ markdown: withWikilinks })
 }
 
 function injectEditorMarkdownBlocks(blocks: EditorBlocks): EditorBlocks {
-  const withWikilinks = injectWikilinks(blocks)
+  const withSeparators = injectBlankLineSeparatorBlocks(blocks) as EditorBlocks
+  const withWikilinks = injectWikilinks(withSeparators)
   const withMath = injectMathInBlocks(withWikilinks)
   return injectDurableEditorMarkdownBlocks(withMath) as EditorBlocks
 }
