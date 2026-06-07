@@ -5,6 +5,7 @@ import { IMAGE_RENAME_MODES, type ImageRenameMode } from '../utils/imageRename'
 import type { AllNotesFileVisibility } from '../utils/allNotesFileVisibility'
 import { DATE_DISPLAY_FORMATS, type DateDisplayFormat } from '../utils/dateDisplay'
 import { NOTE_FONT_SIZE_OPTIONS } from '../utils/noteBodyFontSize'
+import { CODE_FONT_SIZE_OPTIONS, normalizeCodeFontSize } from '../utils/codeFontSize'
 import {
   SectionHeading,
   SelectControl,
@@ -24,6 +25,8 @@ interface VaultContentSettingsSectionProps {
   setDefaultNoteWidth: (value: NoteWidthMode) => void
   noteBodyFontSize: number
   setNoteBodyFontSize: (value: number) => void
+  codeFontSize: number | null
+  setCodeFontSize: (value: number | null) => void
   imageRenameMode: ImageRenameMode
   setImageRenameMode: (value: ImageRenameMode) => void
   imageRenameCommand: string
@@ -63,6 +66,16 @@ function buildNoteFontSizeOptions(): Array<{ value: string; label: string }> {
   return NOTE_FONT_SIZE_OPTIONS.map((size) => ({ value: String(size), label: `${size}px` }))
 }
 
+/** "default" keeps the theme sizes (inline code) and the note-body size (code blocks). */
+const CODE_FONT_SIZE_DEFAULT_OPTION = 'default'
+
+function buildCodeFontSizeOptions(t: Translate): Array<{ value: string; label: string }> {
+  return [
+    { value: CODE_FONT_SIZE_DEFAULT_OPTION, label: t('settings.codeFontSize.defaultOption') },
+    ...CODE_FONT_SIZE_OPTIONS.map((size) => ({ value: String(size), label: `${size}px` })),
+  ]
+}
+
 const IMAGE_RENAME_LABEL_KEYS: Record<ImageRenameMode, TranslationKey> = {
   off: 'settings.imageRename.off',
   command: 'settings.imageRename.command',
@@ -90,6 +103,8 @@ export function VaultContentSettingsSection({
   setDefaultNoteWidth,
   noteBodyFontSize,
   setNoteBodyFontSize,
+  codeFontSize,
+  setCodeFontSize,
   imageRenameMode,
   setImageRenameMode,
   imageRenameCommand,
@@ -153,6 +168,19 @@ export function VaultContentSettingsSection({
             onValueChange={(value) => setNoteBodyFontSize(Number(value))}
             options={buildNoteFontSizeOptions()}
             testId="settings-note-body-font-size"
+          />
+        </SettingsRow>
+
+        <SettingsRow
+          label={t('settings.codeFontSize.default')}
+          description={t('settings.codeFontSize.defaultDescription')}
+        >
+          <SelectControl
+            ariaLabel={t('settings.codeFontSize.default')}
+            value={codeFontSize === null ? CODE_FONT_SIZE_DEFAULT_OPTION : String(codeFontSize)}
+            onValueChange={(value) => setCodeFontSize(normalizeCodeFontSize(value))}
+            options={buildCodeFontSizeOptions(t)}
+            testId="settings-code-font-size"
           />
         </SettingsRow>
 

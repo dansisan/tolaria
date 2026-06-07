@@ -734,5 +734,8 @@
   "locale.plPL": "Polandia",
   "locale.beBY": "Belarusia",
   "locale.beLatn": "Belarusia (Latin)",
-  "locale.idID": "Bahasa Indonesia"
+  "locale.idID": "Bahasa Indonesia",
+  "settings.codeFontSize.default": "Ukuran font kode",
+  "settings.codeFontSize.defaultDescription": "Pilih ukuran font untuk blok kode dan kode sebaris.",
+  "settings.codeFontSize.defaultOption": "Default"
 }

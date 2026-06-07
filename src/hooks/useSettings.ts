@@ -16,6 +16,7 @@ import { DEFAULT_THEME_MODE, normalizeThemeMode, type ThemeMode } from '../lib/t
 import type { Settings } from '../types'
 import { normalizeNoteWidthMode } from '../utils/noteWidth'
 import { normalizeNoteFontSize } from '../utils/noteBodyFontSize'
+import { normalizeCodeFontSize } from '../utils/codeFontSize'
 
 async function invokeNativeIfAvailable<T>(command: string, tauriArgs: Record<string, unknown>): Promise<T | undefined> {
   try {
@@ -52,6 +53,7 @@ const EMPTY_SETTINGS: Settings = {
   date_display_format: null,
   note_width_mode: null,
   note_body_font_size: null,
+  code_font_size: null,
   image_rename_mode: null,
   image_rename_command: null,
   sidebar_type_pluralization_enabled: null,
@@ -81,6 +83,7 @@ function normalizeSettings(settings: Settings): Settings {
     date_display_format: normalizeDateDisplayFormat(settings.date_display_format),
     note_width_mode: normalizeNoteWidthMode(settings.note_width_mode),
     note_body_font_size: normalizeNoteFontSize(settings.note_body_font_size),
+    code_font_size: normalizeCodeFontSize(settings.code_font_size),
     image_rename_mode: settings.image_rename_mode === 'command' ? 'command' : null,
     image_rename_command: settings.image_rename_command?.trim() || null,
     sidebar_type_pluralization_enabled: settings.sidebar_type_pluralization_enabled ?? null,

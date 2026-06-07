@@ -13,6 +13,8 @@ const SUPPORTED_NOTE_WIDTH_MODES: &[&str] = &["normal", "wide"];
 const SUPPORTED_DATE_DISPLAY_FORMATS: &[&str] = &["us", "european", "friendly", "iso"];
 const MIN_NOTE_FONT_SIZE: u32 = 12;
 const MAX_NOTE_FONT_SIZE: u32 = 22;
+const MIN_CODE_FONT_SIZE: u32 = 10;
+const MAX_CODE_FONT_SIZE: u32 = 22;
 const SUPPORTED_UI_LANGUAGE_ALIASES: &[(&str, &str)] = &[
     ("en", "en"),
     ("en-us", "en"),
@@ -93,6 +95,7 @@ pub struct Settings {
     pub date_display_format: Option<String>,
     pub note_width_mode: Option<String>,
     pub note_body_font_size: Option<u32>,
+    pub code_font_size: Option<u32>,
     pub image_rename_mode: Option<String>,
     pub image_rename_command: Option<String>,
     pub sidebar_type_pluralization_enabled: Option<bool>,
@@ -174,6 +177,15 @@ pub fn normalize_note_body_font_size(value: Option<u32>) -> Option<u32> {
     }
 }
 
+/// Keep the code font size within the range the UI offers (10-22px);
+/// drop anything outside it so the renderer falls back to the theme defaults.
+pub fn normalize_code_font_size(value: Option<u32>) -> Option<u32> {
+    match value {
+        Some(size) if (MIN_CODE_FONT_SIZE..=MAX_CODE_FONT_SIZE).contains(&size) => Some(size),
+        _ => None,
+    }
+}
+
 pub fn normalize_date_display_format(value: Option<&str>) -> Option<String> {
     match value.map(|candidate| candidate.trim().to_ascii_lowercase()) {
         Some(format) if SUPPORTED_DATE_DISPLAY_FORMATS.contains(&format.as_str()) => Some(format),
@@ -240,6 +252,7 @@ fn normalize_settings(settings: Settings) -> Settings {
         date_display_format: normalize_date_display_format(settings.date_display_format.as_deref()),
         note_width_mode: normalize_note_width_mode(settings.note_width_mode.as_deref()),
         note_body_font_size: normalize_note_body_font_size(settings.note_body_font_size),
+        code_font_size: normalize_code_font_size(settings.code_font_size),
         image_rename_mode: normalize_image_rename_mode(settings.image_rename_mode.as_deref()),
         image_rename_command: normalize_optional_string(settings.image_rename_command),
         sidebar_type_pluralization_enabled: settings.sidebar_type_pluralization_enabled,
@@ -480,6 +493,7 @@ mod tests {
             date_display_format: Some("iso".to_string()),
             note_width_mode: Some("wide".to_string()),
             note_body_font_size: Some(18),
+            code_font_size: Some(13),
             image_rename_mode: Some("command".to_string()),
             image_rename_command: Some("name-image.sh".to_string()),
             sidebar_type_pluralization_enabled: Some(false),
@@ -524,6 +538,7 @@ mod tests {
             date_display_format: Some("european".to_string()),
             note_width_mode: Some("wide".to_string()),
             note_body_font_size: Some(18),
+            code_font_size: Some(13),
             image_rename_mode: Some("command".to_string()),
             image_rename_command: Some("name-image.sh".to_string()),
             sidebar_type_pluralization_enabled: Some(false),
@@ -549,6 +564,7 @@ mod tests {
         assert_eq!(loaded.date_display_format.as_deref(), Some("european"));
         assert_eq!(loaded.note_width_mode.as_deref(), Some("wide"));
         assert_eq!(loaded.note_body_font_size, Some(18));
+        assert_eq!(loaded.code_font_size, Some(13));
         assert_eq!(loaded.image_rename_mode.as_deref(), Some("command"));
         assert_eq!(loaded.image_rename_command.as_deref(), Some("name-image.sh"));
         assert_eq!(loaded.sidebar_type_pluralization_enabled, Some(false));
@@ -722,6 +738,27 @@ mod tests {
             ..Default::default()
         });
         assert_eq!(in_range.note_body_font_size, Some(16));
+    }
+
+    #[test]
+    fn test_out_of_range_code_font_size_is_filtered() {
+        let too_large = save_and_reload(Settings {
+            code_font_size: Some(48),
+            ..Default::default()
+        });
+        assert!(too_large.code_font_size.is_none());
+
+        let too_small = save_and_reload(Settings {
+            code_font_size: Some(8),
+            ..Default::default()
+        });
+        assert!(too_small.code_font_size.is_none());
+
+        let in_range = save_and_reload(Settings {
+            code_font_size: Some(13),
+            ..Default::default()
+        });
+        assert_eq!(in_range.code_font_size, Some(13));
     }
 
     #[test]

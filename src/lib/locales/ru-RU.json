@@ -734,5 +734,8 @@
   "locale.plPL": "Польский",
   "locale.beBY": "Белорусский",
   "locale.beLatn": "Белорусский (Латинка)",
-  "locale.idID": "индонезийский"
+  "locale.idID": "индонезийский",
+  "settings.codeFontSize.default": "Размер шрифта кода",
+  "settings.codeFontSize.defaultDescription": "Выберите размер шрифта для блоков кода и встроенного кода.",
+  "settings.codeFontSize.defaultOption": "По умолчанию"
 }

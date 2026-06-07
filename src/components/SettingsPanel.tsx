@@ -68,6 +68,7 @@ import {
 } from '../utils/allNotesFileVisibility'
 import { DEFAULT_NOTE_WIDTH_MODE, normalizeNoteWidthMode } from '../utils/noteWidth'
 import { resolveNoteFontSize } from '../utils/noteBodyFontSize'
+import { normalizeCodeFontSize } from '../utils/codeFontSize'
 import { DEFAULT_IMAGE_RENAME_COMMAND, type ImageRenameMode, normalizeImageRenameMode } from '../utils/imageRename'
 import {
   DEFAULT_DATE_DISPLAY_FORMAT,
@@ -120,6 +121,7 @@ interface SettingsDraft {
   dateDisplayFormat: DateDisplayFormat
   defaultNoteWidth: NoteWidthMode
   noteBodyFontSize: number
+  codeFontSize: number | null
   imageRenameMode: ImageRenameMode
   imageRenameCommand: string
   sidebarTypePluralizationEnabled: boolean
@@ -170,6 +172,8 @@ interface SettingsBodyProps {
   setDefaultNoteWidth: (value: NoteWidthMode) => void
   noteBodyFontSize: number
   setNoteBodyFontSize: (value: number) => void
+  codeFontSize: number | null
+  setCodeFontSize: (value: number | null) => void
   imageRenameMode: ImageRenameMode
   setImageRenameMode: (value: ImageRenameMode) => void
   imageRenameCommand: string
@@ -235,6 +239,7 @@ function createSettingsDraft(
     dateDisplayFormat: normalizeDateDisplayFormat(settings.date_display_format) ?? DEFAULT_DATE_DISPLAY_FORMAT,
     defaultNoteWidth: normalizeNoteWidthMode(settings.note_width_mode) ?? DEFAULT_NOTE_WIDTH_MODE,
     noteBodyFontSize: resolveNoteFontSize(settings.note_body_font_size, null),
+    codeFontSize: normalizeCodeFontSize(settings.code_font_size),
     imageRenameMode: normalizeImageRenameMode(settings.image_rename_mode),
     imageRenameCommand: settings.image_rename_command ?? DEFAULT_IMAGE_RENAME_COMMAND,
     sidebarTypePluralizationEnabled: settings.sidebar_type_pluralization_enabled ?? true,
@@ -286,6 +291,7 @@ function buildSettingsFromDraft(settings: Settings, draft: SettingsDraft): Setti
     date_display_format: draft.dateDisplayFormat,
     note_width_mode: draft.defaultNoteWidth,
     note_body_font_size: draft.noteBodyFontSize,
+    code_font_size: draft.codeFontSize,
     image_rename_mode: draft.imageRenameMode,
     image_rename_command: draft.imageRenameCommand,
     sidebar_type_pluralization_enabled: draft.sidebarTypePluralizationEnabled,
@@ -598,6 +604,8 @@ function SettingsBodyFromDraft({
       setDefaultNoteWidth={(value) => updateDraft('defaultNoteWidth', value)}
       noteBodyFontSize={draft.noteBodyFontSize}
       setNoteBodyFontSize={(value) => updateDraft('noteBodyFontSize', value)}
+      codeFontSize={draft.codeFontSize}
+      setCodeFontSize={(value) => updateDraft('codeFontSize', value)}
       imageRenameMode={draft.imageRenameMode}
       setImageRenameMode={(value) => updateDraft('imageRenameMode', value)}
       imageRenameCommand={draft.imageRenameCommand}
@@ -736,6 +744,8 @@ function SettingsContentSections({
   setDefaultNoteWidth,
   noteBodyFontSize,
   setNoteBodyFontSize,
+  codeFontSize,
+  setCodeFontSize,
   imageRenameMode,
   setImageRenameMode,
   imageRenameCommand,
@@ -761,6 +771,8 @@ function SettingsContentSections({
         setDefaultNoteWidth={setDefaultNoteWidth}
         noteBodyFontSize={noteBodyFontSize}
         setNoteBodyFontSize={setNoteBodyFontSize}
+        codeFontSize={codeFontSize}
+        setCodeFontSize={setCodeFontSize}
         imageRenameMode={imageRenameMode}
         setImageRenameMode={setImageRenameMode}
         imageRenameCommand={imageRenameCommand}

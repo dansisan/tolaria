@@ -282,9 +282,11 @@
 }
 
 /* --- Inline: code --- */
+/* Code font size preference (see useCodeFontSize). When unset, inline code
+   keeps the theme size and code blocks follow the note-body size. */
 .editor__blocknote-container .bn-inline-content code {
   font-family: var(--inline-styles-code-font-family);
-  font-size: var(--inline-styles-code-font-size);
+  font-size: var(--code-font-size, var(--inline-styles-code-font-size));
   background-color: var(--inline-styles-code-background-color);
   padding: var(--inline-styles-code-padding-vertical) var(--inline-styles-code-padding-horizontal);
   border-radius: var(--inline-styles-code-border-radius);
@@ -549,6 +551,8 @@
 
 .editor__blocknote-container .bn-block-content[data-content-type="codeBlock"] > pre {
   color: inherit;
+  /* Code font size preference (see useCodeFontSize); inherits the note-body size when unset. */
+  font-size: var(--code-font-size, inherit);
 }
 
 .editor__blocknote-container .bn-block-content[data-content-type="codeBlock"] > div > select {

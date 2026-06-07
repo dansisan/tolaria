@@ -734,5 +734,8 @@
   "locale.plPL": "Polaco",
   "locale.beBY": "Bielorrusso",
   "locale.beLatn": "Bielorrusso (Latim)",
-  "locale.idID": "Indonésio"
+  "locale.idID": "Indonésio",
+  "settings.codeFontSize.default": "Tamanho do tipo de letra do código",
+  "settings.codeFontSize.defaultDescription": "Escolha o tamanho do tipo de letra para blocos de código e código embutido.",
+  "settings.codeFontSize.defaultOption": "Predefinido"
 }

@@ -484,6 +484,41 @@ describe('SettingsPanel', () => {
     expect(trackEventMock).toHaveBeenCalledWith('date_display_format_changed', { format: 'iso' })
   })
 
+  it('defaults the code font size to Default and saves a chosen size', () => {
+    render(
+      <SettingsPanel open={true} settings={emptySettings} onSave={onSave} onClose={onClose} />
+    )
+
+    expect(screen.getByTestId('settings-code-font-size')).toHaveAttribute('data-value', 'default')
+
+    fireEvent.pointerDown(screen.getByTestId('settings-code-font-size'), { button: 0, pointerType: 'mouse' })
+    fireEvent.click(screen.getByRole('option', { name: '13px' }))
+    fireEvent.click(screen.getByTestId('settings-save'))
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ code_font_size: 13 }))
+    expect(trackEventMock).toHaveBeenCalledWith('code_font_size_changed', { fontSize: 13 })
+  })
+
+  it('restores the code font size to Default and saves null', () => {
+    render(
+      <SettingsPanel
+        open={true}
+        settings={{ ...emptySettings, code_font_size: 13 }}
+        onSave={onSave}
+        onClose={onClose}
+      />
+    )
+
+    expect(screen.getByTestId('settings-code-font-size')).toHaveAttribute('data-value', '13')
+
+    fireEvent.pointerDown(screen.getByTestId('settings-code-font-size'), { button: 0, pointerType: 'mouse' })
+    fireEvent.click(screen.getByRole('option', { name: 'Default' }))
+    fireEvent.click(screen.getByTestId('settings-save'))
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ code_font_size: null }))
+    expect(trackEventMock).toHaveBeenCalledWith('code_font_size_changed', { fontSize: 'default' })
+  })
+
   it('keeps the language selector keyboard accessible', () => {
     render(
       <SettingsPanel open={true} settings={emptySettings} onSave={onSave} onClose={onClose} />

@@ -734,5 +734,8 @@
   "locale.plPL": "Tiếng Ba Lan",
   "locale.beBY": "Tiếng Belarus",
   "locale.beLatn": "Tiếng Belarus (Latinh)",
-  "locale.idID": "Tiếng Indonesia"
+  "locale.idID": "Tiếng Indonesia",
+  "settings.codeFontSize.default": "Cỡ chữ mã",
+  "settings.codeFontSize.defaultDescription": "Chọn cỡ chữ cho khối mã và mã nội dòng.",
+  "settings.codeFontSize.defaultOption": "Mặc định"
 }

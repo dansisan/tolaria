@@ -734,5 +734,8 @@
   "locale.plPL": "Poĺskaja",
   "locale.beBY": "Bielaruskaja",
   "locale.beLatn": "Bielaruskaja (Łacinka)",
-  "locale.idID": "Indonesian"
+  "locale.idID": "Indonesian",
+  "settings.codeFontSize.default": "Pamier šryftu kodu",
+  "settings.codeFontSize.defaultDescription": "Abiarycie pamier šryftu dla blokaŭ kodu i ŭbudavanaha kodu.",
+  "settings.codeFontSize.defaultOption": "Pa zmaŭčanni"
 }

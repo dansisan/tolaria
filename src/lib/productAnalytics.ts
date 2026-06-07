@@ -96,6 +96,10 @@ export function trackNoteBodyFontSizeChanged(fontSize: number): void {
   trackEvent('note_body_font_size_changed', { fontSize })
 }
 
+export function trackCodeFontSizeChanged(fontSize: number | null): void {
+  trackEvent('code_font_size_changed', { fontSize: fontSize ?? 'default' })
+}
+
 export function trackImageRenameModeChanged(mode: string): void {
   trackEvent('image_rename_mode_changed', { mode })
 }

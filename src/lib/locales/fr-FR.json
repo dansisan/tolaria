@@ -734,5 +734,8 @@
   "locale.plPL": "Polonais",
   "locale.beBY": "Biélorusse",
   "locale.beLatn": "Biélorusse (Latin)",
-  "locale.idID": "Indonésien"
+  "locale.idID": "Indonésien",
+  "settings.codeFontSize.default": "Taille de police du code",
+  "settings.codeFontSize.defaultDescription": "Choisissez la taille de police des blocs de code et du code en ligne.",
+  "settings.codeFontSize.defaultOption": "Par défaut"
 }

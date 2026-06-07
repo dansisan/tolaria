@@ -2,6 +2,7 @@ import type { Settings, NoteWidthMode } from '../types'
 import { trackEvent } from '../lib/telemetry'
 import {
   trackAiFeaturesEnabledChanged,
+  trackCodeFontSizeChanged,
   trackDateDisplayFormatChanged,
   trackDefaultNoteWidthChanged,
   trackGitFeaturesEnabledChanged,
@@ -18,6 +19,7 @@ import {
 } from '../utils/dateDisplay'
 import { DEFAULT_NOTE_WIDTH_MODE, normalizeNoteWidthMode } from '../utils/noteWidth'
 import { resolveNoteFontSize } from '../utils/noteBodyFontSize'
+import { normalizeCodeFontSize } from '../utils/codeFontSize'
 import { normalizeImageRenameMode, type ImageRenameMode } from '../utils/imageRename'
 
 export interface SettingsPreferenceDraft {
@@ -26,6 +28,7 @@ export interface SettingsPreferenceDraft {
   dateDisplayFormat: DateDisplayFormat
   defaultNoteWidth: NoteWidthMode
   noteBodyFontSize: number
+  codeFontSize: number | null
   imageRenameMode: ImageRenameMode
   gitFeaturesEnabled: boolean
   multiWorkspaceEnabled: boolean
@@ -61,6 +64,11 @@ export function trackSettingsPreferenceChanges(settings: Settings, draft: Settin
   const previousFontSize = resolveNoteFontSize(settings.note_body_font_size, null)
   if (previousFontSize !== draft.noteBodyFontSize) {
     trackNoteBodyFontSizeChanged(draft.noteBodyFontSize)
+  }
+
+  const previousCodeFontSize = normalizeCodeFontSize(settings.code_font_size)
+  if (previousCodeFontSize !== draft.codeFontSize) {
+    trackCodeFontSizeChanged(draft.codeFontSize)
   }
 
   const previousImageRenameMode = normalizeImageRenameMode(settings.image_rename_mode)
