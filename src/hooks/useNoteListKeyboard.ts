@@ -13,6 +13,8 @@ interface NoteListKeyboardOptions {
   toggleSearch?: () => void
   enabled: boolean
   onFocusEditorOnEnter?: (path: string) => void
+  /** Called when ArrowUp is pressed while the first item is highlighted (e.g. to return focus to a search input above the list). */
+  onExitTop?: () => void
 }
 
 interface ItemIndex {
@@ -237,6 +239,11 @@ function useScheduledOpen(onOpen: (entry: VaultEntry) => void, enabled: boolean)
   return { cancelOpen, flushOpen, scheduleOpen }
 }
 
+/** ArrowUp on the first highlighted item leaves the list instead of clamping. */
+function isExitTopMove(direction: 1 | -1, currentIndex: number): boolean {
+  return direction === -1 && currentIndex === 0
+}
+
 function useMoveHighlight({
   items,
   selectedNotePath,
@@ -245,6 +252,7 @@ function useMoveHighlight({
   virtuosoRef,
   onPrefetch,
   scheduleOpen,
+  onExitTop,
 }: {
   items: VaultEntry[]
   selectedNotePath: string | null
@@ -253,10 +261,15 @@ function useMoveHighlight({
   virtuosoRef: React.RefObject<VirtuosoHandle | null>
   onPrefetch?: (entry: VaultEntry) => void
   scheduleOpen: (entry: VaultEntry) => void
+  onExitTop?: () => void
 }) {
   return useCallback((direction: 1 | -1) => {
     const startedAt = performance.now()
     const currentIndex = resolveCurrentIndex(items, highlightedPathRef.current, selectedNotePath)
+    if (isExitTopMove(direction, currentIndex)) {
+      onExitTop?.()
+      return
+    }
     const nextIndex = moveHighlightIndex(currentIndex, direction, items.length)
     const currentPath = highlightedPathRef.current ?? selectedNotePath
     const nextItem = items.at(nextIndex)
@@ -267,7 +280,7 @@ function useMoveHighlight({
     scheduleOpen(nextItem)
     onPrefetch?.(nextItem)
     logKeyboardNavigationTrace(direction === 1 ? 'down' : 'up', items.length, performance.now() - startedAt)
-  }, [highlightedPathRef, items, onPrefetch, scheduleOpen, selectedNotePath, syncHighlightedPath, virtuosoRef])
+  }, [highlightedPathRef, items, onExitTop, onPrefetch, scheduleOpen, selectedNotePath, syncHighlightedPath, virtuosoRef])
 }
 
 type ListEdge = 'top' | 'bottom'
@@ -632,6 +645,7 @@ export function useNoteListKeyboard({
   toggleSearch,
   enabled,
   onFocusEditorOnEnter,
+  onExitTop,
 }: NoteListKeyboardOptions) {
   const virtuosoRef = useRef<VirtuosoHandle>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -659,6 +673,7 @@ export function useNoteListKeyboard({
     virtuosoRef,
     onPrefetch,
     scheduleOpen,
+    onExitTop,
   })
   const jumpToEdge = useJumpToEdge({
     items,

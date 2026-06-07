@@ -42,6 +42,10 @@ export function useNoteListSearchState() {
     setDebouncedQuery('')
   }, [])
 
+  const focusSearchInput = useCallback(() => {
+    searchInputRef.current?.focus()
+  }, [])
+
   const openSearchWithQuery = useCallback((q: string) => {
     setSearch(q)
     setDebouncedQuery(normalizeSearch(q))
@@ -65,6 +69,7 @@ export function useNoteListSearchState() {
 
   return {
     closeSearch,
+    focusSearchInput,
     isSearching,
     openSearchWithQuery,
     query,

@@ -262,6 +262,7 @@ function useNoteListContent({
   })
   const {
     closeSearch,
+    focusSearchInput,
     isSearching: isDebouncingSearch,
     openSearchWithQuery,
     query,
@@ -336,6 +337,7 @@ function useNoteListContent({
     searched,
     searchedGroups,
     closeSearch,
+    focusSearchInput,
     openSearchWithQuery,
     setSearch,
     sortPrefs,
@@ -356,6 +358,7 @@ interface UseNoteListInteractionStateParams {
   entityEntry: VaultEntry | null
   searchVisible: boolean
   toggleSearch: () => void
+  focusSearchInput: () => void
   modifiedFiles?: ModifiedFile[]
   onReplaceActiveTab: (entry: VaultEntry) => void
   onEnterNeighborhood?: (entry: VaultEntry) => void
@@ -384,6 +387,7 @@ function useNoteListInteractionState({
   entityEntry,
   searchVisible,
   toggleSearch,
+  focusSearchInput,
   modifiedFiles,
   onReplaceActiveTab,
   onEnterNeighborhood,
@@ -430,6 +434,7 @@ function useNoteListInteractionState({
     entityEntry,
     searchVisible,
     toggleSearch,
+    focusSearchInput,
     onReplaceActiveTab,
     onEnterNeighborhood,
     onOpenDeletedNote,
@@ -787,6 +792,7 @@ export function useNoteListModel({
     entityEntry: content.entityEntry,
     searchVisible: content.searchVisible,
     toggleSearch: content.toggleSearch,
+    focusSearchInput: content.focusSearchInput,
     modifiedFiles,
     onReplaceActiveTab,
     onEnterNeighborhood,
@@ -825,6 +831,12 @@ export function useNoteListModel({
     listSort: content.listSort,
   })
   const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    // ArrowDown hands focus to the results list; ArrowUp from its first row hands it back.
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      interaction.noteListKeyboard.focusList()
+      return
+    }
     if (event.key !== 'Escape') return
 
     event.preventDefault()

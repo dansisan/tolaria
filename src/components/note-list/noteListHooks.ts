@@ -976,6 +976,7 @@ interface UseNoteListInteractionsParams {
   entityEntry: VaultEntry | null
   searchVisible: boolean
   toggleSearch: () => void
+  focusSearchInput: () => void
   onReplaceActiveTab: (entry: VaultEntry) => void
   onEnterNeighborhood?: (entry: VaultEntry) => void
   onOpenDeletedNote?: (entry: DeletedNoteEntry) => void
@@ -1055,6 +1056,7 @@ function useKeyboardInteractionState({
   selectedNotePath,
   searchVisible,
   toggleSearch,
+  focusSearchInput,
   onReplaceActiveTab,
   onEnterNeighborhood,
   onOpenDeletedNote,
@@ -1066,6 +1068,7 @@ function useKeyboardInteractionState({
   | 'selectedNotePath'
   | 'searchVisible'
   | 'toggleSearch'
+  | 'focusSearchInput'
   | 'onReplaceActiveTab'
   | 'onEnterNeighborhood'
   | 'onOpenDeletedNote'
@@ -1107,6 +1110,8 @@ function useKeyboardInteractionState({
     toggleSearch,
     enabled: true,
     onFocusEditorOnEnter: handleFocusEditorOnEnter,
+    // ArrowUp from the first result returns focus to the open search box.
+    onExitTop: searchVisible ? focusSearchInput : undefined,
   })
 
   useEffect(() => {
@@ -1219,6 +1224,7 @@ export function useNoteListInteractions({
   entityEntry,
   searchVisible,
   toggleSearch,
+  focusSearchInput,
   onReplaceActiveTab,
   onEnterNeighborhood,
   onOpenDeletedNote,
@@ -1236,6 +1242,7 @@ export function useNoteListInteractions({
     selectedNotePath,
     searchVisible,
     toggleSearch,
+    focusSearchInput,
     onReplaceActiveTab,
     onEnterNeighborhood,
     onOpenDeletedNote,

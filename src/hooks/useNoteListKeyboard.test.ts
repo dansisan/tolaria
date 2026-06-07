@@ -197,6 +197,39 @@ describe('useNoteListKeyboard', () => {
     expect(result.current.highlightedPath).toBe('/a.md')
   })
 
+  it('ArrowUp at the top of the list calls onExitTop', () => {
+    const onExitTop = vi.fn()
+    const { result } = renderHook(() =>
+      useNoteListKeyboard({ items, selectedNotePath: null, onOpen, enabled: true, onExitTop }),
+    )
+    act(() => result.current.handleKeyDown(keyEvent('ArrowDown')))
+    act(() => result.current.handleKeyDown(keyEvent('ArrowUp')))
+    expect(onExitTop).toHaveBeenCalledTimes(1)
+    expect(result.current.highlightedPath).toBe('/a.md')
+  })
+
+  it('ArrowUp below the top of the list moves the highlight without calling onExitTop', () => {
+    const onExitTop = vi.fn()
+    const { result } = renderHook(() =>
+      useNoteListKeyboard({ items, selectedNotePath: null, onOpen, enabled: true, onExitTop }),
+    )
+    act(() => result.current.handleKeyDown(keyEvent('ArrowDown')))
+    act(() => result.current.handleKeyDown(keyEvent('ArrowDown')))
+    act(() => result.current.handleKeyDown(keyEvent('ArrowUp')))
+    expect(onExitTop).not.toHaveBeenCalled()
+    expect(result.current.highlightedPath).toBe('/a.md')
+  })
+
+  it('ArrowUp with no highlight still wraps to the last item instead of calling onExitTop', () => {
+    const onExitTop = vi.fn()
+    const { result } = renderHook(() =>
+      useNoteListKeyboard({ items, selectedNotePath: null, onOpen, enabled: true, onExitTop }),
+    )
+    act(() => result.current.handleKeyDown(keyEvent('ArrowUp')))
+    expect(onExitTop).not.toHaveBeenCalled()
+    expect(result.current.highlightedPath).toBe('/c.md')
+  })
+
   it('Enter opens highlighted note', () => {
     const open = vi.fn()
     const { result } = renderHook(() =>

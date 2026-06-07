@@ -98,6 +98,67 @@ describe('NoteList search keyboard behavior', () => {
     expect(screen.queryByText('Note 1')).not.toBeInTheDocument()
   })
 
+  it('moves focus from the search input into the results list with ArrowDown', () => {
+    renderNoteList()
+    act(() => {
+      fireEvent.click(screen.getByTitle('Search notes'))
+    })
+
+    const searchInput = screen.getByPlaceholderText('Search notes...')
+    act(() => {
+      flushAnimationFrame()
+    })
+    expect(searchInput).toHaveFocus()
+
+    act(() => {
+      fireEvent.keyDown(searchInput, { key: 'ArrowDown' })
+      flushAnimationFrame()
+    })
+
+    expect(screen.getByTestId('note-list-container')).toHaveFocus()
+  })
+
+  it('returns focus to the search input with ArrowUp from the top of the results list', () => {
+    renderNoteList()
+    act(() => {
+      fireEvent.click(screen.getByTitle('Search notes'))
+    })
+
+    const searchInput = screen.getByPlaceholderText('Search notes...')
+    act(() => {
+      flushAnimationFrame()
+    })
+    act(() => {
+      fireEvent.keyDown(searchInput, { key: 'ArrowDown' })
+      flushAnimationFrame()
+    })
+
+    const noteList = screen.getByTestId('note-list-container')
+    expect(noteList).toHaveFocus()
+
+    act(() => {
+      fireEvent.keyDown(noteList, { key: 'ArrowUp' })
+    })
+
+    expect(searchInput).toHaveFocus()
+  })
+
+  it('keeps ArrowUp in the list when search is hidden', () => {
+    renderNoteList()
+    const noteList = screen.getByTestId('note-list-container')
+
+    act(() => {
+      noteList.focus()
+      fireEvent.focus(noteList)
+    })
+
+    act(() => {
+      fireEvent.keyDown(noteList, { key: 'ArrowUp' })
+    })
+
+    expect(noteList).toHaveFocus()
+  })
+
   it('clears note-list search immediately from the keyboard-reachable clear action', () => {
     const entries = [
       makeIndexedEntry(0, { title: 'Alpha Strategy' }),
