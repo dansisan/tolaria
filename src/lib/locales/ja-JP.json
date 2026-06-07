@@ -737,5 +737,8 @@
   "locale.idID": "インドネシア語",
   "settings.codeFontSize.default": "コードのフォントサイズ",
   "settings.codeFontSize.defaultDescription": "コードブロックとインラインコードのフォントサイズを選択します。",
-  "settings.codeFontSize.defaultOption": "デフォルト"
+  "settings.codeFontSize.defaultOption": "デフォルト",
+  "editor.codeBlock.wrapLines": "行を折り返す",
+  "editor.codeBlock.dontWrapLines": "行を折り返さない",
+  "editor.codeBlock.fenceLine": "コードフェンス行"
 }

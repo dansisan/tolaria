@@ -737,5 +737,8 @@
   "locale.idID": "Indonésio",
   "settings.codeFontSize.default": "Tamaño de fuente del código",
   "settings.codeFontSize.defaultDescription": "Elige el tamaño de fuente para los bloques de código y el código en línea.",
-  "settings.codeFontSize.defaultOption": "Predeterminado"
+  "settings.codeFontSize.defaultOption": "Predeterminado",
+  "editor.codeBlock.wrapLines": "Ajustar líneas",
+  "editor.codeBlock.dontWrapLines": "No ajustar líneas",
+  "editor.codeBlock.fenceLine": "Línea de cerca de código"
 }

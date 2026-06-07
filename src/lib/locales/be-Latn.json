@@ -737,5 +737,8 @@
   "locale.idID": "Indonesian",
   "settings.codeFontSize.default": "Pamier šryftu kodu",
   "settings.codeFontSize.defaultDescription": "Abiarycie pamier šryftu dla blokaŭ kodu i ŭbudavanaha kodu.",
-  "settings.codeFontSize.defaultOption": "Pa zmaŭčanni"
+  "settings.codeFontSize.defaultOption": "Pa zmaŭčanni",
+  "editor.codeBlock.wrapLines": "Pieranosić radki",
+  "editor.codeBlock.dontWrapLines": "Nie pieranosić radki",
+  "editor.codeBlock.fenceLine": "Radok aharodžy kodu"
 }

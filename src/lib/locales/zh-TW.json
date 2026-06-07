@@ -737,5 +737,8 @@
   "locale.idID": "印尼",
   "settings.codeFontSize.default": "程式碼字型大小",
   "settings.codeFontSize.defaultDescription": "選擇程式碼區塊和行內程式碼的字型大小。",
-  "settings.codeFontSize.defaultOption": "預設"
+  "settings.codeFontSize.defaultOption": "預設",
+  "editor.codeBlock.wrapLines": "自動換行",
+  "editor.codeBlock.dontWrapLines": "不自動換行",
+  "editor.codeBlock.fenceLine": "程式碼圍欄行"
 }

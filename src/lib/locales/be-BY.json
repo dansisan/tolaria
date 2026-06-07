@@ -737,5 +737,8 @@
   "locale.idID": "Інданезійская",
   "settings.codeFontSize.default": "Памер шрыфту коду",
   "settings.codeFontSize.defaultDescription": "Абярыце памер шрыфту для блокаў коду і ўбудаванага коду.",
-  "settings.codeFontSize.defaultOption": "Па змаўчанні"
+  "settings.codeFontSize.defaultOption": "Па змаўчанні",
+  "editor.codeBlock.wrapLines": "Пераносіць радкі",
+  "editor.codeBlock.dontWrapLines": "Не пераносіць радкі",
+  "editor.codeBlock.fenceLine": "Радок агароджы коду"
 }

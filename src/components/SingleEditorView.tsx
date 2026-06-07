@@ -1,5 +1,5 @@
-import { ArrowSquareOut as ExternalLink, Copy, Hash } from '@phosphor-icons/react'
-import { Component, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { ArrowSquareOut as ExternalLink, Hash } from '@phosphor-icons/react'
+import { Component, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import {
   GridSuggestionMenuController,
   BlockNoteViewRaw,
@@ -26,7 +26,6 @@ import { useEditorTheme } from '../hooks/useTheme'
 import { useImageDrop } from '../hooks/useImageDrop'
 import { useImageLightbox } from '../hooks/useImageLightbox'
 import { createTranslator, type AppLocale } from '../lib/i18n'
-import { writeClipboardText } from '../utils/clipboardText'
 import { buildTypeEntryMap } from '../utils/typeColors'
 import { searchEmojis, type EmojiEntry } from '../utils/emoji'
 import { preFilterWikilinks, deduplicateByPath, MIN_QUERY_LENGTH } from '../utils/wikilinkSuggestions'
@@ -51,8 +50,8 @@ import { TolariaSideMenu } from './tolariaBlockNoteSideMenu'
 import { useEditorLinkActivation } from './useEditorLinkActivation'
 import { findNearestTextCursorBlock } from './blockNoteCursorTarget'
 import { ImageLightbox } from './ImageLightbox'
-import { ActionTooltip } from './ui/action-tooltip'
-import { Button } from './ui/button'
+import { CodeBlockChrome, CodeBlockFenceLine } from './codeBlockChrome'
+import { CODE_BLOCK_SELECTOR, useActiveCodeBlockFence, useCodeBlockChromeTarget } from './codeBlockChromeState'
 import {
   activatePlainTextPasteTarget,
   registerPlainTextPasteTarget,
@@ -384,9 +383,7 @@ function emojiSuggestionRank(entry: EmojiEntry, query: string): number {
   return 4
 }
 
-const CODE_BLOCK_SELECTOR = '[data-content-type="codeBlock"]'
 const CLIPBOARD_INLINE_FORMAT_SELECTOR = 'a, b, code, em, i, s, span, strong, u'
-const CODE_BLOCK_COPY_RESET_MS = 1200
 
 function nodeElement(node: Node | null): HTMLElement | null {
   if (!node) return null
@@ -471,138 +468,6 @@ function selectedEditorHtml(range: Range): string {
 
   wrapper.appendChild(selectedContent)
   return wrapper.innerHTML
-}
-
-function codeBlockText(codeBlock: HTMLElement): string {
-  const codeElement = codeBlock.querySelector<HTMLElement>('pre code')
-  return codeElement?.textContent ?? ''
-}
-
-type CodeBlockCopyTarget = {
-  codeBlock: HTMLElement
-  left: number
-  top: number
-}
-
-function codeBlockCopyTarget(codeBlock: HTMLElement, container: HTMLElement): CodeBlockCopyTarget {
-  const codeBlockRect = codeBlock.getBoundingClientRect()
-  const containerRect = container.getBoundingClientRect()
-
-  return {
-    codeBlock,
-    left: codeBlockRect.right - containerRect.left + container.scrollLeft - 30,
-    top: codeBlockRect.top - containerRect.top + container.scrollTop + 6,
-  }
-}
-
-function sameCopyTarget(left: CodeBlockCopyTarget | null, right: CodeBlockCopyTarget): boolean {
-  return Boolean(
-    left
-      && left.codeBlock === right.codeBlock
-      && left.left === right.left
-      && left.top === right.top,
-  )
-}
-
-function useCodeBlockCopyTarget(containerRef: React.RefObject<HTMLDivElement | null>) {
-  const [copyTarget, setCopyTarget] = useState<CodeBlockCopyTarget | null>(null)
-
-  const showCopyTarget = useCallback((codeBlock: HTMLElement) => {
-    const container = containerRef.current
-    if (!container || !container.contains(codeBlock)) return
-
-    const nextTarget = codeBlockCopyTarget(codeBlock, container)
-    setCopyTarget((previous) => sameCopyTarget(previous, nextTarget) ? previous : nextTarget)
-  }, [containerRef])
-
-  const updateFromEventTarget = useCallback((target: EventTarget | null) => {
-    const container = containerRef.current
-    if (!(target instanceof HTMLElement) || !container) return
-    if (target.closest('[data-editor-code-copy]')) return
-
-    const codeBlock = target.closest<HTMLElement>(CODE_BLOCK_SELECTOR)
-    if (codeBlock && container.contains(codeBlock)) {
-      showCopyTarget(codeBlock)
-      return
-    }
-
-    setCopyTarget(null)
-  }, [containerRef, showCopyTarget])
-
-  const handleMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    updateFromEventTarget(event.target)
-  }, [updateFromEventTarget])
-
-  const handleFocus = useCallback((event: React.FocusEvent<HTMLDivElement>) => {
-    updateFromEventTarget(event.target)
-  }, [updateFromEventTarget])
-
-  const clearCopyTarget = useCallback(() => setCopyTarget(null), [])
-
-  return { clearCopyTarget, copyTarget, handleFocus, handleMouseMove }
-}
-
-function CodeBlockCopyButton({ copyTarget, locale }: { copyTarget: CodeBlockCopyTarget; locale: AppLocale }) {
-  const [active, setActive] = useState(false)
-  const resetTimerRef = useRef<number | null>(null)
-  const t = useMemo(() => createTranslator(locale), [locale])
-  const label = t('editor.codeBlock.copy')
-
-  useEffect(() => () => {
-    if (resetTimerRef.current !== null) window.clearTimeout(resetTimerRef.current)
-  }, [])
-
-  const handleCopy = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault()
-    event.stopPropagation()
-
-    void writeClipboardText(codeBlockText(copyTarget.codeBlock))
-      .then(() => {
-        trackEvent('code_block_copied')
-        setActive(true)
-        if (resetTimerRef.current !== null) window.clearTimeout(resetTimerRef.current)
-        resetTimerRef.current = window.setTimeout(() => {
-          setActive(false)
-          resetTimerRef.current = null
-        }, CODE_BLOCK_COPY_RESET_MS)
-      })
-      .catch((error) => {
-        console.warn('[editor] Failed to copy code block:', error)
-      })
-  }, [copyTarget])
-
-  const stopEditorMouseDown = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault()
-    event.stopPropagation()
-  }, [])
-
-  return (
-    <div
-      className="editor__code-block-copy"
-      contentEditable={false}
-      data-editor-code-copy
-      style={{ left: copyTarget.left, top: copyTarget.top }}
-    >
-      <ActionTooltip copy={{ label }} side="left" align="center">
-        <Button
-          aria-label={label}
-          className="border-transparent bg-transparent text-muted-foreground shadow-none hover:bg-transparent hover:text-foreground focus-visible:bg-transparent focus-visible:text-foreground"
-          data-editor-code-copy-button
-          onBlur={() => setActive(false)}
-          onClick={handleCopy}
-          onFocus={() => setActive(true)}
-          onMouseDown={stopEditorMouseDown}
-          onMouseEnter={() => setActive(true)}
-          onMouseLeave={() => setActive(false)}
-          size="icon-xs"
-          type="button"
-          variant="ghost"
-        >
-          <Copy aria-hidden="true" className="size-6" weight={active ? 'fill' : 'regular'} />
-        </Button>
-      </ActionTooltip>
-    </div>
-  )
 }
 
 function eventTargetElement(target: EventTarget | null): HTMLElement | null {
@@ -1372,11 +1237,12 @@ export function SingleEditorView({ editor, entries, onNavigateWikilink, onChange
   const { isDragOver } = useImageDrop({ containerRef, onImageUrl, vaultPath })
   const lightbox = useImageLightbox({ containerRef })
   const {
-    clearCopyTarget,
-    copyTarget,
+    clearChromeTarget,
+    chromeTarget,
     handleFocus: handleCodeBlockCopyFocus,
     handleMouseMove: handleCodeBlockCopyMouseMove,
-  } = useCodeBlockCopyTarget(containerRef)
+  } = useCodeBlockChromeTarget(containerRef)
+  const { beginFenceEditing, endFenceEditing, fenceTarget } = useActiveCodeBlockFence(editor, containerRef, editable)
   useBlockNoteSideMenuHoverGuard(containerRef)
   useEditorLinkActivation(containerRef, onNavigateWikilink, vaultPath, onClickTag)
 
@@ -1453,7 +1319,7 @@ export function SingleEditorView({ editor, entries, onNavigateWikilink, onChange
       style={cssVars as React.CSSProperties}
       onCopyCapture={handleEditorCopy}
       onFocusCapture={handleFocusCapture}
-      onMouseLeave={clearCopyTarget}
+      onMouseLeave={clearChromeTarget}
       onMouseDownCapture={handleMouseDownCapture}
       onMouseMove={handleCodeBlockCopyMouseMove}
       onPasteCapture={handlePasteCapture}
@@ -1485,7 +1351,16 @@ export function SingleEditorView({ editor, entries, onNavigateWikilink, onChange
           </SharedContextBlockNoteView>
         )}
       </BlockNoteRenderRecoveryBoundary>
-      {copyTarget && <CodeBlockCopyButton copyTarget={copyTarget} locale={locale} />}
+      {chromeTarget && <CodeBlockChrome target={chromeTarget} editor={editor} editable={editable} locale={locale} />}
+      {fenceTarget && (
+        <CodeBlockFenceLine
+          target={fenceTarget}
+          editor={editor}
+          locale={locale}
+          onBeginEditing={beginFenceEditing}
+          onEndEditing={endFenceEditing}
+        />
+      )}
       <ImageLightbox image={lightbox.image} locale={locale} onClose={lightbox.close} />
     </div>
   )

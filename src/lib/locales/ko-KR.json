@@ -737,5 +737,8 @@
   "locale.idID": "인도네시아 공화국",
   "settings.codeFontSize.default": "코드 글꼴 크기",
   "settings.codeFontSize.defaultDescription": "코드 블록과 인라인 코드의 글꼴 크기를 선택하세요.",
-  "settings.codeFontSize.defaultOption": "기본값"
+  "settings.codeFontSize.defaultOption": "기본값",
+  "editor.codeBlock.wrapLines": "줄 바꿈",
+  "editor.codeBlock.dontWrapLines": "줄 바꿈 안 함",
+  "editor.codeBlock.fenceLine": "코드 펜스 줄"
 }

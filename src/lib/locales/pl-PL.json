@@ -737,5 +737,8 @@
   "locale.idID": "Indonezyjski",
   "settings.codeFontSize.default": "Rozmiar czcionki kodu",
   "settings.codeFontSize.defaultDescription": "Wybierz rozmiar czcionki dla bloków kodu i kodu w tekście.",
-  "settings.codeFontSize.defaultOption": "Domyślne"
+  "settings.codeFontSize.defaultOption": "Domyślne",
+  "editor.codeBlock.wrapLines": "Zawijaj wiersze",
+  "editor.codeBlock.dontWrapLines": "Nie zawijaj wierszy",
+  "editor.codeBlock.fenceLine": "Linia ogrodzenia kodu"
 }

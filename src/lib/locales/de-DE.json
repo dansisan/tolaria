@@ -737,5 +737,8 @@
   "locale.idID": "Indonesisch",
   "settings.codeFontSize.default": "Schriftgröße für Code",
   "settings.codeFontSize.defaultDescription": "Wähle die Schriftgröße für Codeblöcke und Inline-Code.",
-  "settings.codeFontSize.defaultOption": "Standard"
+  "settings.codeFontSize.defaultOption": "Standard",
+  "editor.codeBlock.wrapLines": "Zeilen umbrechen",
+  "editor.codeBlock.dontWrapLines": "Zeilen nicht umbrechen",
+  "editor.codeBlock.fenceLine": "Code-Zaunzeile"
 }

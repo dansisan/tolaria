@@ -737,5 +737,8 @@
   "locale.idID": "индонезийский",
   "settings.codeFontSize.default": "Размер шрифта кода",
   "settings.codeFontSize.defaultDescription": "Выберите размер шрифта для блоков кода и встроенного кода.",
-  "settings.codeFontSize.defaultOption": "По умолчанию"
+  "settings.codeFontSize.defaultOption": "По умолчанию",
+  "editor.codeBlock.wrapLines": "Переносить строки",
+  "editor.codeBlock.dontWrapLines": "Не переносить строки",
+  "editor.codeBlock.fenceLine": "Строка ограждения кода"
 }

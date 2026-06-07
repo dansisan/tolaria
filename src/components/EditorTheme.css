@@ -542,7 +542,8 @@
   z-index: 4;
 }
 
-.editor__code-block-copy [data-editor-code-copy-button] {
+.editor__code-block-copy [data-editor-code-copy-button],
+.editor__code-block-copy [data-editor-code-wrap-button] {
   background: transparent !important;
   border-color: transparent !important;
   box-shadow: none !important;
@@ -551,8 +552,24 @@
 }
 
 .editor__code-block-copy [data-editor-code-copy-button]:hover,
-.editor__code-block-copy [data-editor-code-copy-button]:focus-visible {
+.editor__code-block-copy [data-editor-code-copy-button]:focus-visible,
+.editor__code-block-copy [data-editor-code-wrap-button]:hover,
+.editor__code-block-copy [data-editor-code-wrap-button]:focus-visible {
   background: transparent !important;
+  color: var(--editor-code-block-text);
+}
+
+/* Editable "```lang nowrap" fence line shown above the active code block. */
+.editor__code-block-fence {
+  position: absolute;
+  z-index: 4;
+}
+
+.editor__code-block-fence [data-editor-code-fence-input] {
+  color: var(--editor-code-block-language);
+}
+
+.editor__code-block-fence [data-editor-code-fence-input]:focus-visible {
   color: var(--editor-code-block-text);
 }
 

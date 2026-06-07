@@ -737,5 +737,8 @@
   "locale.idID": "Indonésien",
   "settings.codeFontSize.default": "Taille de police du code",
   "settings.codeFontSize.defaultDescription": "Choisissez la taille de police des blocs de code et du code en ligne.",
-  "settings.codeFontSize.defaultOption": "Par défaut"
+  "settings.codeFontSize.defaultOption": "Par défaut",
+  "editor.codeBlock.wrapLines": "Retour à la ligne automatique",
+  "editor.codeBlock.dontWrapLines": "Pas de retour à la ligne",
+  "editor.codeBlock.fenceLine": "Ligne de délimitation du code"
 }

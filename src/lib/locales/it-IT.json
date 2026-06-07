@@ -737,5 +737,8 @@
   "locale.idID": "Indonesiano",
   "settings.codeFontSize.default": "Dimensione del carattere del codice",
   "settings.codeFontSize.defaultDescription": "Scegli la dimensione del carattere per i blocchi di codice e il codice inline.",
-  "settings.codeFontSize.defaultOption": "Predefinito"
+  "settings.codeFontSize.defaultOption": "Predefinito",
+  "editor.codeBlock.wrapLines": "Manda a capo le righe",
+  "editor.codeBlock.dontWrapLines": "Non mandare a capo le righe",
+  "editor.codeBlock.fenceLine": "Riga del recinto di codice"
 }
