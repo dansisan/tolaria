@@ -553,10 +553,16 @@
   color: inherit;
   /* Code font size preference (see useCodeFontSize); inherits the note-body size when unset. */
   font-size: var(--code-font-size, inherit);
+  /* Tighter than BlockNote's 24px default. */
+  padding: 12px 16px;
 }
 
 .editor__blocknote-container .bn-block-content[data-content-type="codeBlock"] > div > select {
   color: var(--editor-code-block-language) !important;
+  /* Keep the hover language select clear of the first code line now that the
+     pre padding is tighter than BlockNote's default. */
+  top: 2px;
+  left: 14px;
 }
 
 .editor__blocknote-container .bn-block-content[data-content-type="codeBlock"] > div > select > option {
