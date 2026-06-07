@@ -562,6 +562,14 @@
   font-size: var(--code-font-size, inherit);
   /* Tighter than BlockNote's 24px default. */
   padding: 12px 16px;
+  /* Wrap long lines by default; a "```lang nowrap" fence opts out below. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.editor__blocknote-container .bn-block-content[data-content-type="codeBlock"][data-nowrap] > pre {
+  white-space: pre;
+  overflow-wrap: normal;
 }
 
 .editor__blocknote-container .bn-block-content[data-content-type="codeBlock"] > div > select {

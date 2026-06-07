@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   createCodeFenceOnEnterExtension,
+  readCodeFence,
   readCodeFenceLanguage,
   resolveFenceLanguage,
 } from './codeFenceOnEnterExtension'
@@ -11,10 +12,13 @@ vi.mock('../lib/telemetry', () => ({
 }))
 
 function createView(paragraphText: string, overrides: Record<string, unknown> = {}) {
+  const insertedTransaction = { inserted: paragraphText }
   return {
     isDestroyed: false,
     composing: false,
+    dispatch: vi.fn(),
     state: {
+      tr: { insertText: vi.fn(() => insertedTransaction) },
       selection: {
         empty: true,
         $from: {
@@ -26,6 +30,7 @@ function createView(paragraphText: string, overrides: Record<string, unknown> = 
         },
       },
     },
+    insertedTransaction,
     ...overrides,
   }
 }
@@ -36,6 +41,23 @@ function createFixture(paragraphText: string, options: {
 } = {}) {
   const listeners = new Map<string, EventListener>()
   const view = options.view ?? createView(paragraphText)
+  const fireKey = (key: string, event: Partial<KeyboardEvent> = {}) => {
+    const listener = listeners.get('keydown')
+    if (!listener) throw new Error('Extension did not register a keydown listener')
+    const keyEvent = {
+      key,
+      shiftKey: false,
+      metaKey: false,
+      ctrlKey: false,
+      altKey: false,
+      isComposing: false,
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+      ...event,
+    }
+    listener(keyEvent as unknown as KeyboardEvent)
+    return keyEvent
+  }
   const block = { id: 'block-1', type: options.blockType ?? 'paragraph' }
   const updateBlock = vi.fn()
   const setTextCursorPosition = vi.fn()
@@ -58,23 +80,9 @@ function createFixture(paragraphText: string, options: {
     block,
     setTextCursorPosition,
     updateBlock,
-    fireEnter(event: Partial<KeyboardEvent> = {}) {
-      const listener = listeners.get('keydown')
-      if (!listener) throw new Error('Extension did not register a keydown listener')
-      const keyEvent = {
-        key: 'Enter',
-        shiftKey: false,
-        metaKey: false,
-        ctrlKey: false,
-        altKey: false,
-        isComposing: false,
-        preventDefault: vi.fn(),
-        stopPropagation: vi.fn(),
-        ...event,
-      }
-      listener(keyEvent as unknown as KeyboardEvent)
-      return keyEvent
-    },
+    view,
+    fireEnter: (event: Partial<KeyboardEvent> = {}) => fireKey('Enter', event),
+    fireSpace: (event: Partial<KeyboardEvent> = {}) => fireKey(' ', event),
   }
 }
 
@@ -96,6 +104,30 @@ describe('readCodeFenceLanguage', () => {
     expect(readCodeFenceLanguage('hello ```')).toBeNull()
     expect(readCodeFenceLanguage('``')).toBeNull()
     expect(readCodeFenceLanguage('````')).toBeNull()
+  })
+})
+
+describe('readCodeFence', () => {
+  it('reads a language with the nowrap flag', () => {
+    expect(readCodeFence('```js nowrap')).toEqual({ language: 'js', nowrap: true })
+  })
+
+  it('reads a bare nowrap flag as an empty language', () => {
+    expect(readCodeFence('```nowrap')).toEqual({ language: '', nowrap: true })
+  })
+
+  it('reads fences without the flag as wrapping', () => {
+    expect(readCodeFence('```python')).toEqual({ language: 'python', nowrap: false })
+    expect(readCodeFence('```')).toEqual({ language: '', nowrap: false })
+  })
+
+  it('tolerates trailing whitespace after the flag', () => {
+    expect(readCodeFence('```ts nowrap  ')).toEqual({ language: 'ts', nowrap: true })
+  })
+
+  it('rejects other fence metadata', () => {
+    expect(readCodeFence('```js title=x')).toBeNull()
+    expect(readCodeFence('```js nowrap extra')).toBeNull()
   })
 })
 
@@ -128,7 +160,7 @@ describe('createCodeFenceOnEnterExtension', () => {
     expect(fixture.setTextCursorPosition).toHaveBeenCalledWith(fixture.block, 'start')
     expect(event.preventDefault).toHaveBeenCalled()
     expect(event.stopPropagation).toHaveBeenCalled()
-    expect(trackEvent).toHaveBeenCalledWith('code_block_fence_converted', { has_language: false })
+    expect(trackEvent).toHaveBeenCalledWith('code_block_fence_converted', { has_language: false, has_nowrap: false })
   })
 
   it('carries the fence language into the code block', () => {
@@ -141,6 +173,19 @@ describe('createCodeFenceOnEnterExtension', () => {
       props: { language: 'typescript' },
       content: [],
     })
+  })
+
+  it('carries the nowrap flag into the code block', () => {
+    const fixture = createFixture('```ts nowrap')
+
+    fixture.fireEnter()
+
+    expect(fixture.updateBlock).toHaveBeenCalledWith(fixture.block, {
+      type: 'codeBlock',
+      props: { language: 'typescript', nowrap: true },
+      content: [],
+    })
+    expect(trackEvent).toHaveBeenCalledWith('code_block_fence_converted', { has_language: true, has_nowrap: true })
   })
 
   it('ignores paragraphs that are not a bare fence', () => {
@@ -188,6 +233,35 @@ describe('createCodeFenceOnEnterExtension', () => {
     const event = fixture.fireEnter()
 
     expect(fixture.updateBlock).not.toHaveBeenCalled()
+    expect(event.preventDefault).not.toHaveBeenCalled()
+  })
+
+  it('inserts the space itself on a language fence so the input rule cannot convert early', () => {
+    const fixture = createFixture('```js')
+
+    const event = fixture.fireSpace()
+
+    expect(fixture.view.state.tr.insertText).toHaveBeenCalledWith(' ')
+    expect(fixture.view.dispatch).toHaveBeenCalledWith(fixture.view.insertedTransaction)
+    expect(event.preventDefault).toHaveBeenCalled()
+    expect(fixture.updateBlock).not.toHaveBeenCalled()
+  })
+
+  it('leaves the space alone on a bare fence so the built-in conversion still fires', () => {
+    const fixture = createFixture('```')
+
+    const event = fixture.fireSpace()
+
+    expect(fixture.view.dispatch).not.toHaveBeenCalled()
+    expect(event.preventDefault).not.toHaveBeenCalled()
+  })
+
+  it('leaves the space alone in ordinary paragraphs', () => {
+    const fixture = createFixture('hello ``` world')
+
+    const event = fixture.fireSpace()
+
+    expect(fixture.view.dispatch).not.toHaveBeenCalled()
     expect(event.preventDefault).not.toHaveBeenCalled()
   })
 })

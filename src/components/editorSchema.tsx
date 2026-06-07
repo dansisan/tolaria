@@ -283,6 +283,13 @@ const TldrawBlock = createReactBlockSpec(
 )
 
 const codeBlock = createCodeBlockSpec(createTolariaCodeBlockOptions())
+// Extend the built-in code block with a `nowrap` prop. The prop schema must be
+// mutated in place: BlockNote's render pipeline closes over this exact object,
+// so a cloned config would diverge from the attributes registered on the node.
+// The prop persists in the document and renders as a `data-nowrap` attribute
+// that the editor CSS uses to disable line wrapping. Markdown round-trip for
+// the "```lang nowrap" fence lives in nowrapCodeBlockMarkdown.ts.
+Reflect.set(codeBlock.config.propSchema, 'nowrap', { default: false })
 const audioBlock = AudioBlockSpec()
 const mathBlock = MathBlock()
 const mermaidBlock = MermaidBlock()

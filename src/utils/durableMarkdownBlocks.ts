@@ -9,7 +9,7 @@ export interface InlineItem {
 export interface BlockLike {
   type?: string
   content?: InlineItem[]
-  props?: Record<string, string>
+  props?: Record<string, string | number | boolean>
   children?: BlockLike[]
   [key: string]: unknown
 }

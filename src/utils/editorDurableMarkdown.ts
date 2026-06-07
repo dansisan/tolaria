@@ -13,11 +13,15 @@ import {
 } from './fileAttachmentMarkdown'
 import { serializeMathAwareBlocks } from './mathMarkdown'
 import { mermaidMarkdownCodec } from './mermaidMarkdown'
+import { nowrapCodeBlockMarkdownCodec } from './nowrapCodeBlockMarkdown'
 import { tldrawMarkdownCodec } from './tldrawMarkdown'
 
+// Order matters: mermaid/tldraw claim their fences first, so a
+// "```mermaid nowrap" fence stays a Mermaid diagram.
 const EDITOR_DURABLE_MARKDOWN_CODECS = [
   mermaidMarkdownCodec,
   tldrawMarkdownCodec,
+  nowrapCodeBlockMarkdownCodec,
 ] as const
 
 export function preProcessDurableEditorMarkdown({ markdown }: { markdown: string }): string {

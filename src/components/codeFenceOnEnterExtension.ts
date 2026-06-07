@@ -2,12 +2,20 @@ import { createExtension } from '@blocknote/core'
 import { trackEvent } from '../lib/telemetry'
 import { createTolariaCodeBlockOptions } from './codeBlockOptions'
 
-const CODE_FENCE_RE = /^```([^\s`]*)\s*$/
+const CODE_FENCE_RE = /^```([^\s`]*)(?:[ \t]+(nowrap))?[ \t]*$/
+const NOWRAP_FLAG = 'nowrap'
+
+export interface CodeFence {
+  language: string
+  nowrap: boolean
+}
 
 interface ProseMirrorViewLike {
   isDestroyed?: boolean
   composing?: boolean
+  dispatch?: (transaction: unknown) => void
   state: {
+    tr?: { insertText: (text: string) => unknown }
     selection: {
       empty: boolean
       $from: { parent: { isTextblock: boolean; textContent: string; type: { name: string } } }
@@ -26,7 +34,7 @@ interface FenceEditor {
   getTextCursorPosition?: () => { block: FenceBlockLike }
   updateBlock?: (
     block: FenceBlockLike,
-    update: { type: string; props: Record<string, string>; content: never[] },
+    update: { type: string; props: Record<string, string | boolean>; content: never[] },
   ) => unknown
   setTextCursorPosition?: (block: FenceBlockLike, placement: 'start' | 'end') => void
 }
@@ -41,11 +49,25 @@ function supportedLanguages(): SupportedLanguages {
 }
 
 /**
+ * The language token and nowrap flag from a complete fence line ("```",
+ * "```python", "```python nowrap", …), or null when the text is not a bare
+ * code fence.
+ */
+export function readCodeFence(text: string): CodeFence | null {
+  const match = CODE_FENCE_RE.exec(text)
+  if (!match) return null
+
+  const [, token = '', flag] = match
+  if (token.toLowerCase() === NOWRAP_FLAG) return { language: '', nowrap: true }
+  return { language: token, nowrap: flag !== undefined }
+}
+
+/**
  * The language token from a complete fence line ("```", "```python", …),
  * or null when the text is not a bare code fence.
  */
 export function readCodeFenceLanguage(text: string): string | null {
-  return CODE_FENCE_RE.exec(text)?.[1] ?? null
+  return readCodeFence(text)?.language ?? null
 }
 
 /** Resolve a fence language token to its canonical id (e.g. "py" → "python"). */
@@ -59,36 +81,65 @@ export function resolveFenceLanguage(token: string): string {
   return aliased?.[0] ?? normalized
 }
 
-function fenceLanguageProps(language: string): Record<string, string> {
-  return language === '' ? {} : { language: resolveFenceLanguage(language) }
+function fenceProps(fence: CodeFence): Record<string, string | boolean> {
+  return {
+    ...(fence.language === '' ? {} : { language: resolveFenceLanguage(fence.language) }),
+    ...(fence.nowrap ? { nowrap: true } : {}),
+  }
 }
 
-function convertFenceParagraph(editor: FenceEditor, language: string): boolean {
+function convertFenceParagraph(editor: FenceEditor, fence: CodeFence): boolean {
   const block = editor.getTextCursorPosition?.().block
   if (!block || block.type !== 'paragraph') return false
 
   try {
-    editor.updateBlock?.(block, { type: 'codeBlock', props: fenceLanguageProps(language), content: [] })
+    editor.updateBlock?.(block, { type: 'codeBlock', props: fenceProps(fence), content: [] })
     editor.setTextCursorPosition?.(block, 'start')
   } catch {
     return false
   }
 
-  trackEvent('code_block_fence_converted', { has_language: language !== '' })
+  trackEvent('code_block_fence_converted', { has_language: fence.language !== '', has_nowrap: fence.nowrap })
   return true
 }
 
-function isPlainEnter(event: KeyboardEvent): boolean {
-  return event.key === 'Enter'
+function isPlainKey(event: KeyboardEvent, key: string): boolean {
+  return event.key === key
     && !event.shiftKey && !event.metaKey && !event.ctrlKey && !event.altKey
     && !event.isComposing
 }
 
-function fenceLanguageAtSelection(view: ProseMirrorViewLike): string | null {
+/** A fence opener with a language token, e.g. "```js" — but not a bare "```". */
+const LANGUAGE_FENCE_PREFIX_RE = /^```[^\s`]+/
+
+function paragraphTextAtSelection(view: ProseMirrorViewLike): string | null {
   const { selection } = view.state
   const parent = selection.$from.parent
   if (!selection.empty || !parent.isTextblock || parent.type.name !== 'paragraph') return null
-  return readCodeFenceLanguage(parent.textContent)
+  return parent.textContent
+}
+
+/**
+ * BlockNote's built-in input rule converts "```lang" into a code block on the
+ * next typed space, which makes a "```lang nowrap" fence impossible to type.
+ * When the paragraph already holds a language fence, insert the space through
+ * a transaction (input rules only fire on direct text input) so the user can
+ * finish the line; Enter then converts it. A bare "```" keeps the built-in
+ * space conversion.
+ */
+function insertSpaceWithoutInputRule(view: ProseMirrorViewLike): boolean {
+  const text = paragraphTextAtSelection(view)
+  if (text === null || !LANGUAGE_FENCE_PREFIX_RE.test(text)) return false
+
+  const transaction = view.state.tr?.insertText(' ')
+  if (transaction === undefined || !view.dispatch) return false
+  view.dispatch(transaction)
+  return true
+}
+
+function fenceAtSelection(view: ProseMirrorViewLike): CodeFence | null {
+  const text = paragraphTextAtSelection(view)
+  return text === null ? null : readCodeFence(text)
 }
 
 /**
@@ -102,20 +153,23 @@ export const createCodeFenceOnEnterExtension = createExtension(({ editor }) => {
   const readView = () => fenceEditor._tiptapEditor?.view ?? fenceEditor.prosemirrorView
 
   const handleKeyDown = (event: KeyboardEvent) => {
-    if (!isPlainEnter(event)) return
+    const isEnter = isPlainKey(event, 'Enter')
+    const isSpace = isPlainKey(event, ' ')
+    if (!isEnter && !isSpace) return
 
     const view = readView()
     if (!view || view.isDestroyed || view.composing) return
 
-    let language: string | null = null
     try {
-      language = fenceLanguageAtSelection(view)
+      if (isSpace) {
+        if (!insertSpaceWithoutInputRule(view)) return
+      } else {
+        const fence = fenceAtSelection(view)
+        if (fence === null || !convertFenceParagraph(fenceEditor, fence)) return
+      }
     } catch {
       return
     }
-    if (language === null) return
-
-    if (!convertFenceParagraph(fenceEditor, language)) return
     event.preventDefault()
     event.stopPropagation()
   }
