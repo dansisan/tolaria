@@ -530,6 +530,13 @@
   position: relative;
 }
 
+/* Top-level code blocks break out of the content well into the editor's side
+   padding (40px), keeping a small gutter. Nested ones stay in the well. */
+.editor__blocknote-container .bn-editor > .bn-block-group > .bn-block-outer > .bn-block > .bn-block-content[data-content-type="codeBlock"] {
+  width: calc(100% + 64px);
+  margin-inline: -32px;
+}
+
 .editor__code-block-copy {
   position: absolute;
   z-index: 4;
