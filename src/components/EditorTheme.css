@@ -560,16 +560,13 @@
 }
 
 /* Editable "```lang nowrap" fence line shown inside the top edge of the
-   active code block. The block reserves room for it via the
-   data-fence-line-active attribute, and the hover language select hides
-   while the fence line covers the same job. */
+   active code block. The block permanently reserves the top row (see the
+   pre padding above), and the language select hides while the fence line
+   covers the same spot — so entering/leaving the block causes no vertical
+   motion. */
 .editor__code-block-fence {
   position: absolute;
   z-index: 4;
-}
-
-.editor__blocknote-container .bn-block-content[data-content-type="codeBlock"][data-fence-line-active] > pre {
-  padding-top: 34px;
 }
 
 .editor__blocknote-container .bn-block-content[data-content-type="codeBlock"][data-fence-line-active] > div > select {
@@ -589,8 +586,10 @@
   color: inherit;
   /* Code font size preference (see useCodeFontSize); inherits the note-body size when unset. */
   font-size: var(--code-font-size, inherit);
-  /* Tighter than BlockNote's 24px default. */
-  padding: 12px 16px;
+  /* Sides/bottom tighter than BlockNote's 24px default; the top permanently
+     reserves one row for the language label / editable fence line, so the
+     block keeps the same height whether or not the cursor is inside. */
+  padding: 34px 16px 12px;
   /* Wrap long lines by default; a "```lang nowrap" fence opts out below. */
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -603,10 +602,13 @@
 
 .editor__blocknote-container .bn-block-content[data-content-type="codeBlock"] > div > select {
   color: var(--editor-code-block-language) !important;
-  /* Keep the hover language select clear of the first code line now that the
-     pre padding is tighter than BlockNote's default. */
-  top: 2px;
-  left: 14px;
+  /* Always show the language in the reserved top row (BlockNote only reveals
+     it on hover); the editable fence line replaces it while editing. */
+  opacity: 1 !important;
+  font-family: var(--inline-styles-code-font-family);
+  font-size: 12px;
+  top: 9px;
+  left: 16px;
 }
 
 .editor__blocknote-container .bn-block-content[data-content-type="codeBlock"] > div > select > option {
