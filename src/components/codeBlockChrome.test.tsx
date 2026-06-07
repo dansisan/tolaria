@@ -3,12 +3,15 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CodeBlockChrome, CodeBlockFenceLine } from './codeBlockChrome'
 import {
+  caretOnFirstCodeBlockLine,
   fenceLineText,
   useActiveCodeBlockFence,
   type CodeBlockChromeEditor,
   type CodeBlockChromeTarget,
+  type CodeBlockEditorViewLike,
   type CodeBlockFenceTarget,
 } from './codeBlockChromeState'
+import { fenceDecorationRange } from './codeBlockFenceDecorationExtension'
 
 const { trackEventMock } = vi.hoisted(() => ({ trackEventMock: vi.fn() }))
 
@@ -197,6 +200,70 @@ describe('CodeBlockFenceLine', () => {
     expect(input).toHaveValue('```js nowrap')
   })
 
+  it('moves the cursor into the code on ArrowDown', () => {
+    const updateBlock = vi.fn()
+    const setTextCursorPosition = vi.fn()
+    const focus = vi.fn()
+
+    render(
+      <CodeBlockFenceLine
+        target={fenceTargetFor({ nowrap: false })}
+        editor={{ updateBlock, setTextCursorPosition, focus }}
+        locale="en"
+        onBeginEditing={vi.fn()}
+        onEndEditing={vi.fn()}
+      />,
+    )
+
+    const input = screen.getByLabelText('Code fence line')
+    fireEvent.change(input, { target: { value: '```js nowrap' } })
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+
+    expect(updateBlock).toHaveBeenCalledWith('block-1', { props: { language: 'javascript', nowrap: true } })
+    expect(setTextCursorPosition).toHaveBeenCalledWith('block-1', 'start')
+    expect(focus).toHaveBeenCalled()
+  })
+
+  it('moves the cursor to the previous block on ArrowUp', () => {
+    const setTextCursorPosition = vi.fn()
+    const focus = vi.fn()
+    const getPrevBlock = vi.fn(() => ({ id: 'block-0' }))
+
+    render(
+      <CodeBlockFenceLine
+        target={fenceTargetFor()}
+        editor={{ setTextCursorPosition, focus, getPrevBlock }}
+        locale="en"
+        onBeginEditing={vi.fn()}
+        onEndEditing={vi.fn()}
+      />,
+    )
+
+    fireEvent.keyDown(screen.getByLabelText('Code fence line'), { key: 'ArrowUp' })
+
+    expect(getPrevBlock).toHaveBeenCalledWith('block-1')
+    expect(setTextCursorPosition).toHaveBeenCalledWith('block-0', 'end')
+    expect(focus).toHaveBeenCalled()
+  })
+
+  it('falls back to the code when no previous block exists on ArrowUp', () => {
+    const setTextCursorPosition = vi.fn()
+
+    render(
+      <CodeBlockFenceLine
+        target={fenceTargetFor()}
+        editor={{ setTextCursorPosition, getPrevBlock: () => undefined }}
+        locale="en"
+        onBeginEditing={vi.fn()}
+        onEndEditing={vi.fn()}
+      />,
+    )
+
+    fireEvent.keyDown(screen.getByLabelText('Code fence line'), { key: 'ArrowUp' })
+
+    expect(setTextCursorPosition).toHaveBeenCalledWith('block-1', 'start')
+  })
+
   it('restores the fence text on Escape', () => {
     const focus = vi.fn()
 
@@ -228,6 +295,51 @@ describe('fenceLineText', () => {
   })
 })
 
+describe('fenceDecorationRange', () => {
+  function positionFor(nodeNames: string[], cursorDepth: number) {
+    return {
+      depth: cursorDepth,
+      node: (depth: number) => ({ type: { name: nodeNames[depth] ?? 'doc' }, nodeSize: 10 }),
+      before: (depth: number) => depth * 100,
+    }
+  }
+
+  it('returns the node range of the enclosing code block', () => {
+    expect(fenceDecorationRange(positionFor(['doc', 'blockContainer', 'codeBlock'], 2)))
+      .toEqual({ from: 200, to: 210 })
+  })
+
+  it('returns null outside code blocks', () => {
+    expect(fenceDecorationRange(positionFor(['doc', 'blockContainer', 'paragraph'], 2))).toBeNull()
+  })
+})
+
+describe('caretOnFirstCodeBlockLine', () => {
+  function viewWith({ type = 'codeBlock', text = 'line one\nline two', offset = 0, empty = true }): CodeBlockEditorViewLike {
+    return {
+      state: {
+        selection: {
+          empty,
+          $from: { parent: { type: { name: type }, textContent: text }, parentOffset: offset },
+        },
+      },
+    }
+  }
+
+  it('detects the first line of a code block', () => {
+    expect(caretOnFirstCodeBlockLine(viewWith({ offset: 0 }))).toBe(true)
+    expect(caretOnFirstCodeBlockLine(viewWith({ offset: 8 }))).toBe(true)
+    expect(caretOnFirstCodeBlockLine(viewWith({ text: 'only line', offset: 9 }))).toBe(true)
+  })
+
+  it('rejects later lines, other blocks, and range selections', () => {
+    expect(caretOnFirstCodeBlockLine(viewWith({ offset: 9 }))).toBe(false)
+    expect(caretOnFirstCodeBlockLine(viewWith({ type: 'paragraph' }))).toBe(false)
+    expect(caretOnFirstCodeBlockLine(viewWith({ empty: false }))).toBe(false)
+    expect(caretOnFirstCodeBlockLine(null)).toBe(false)
+  })
+})
+
 describe('useActiveCodeBlockFence', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
@@ -251,6 +363,118 @@ describe('useActiveCodeBlockFence', () => {
     act(() => listeners.forEach((listener) => listener()))
 
     expect(result.current.fenceTarget).toMatchObject({ blockId: 'block-1', language: 'js', nowrap: true })
+  })
+
+  it('moves focus into the fence input on ArrowUp from the first code line', () => {
+    const { container } = buildCodeBlockDom()
+    const input = document.createElement('input')
+    input.setAttribute('data-editor-code-fence-input', '')
+    input.value = '```js'
+    container.appendChild(input)
+    const containerRef = { current: container as HTMLDivElement }
+    const listeners: Array<() => void> = []
+    const editor: CodeBlockChromeEditor = {
+      prosemirrorView: {
+        state: {
+          selection: {
+            empty: true,
+            $from: { parent: { type: { name: 'codeBlock' }, textContent: 'first\nsecond' }, parentOffset: 2 },
+          },
+        },
+      },
+      getTextCursorPosition: () => ({
+        block: { id: 'block-1', type: 'codeBlock', props: { language: 'js', nowrap: false } },
+      }),
+      onSelectionChange: (callback) => {
+        listeners.push(callback)
+        return () => {}
+      },
+    }
+
+    renderHook(() => useActiveCodeBlockFence(editor, containerRef, true))
+    act(() => listeners.forEach((listener) => listener()))
+
+    const event = new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true })
+    act(() => {
+      container.dispatchEvent(event)
+    })
+
+    expect(document.activeElement).toBe(input)
+    expect(event.defaultPrevented).toBe(true)
+  })
+
+  it('ignores ArrowUp typed inside the fence input itself', () => {
+    const { container } = buildCodeBlockDom()
+    const input = document.createElement('input')
+    input.setAttribute('data-editor-code-fence-input', '')
+    container.appendChild(input)
+    const containerRef = { current: container as HTMLDivElement }
+    const listeners: Array<() => void> = []
+    const editor: CodeBlockChromeEditor = {
+      prosemirrorView: {
+        state: {
+          selection: {
+            empty: true,
+            $from: { parent: { type: { name: 'codeBlock' }, textContent: 'first\nsecond' }, parentOffset: 2 },
+          },
+        },
+      },
+      getTextCursorPosition: () => ({
+        block: { id: 'block-1', type: 'codeBlock', props: { language: 'js', nowrap: false } },
+      }),
+      onSelectionChange: (callback) => {
+        listeners.push(callback)
+        return () => {}
+      },
+    }
+
+    renderHook(() => useActiveCodeBlockFence(editor, containerRef, true))
+    act(() => listeners.forEach((listener) => listener()))
+
+    input.focus()
+    const event = new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true })
+    act(() => {
+      input.dispatchEvent(event)
+    })
+
+    expect(event.defaultPrevented).toBe(false)
+  })
+
+  it('leaves ArrowUp alone below the first code line', () => {
+    const { container } = buildCodeBlockDom()
+    const input = document.createElement('input')
+    input.setAttribute('data-editor-code-fence-input', '')
+    container.appendChild(input)
+    const containerRef = { current: container as HTMLDivElement }
+    const listeners: Array<() => void> = []
+    const editor: CodeBlockChromeEditor = {
+      prosemirrorView: {
+        state: {
+          selection: {
+            empty: true,
+            $from: { parent: { type: { name: 'codeBlock' }, textContent: 'first\nsecond' }, parentOffset: 8 },
+          },
+        },
+      },
+      getTextCursorPosition: () => ({
+        block: { id: 'block-1', type: 'codeBlock', props: { language: 'js', nowrap: false } },
+      }),
+      onSelectionChange: (callback) => {
+        listeners.push(callback)
+        return () => {}
+      },
+    }
+
+    renderHook(() => useActiveCodeBlockFence(editor, containerRef, true))
+    act(() => listeners.forEach((listener) => listener()))
+
+    const event = new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true })
+    act(() => {
+      container.dispatchEvent(event)
+    })
+
+    expect(document.activeElement).not.toBe(input)
+    expect(event.defaultPrevented).toBe(false)
   })
 
   it('clears the target when the cursor leaves code blocks', () => {

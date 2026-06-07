@@ -559,10 +559,22 @@
   color: var(--editor-code-block-text);
 }
 
-/* Editable "```lang nowrap" fence line shown above the active code block. */
+/* Editable "```lang nowrap" fence line shown inside the top edge of the
+   active code block. The block reserves room for it via the
+   data-fence-line-active attribute, and the hover language select hides
+   while the fence line covers the same job. */
 .editor__code-block-fence {
   position: absolute;
   z-index: 4;
+}
+
+.editor__blocknote-container .bn-block-content[data-content-type="codeBlock"][data-fence-line-active] > pre {
+  padding-top: 34px;
+}
+
+.editor__blocknote-container .bn-block-content[data-content-type="codeBlock"][data-fence-line-active] > div > select {
+  opacity: 0 !important;
+  pointer-events: none;
 }
 
 .editor__code-block-fence [data-editor-code-fence-input] {

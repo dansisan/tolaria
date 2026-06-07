@@ -3,11 +3,27 @@ import { readCodeFence, resolveFenceLanguage } from './codeFenceOnEnterExtension
 
 export const CODE_BLOCK_SELECTOR = '[data-content-type="codeBlock"]'
 
+export interface CodeBlockEditorViewLike {
+  state: {
+    selection: {
+      empty: boolean
+      $from: {
+        parent: { type: { name: string }; textContent: string }
+        parentOffset: number
+      }
+    }
+  }
+}
+
 export interface CodeBlockChromeEditor {
+  _tiptapEditor?: { view?: CodeBlockEditorViewLike }
+  prosemirrorView?: CodeBlockEditorViewLike
   focus?: () => void
+  getPrevBlock?: (blockId: string) => { id: string } | undefined
   getTextCursorPosition?: () => { block: { id: string; type: string; props?: Record<string, unknown> } }
   onChange?: (callback: () => void) => (() => void) | undefined
   onSelectionChange?: (callback: () => void) => (() => void) | undefined
+  setTextCursorPosition?: (blockId: string, placement: 'start' | 'end') => void
   updateBlock?: (blockId: string, update: { props: Record<string, string | boolean> }) => unknown
 }
 
@@ -123,8 +139,8 @@ function fenceTargetForBlock(
     blockId: block.id,
     language: block.language,
     nowrap: block.nowrap,
-    left: codeBlockRect.left - containerRect.left + container.scrollLeft + 4,
-    top: codeBlockRect.top - containerRect.top + container.scrollTop - 24,
+    left: codeBlockRect.left - containerRect.left + container.scrollLeft + 17,
+    top: codeBlockRect.top - containerRect.top + container.scrollTop + 7,
   }
 }
 
@@ -137,7 +153,35 @@ function sameFenceTarget(left: CodeBlockFenceTarget | null, right: CodeBlockFenc
     && left.top === right.top
 }
 
-/** Tracks the code block holding the text cursor so the fence line can render above it. */
+function readEditorView(editor: CodeBlockChromeEditor): CodeBlockEditorViewLike | null {
+  return editor._tiptapEditor?.view ?? editor.prosemirrorView ?? null
+}
+
+/** True when the collapsed text cursor sits on the first line of a code block. */
+export function caretOnFirstCodeBlockLine(view: CodeBlockEditorViewLike | null): boolean {
+  if (!view) return false
+  const { selection } = view.state
+  if (!selection.empty) return false
+
+  const parent = selection.$from.parent
+  if (parent.type.name !== 'codeBlock') return false
+
+  const firstLineBreak = parent.textContent.indexOf('\n')
+  return firstLineBreak === -1 || selection.$from.parentOffset <= firstLineBreak
+}
+
+function isPlainArrowUp(event: KeyboardEvent): boolean {
+  return event.key === 'ArrowUp'
+    && !event.shiftKey && !event.metaKey && !event.ctrlKey && !event.altKey
+    && !event.isComposing
+}
+
+/**
+ * Tracks the code block holding the text cursor so the fence line can render
+ * inside its top edge. The room for the line is reserved by a ProseMirror node
+ * decoration (codeBlockFenceDecorationExtension) that sets
+ * `data-fence-line-active` on the same block.
+ */
 export function useActiveCodeBlockFence(
   editor: CodeBlockChromeEditor,
   containerRef: React.RefObject<HTMLDivElement | null>,
@@ -145,6 +189,7 @@ export function useActiveCodeBlockFence(
 ) {
   const [fenceTarget, setFenceTarget] = useState<CodeBlockFenceTarget | null>(null)
   const editingFenceRef = useRef(false)
+  const fenceTargetRef = useRef<CodeBlockFenceTarget | null>(null)
 
   const updateFenceTarget = useCallback(() => {
     if (editingFenceRef.current) return
@@ -152,6 +197,7 @@ export function useActiveCodeBlockFence(
     const container = containerRef.current
     const block = enabled && container ? readCursorCodeBlock(editor) : null
     const nextTarget = block && container ? fenceTargetForBlock(block, container) : null
+    fenceTargetRef.current = nextTarget
     setFenceTarget((previous) => sameFenceTarget(previous, nextTarget) ? previous : nextTarget)
   }, [containerRef, editor, enabled])
 
@@ -164,6 +210,30 @@ export function useActiveCodeBlockFence(
       unsubscribeChange?.()
     }
   }, [editor, enabled, updateFenceTarget])
+
+  // ArrowUp on the first code line moves focus up into the fence input.
+  useEffect(() => {
+    const container = containerRef.current
+    if (!enabled || !container) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isPlainArrowUp(event) || !fenceTargetRef.current) return
+      // The fence input handles its own arrows; the ProseMirror selection is
+      // still parked on the first code line while it has focus.
+      if (event.target instanceof HTMLElement && event.target.hasAttribute('data-editor-code-fence-input')) return
+      if (!caretOnFirstCodeBlockLine(readEditorView(editor))) return
+
+      const input = container.querySelector<HTMLInputElement>('[data-editor-code-fence-input]')
+      if (!input) return
+      event.preventDefault()
+      event.stopPropagation()
+      input.focus()
+      input.setSelectionRange(input.value.length, input.value.length)
+    }
+
+    container.addEventListener('keydown', handleKeyDown, { capture: true })
+    return () => container.removeEventListener('keydown', handleKeyDown, { capture: true })
+  }, [containerRef, editor, enabled])
 
   const beginFenceEditing = useCallback(() => {
     editingFenceRef.current = true
