@@ -123,6 +123,7 @@ function RawModeEditorSection({
   activeTab,
   entries,
   findRequest,
+  onFindClose,
   rawMode,
   rawModeContent,
   onRawContentChange,
@@ -132,7 +133,7 @@ function RawModeEditorSection({
   locale,
 }: Pick<
   EditorContentModel,
-  'activeTab' | 'entries' | 'findRequest' | 'onRawContentChange' | 'onSave' | 'rawLatestContentRef' | 'rawModeContent' | 'vaultPath'
+  'activeTab' | 'entries' | 'findRequest' | 'onFindClose' | 'onRawContentChange' | 'onSave' | 'rawLatestContentRef' | 'rawModeContent' | 'vaultPath'
 > & {
   rawMode: boolean
   locale?: AppLocale
@@ -148,6 +149,7 @@ function RawModeEditorSection({
         entries={entries}
         sourceEntry={activeTab.entry}
         findRequest={findRequest}
+        onFindClose={onFindClose}
         onContentChange={onRawContentChange ?? (() => {})}
         onSave={onSave ?? (() => {})}
         latestContentRef={rawLatestContentRef}
@@ -470,6 +472,7 @@ export function EditorContentLayout(model: EditorContentModel) {
     rawModeContent,
     noteWidth,
     findRequest,
+    onFindClose,
     locale,
     isVaultLoading,
     onClickTag,
@@ -514,6 +517,7 @@ export function EditorContentLayout(model: EditorContentModel) {
             activeTab={activeTab}
             entries={entries}
             findRequest={findRequest}
+            onFindClose={onFindClose}
             rawMode={effectiveRawMode}
             rawModeContent={rawModeContent}
             onRawContentChange={onRawContentChange}

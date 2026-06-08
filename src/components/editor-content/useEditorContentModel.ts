@@ -50,6 +50,7 @@ export interface EditorContentProps {
   vaultPath?: string
   rawModeContent?: string | null
   findRequest?: RawEditorFindRequest | null
+  onFindClose?: () => void
   rawLatestContentRef?: React.MutableRefObject<string | null>
   onRenameFilename?: (path: string, newFilenameStem: string) => void
   noteWidth?: NoteWidthMode

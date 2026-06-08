@@ -52,7 +52,7 @@ vi.mock('@blocknote/core', () => ({
   audioParse: vi.fn(() => undefined),
   BlockNoteSchema: { create: () => ({ extend: () => ({}) }) },
   createAudioBlockConfig: vi.fn(() => ({})),
-  createCodeBlockSpec: vi.fn(() => ({})),
+  createCodeBlockSpec: vi.fn(() => ({ config: { propSchema: {} } })),
   createExtension: (factory: unknown) => () => factory,
   createVideoBlockConfig: vi.fn(() => ({})),
   defaultInlineContentSpecs: {},
@@ -174,6 +174,7 @@ const mockEntry: VaultEntry = {
   title: 'Test Project',
   isA: 'Project',
   aliases: [],
+  inlineTags: [],
   belongsTo: [],
   relatedTo: [],
   status: 'Active',
@@ -704,6 +705,65 @@ describe('Editor', () => {
       expect(mockEditor.tryParseMarkdownToBlocks).toHaveBeenCalledWith(expect.stringContaining('Note B'))
     })
     expect(mockEditor.tryParseMarkdownToBlocks).not.toHaveBeenCalledWith(expect.stringContaining('Note A'))
+
+    resetVaultConfigStore()
+  })
+
+  it('returns to the rendered view when find closes after Cmd+F auto-opened raw mode', async () => {
+    resetVaultConfigStore()
+    bindVaultConfigStore(
+      {
+        zoom: null,
+        view_mode: null,
+        editor_mode: null,
+        tag_colors: null,
+        status_colors: null,
+        property_display_modes: null,
+        inbox: null,
+      },
+      vi.fn(),
+    )
+
+    const findInNoteRef = { current: null as ((options?: { replace?: boolean }) => void) | null }
+    const note = {
+      entry: {
+        ...mockEntry,
+        path: '/vault/project/find-note.md',
+        filename: 'find-note.md',
+        title: 'Find Note',
+      },
+      content: '---\ntitle: Find Note\n---\n\n# Find Note\n\nAlpha body.',
+    }
+
+    render(
+      <Editor
+        {...defaultProps}
+        tabs={[note]}
+        activeTabPath={note.entry.path}
+        entries={[note.entry]}
+        findInNoteRef={findInNoteRef}
+      />,
+    )
+
+    await vi.waitFor(() => {
+      expect(typeof findInNoteRef.current).toBe('function')
+    })
+    expect(screen.queryByTestId('raw-editor-codemirror')).not.toBeInTheDocument()
+
+    await act(async () => {
+      findInNoteRef.current?.()
+    })
+
+    expect(await screen.findByTestId('raw-editor-codemirror')).toBeInTheDocument()
+    const findInput = screen.getByTestId('raw-editor-find-input')
+
+    await act(async () => {
+      fireEvent.keyDown(findInput, { key: 'Escape' })
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.queryByTestId('raw-editor-codemirror')).not.toBeInTheDocument()
+    })
 
     resetVaultConfigStore()
   })

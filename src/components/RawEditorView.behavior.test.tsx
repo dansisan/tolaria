@@ -344,4 +344,34 @@ describe('RawEditorView behavior coverage', () => {
     expect(mockView.focus).toHaveBeenCalledOnce()
   })
 
+  it('opens the find bar from a request and notifies onFindClose when Escape dismisses it', () => {
+    const onFindClose = vi.fn()
+    const mockView = createMockView('Alpha Beta')
+    viewRefState.current = mockView
+
+    render(
+      <RawEditorView
+        content="Alpha Beta"
+        path="/vault/a.md"
+        entries={[entry('Alpha')]}
+        onContentChange={vi.fn()}
+        onSave={vi.fn()}
+        findRequest={{ id: 1, path: '/vault/a.md', replace: false }}
+        onFindClose={onFindClose}
+      />,
+    )
+
+    expect(screen.getByTestId('raw-editor-find-bar')).toBeInTheDocument()
+
+    const callbacks = useCodeMirrorMock.mock.calls.at(-1)![2] as { onEscape: () => boolean }
+    let consumed = false
+    act(() => {
+      consumed = callbacks.onEscape()
+    })
+
+    expect(consumed).toBe(true)
+    expect(screen.queryByTestId('raw-editor-find-bar')).not.toBeInTheDocument()
+    expect(onFindClose).toHaveBeenCalledTimes(1)
+  })
+
 })

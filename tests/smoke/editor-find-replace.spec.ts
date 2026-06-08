@@ -57,6 +57,9 @@ test.describe('editor find and replace', () => {
 
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('raw-editor-find-bar')).toHaveCount(0)
-    await expect(page.locator('.cm-content')).toBeFocused()
+    // Cmd+F auto-switched into raw mode, so Escape closes find and returns to
+    // the rendered view it came from, focusing the note editor.
+    await expect(page.getByTestId('raw-editor-codemirror')).toHaveCount(0)
+    await expect(page.locator('.bn-editor')).toBeVisible()
   })
 })

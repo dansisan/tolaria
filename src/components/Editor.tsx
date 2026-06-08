@@ -318,10 +318,12 @@ function useEditorFindCommand({
   findInNoteRef?: EditorProps['findInNoteRef']
   handleToggleRawExclusive: () => void
   rawMode: boolean
-}): RawEditorFindRequest | null {
+}): { findRequest: RawEditorFindRequest | null; handleFindClose: () => void } {
   const [findRequest, setFindRequest] = useState<RawEditorFindRequest | null>(null)
+  const autoEnteredRawForFindRef = useRef(false)
   const handleFindInNote = useCallback((options: { replace?: boolean } = {}) => {
     if (!activeTab || activeTab.entry.fileKind === 'binary') return
+    autoEnteredRawForFindRef.current = !rawMode
     if (!rawMode) handleToggleRawExclusive()
 
     setFindRequest((current) => ({
@@ -330,6 +332,12 @@ function useEditorFindCommand({
       replace: options.replace === true,
     }))
   }, [activeTab, handleToggleRawExclusive, rawMode])
+
+  const handleFindClose = useCallback(() => {
+    if (!autoEnteredRawForFindRef.current) return
+    autoEnteredRawForFindRef.current = false
+    handleToggleRawExclusive()
+  }, [handleToggleRawExclusive])
 
   useEffect(() => {
     if (!findInNoteRef) return
@@ -342,7 +350,7 @@ function useEditorFindCommand({
     }
   }, [findInNoteRef, handleFindInNote])
 
-  return findRequest
+  return { findRequest, handleFindClose }
 }
 
 function EditorLayout({
@@ -387,6 +395,7 @@ function EditorLayout({
   vaultPaths,
   rawModeContent,
   findRequest,
+  onFindClose,
   rawLatestContentRef,
   onRenameFilename,
   noteWidth,
@@ -460,6 +469,7 @@ function EditorLayout({
   vaultPaths?: string[]
   rawModeContent: string | null
   findRequest?: RawEditorFindRequest | null
+  onFindClose?: () => void
   rawLatestContentRef: React.MutableRefObject<string | null>
   onRenameFilename?: (path: string, newFilenameStem: string) => void
   noteWidth?: NoteWidthMode
@@ -551,6 +561,7 @@ function EditorLayout({
               vaultPath={vaultPath}
               rawModeContent={rawModeContent}
               findRequest={findRequest}
+              onFindClose={onFindClose}
               rawLatestContentRef={rawLatestContentRef}
               onRenameFilename={onRenameFilename}
               noteWidth={noteWidth}
@@ -615,6 +626,7 @@ function buildEditorLayoutProps(
   props: EditorProps,
   runtime: EditorRuntime,
   findRequest: RawEditorFindRequest | null,
+  onFindClose: () => void,
 ): EditorLayoutProps {
   return {
     ...props,
@@ -623,6 +635,7 @@ function buildEditorLayoutProps(
     defaultAiAgent: props.defaultAiAgent ?? DEFAULT_AI_AGENT,
     defaultAiAgentReady: props.defaultAiAgentReady ?? true,
     findRequest,
+    onFindClose,
   }
 }
 
@@ -641,7 +654,7 @@ export const Editor = memo(function Editor(props: EditorProps) {
     rawToggleRef: props.rawToggleRef,
     diffToggleRef: props.diffToggleRef,
   })
-  const findRequest = useEditorFindCommand({
+  const { findRequest, handleFindClose } = useEditorFindCommand({
     activeTab: runtime.activeTab,
     findInNoteRef: props.findInNoteRef,
     handleToggleRawExclusive: runtime.handleToggleRawExclusive,
@@ -676,7 +689,7 @@ export const Editor = memo(function Editor(props: EditorProps) {
 
   return (
     <EditorLayout
-      {...buildEditorLayoutProps(props, runtime, findRequest)}
+      {...buildEditorLayoutProps(props, runtime, findRequest, handleFindClose)}
       onToggleInspector={rightPanel.handleToggleInspectorPanel}
       showAIChat={props.showAIChat}
       onToggleAIChat={props.onToggleAIChat ? rightPanel.handleToggleAIChatPanel : undefined}

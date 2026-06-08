@@ -36,6 +36,9 @@ export interface RawEditorViewProps {
   latestContentRef?: React.MutableRefObject<string | null>
   locale?: AppLocale
   findRequest?: RawEditorFindRequest | null
+  /** Called when the find bar closes, so a parent that auto-switched into raw
+   *  mode for find can switch back to the rendered view. */
+  onFindClose?: () => void
 }
 
 const DEBOUNCE_MS = 500
@@ -392,7 +395,7 @@ function useRawEditorPlainTextPasteTarget({
   }, [])
 }
 
-export function RawEditorView({ content, path, entries, sourceEntry, onContentChange, onSave, latestContentRef, vaultPath, locale = 'en', findRequest }: RawEditorViewProps) {
+export function RawEditorView({ content, path, entries, sourceEntry, onContentChange, onSave, latestContentRef, vaultPath, locale = 'en', findRequest, onFindClose }: RawEditorViewProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [rawDoc, setRawDoc] = useState(content)
@@ -412,13 +415,17 @@ export function RawEditorView({ content, path, entries, sourceEntry, onContentCh
     setRawDoc(doc)
     pendingChanges.handleDocChange(doc)
   }, [pendingChanges])
+  const handleFindClose = useCallback(() => {
+    setFindOpen(false)
+    onFindClose?.()
+  }, [onFindClose])
   const handleEscape = useCallback(() => {
     if (handleAutocompleteEscape()) return true
     if (!findOpen) return false
 
-    setFindOpen(false)
+    handleFindClose()
     return true
-  }, [findOpen, handleAutocompleteEscape])
+  }, [findOpen, handleAutocompleteEscape, handleFindClose])
   const viewRef = useCodeMirror(containerRef, content, {
     onDocChange: handleDocChange,
     onCursorActivity: handleCursorActivity,
@@ -480,7 +487,7 @@ export function RawEditorView({ content, path, entries, sourceEntry, onContentCh
       <RawEditorFindBar
         doc={rawDoc}
         locale={locale}
-        onClose={() => setFindOpen(false)}
+        onClose={handleFindClose}
         onReplaceOpenChange={setReplaceOpen}
         open={findOpen}
         path={path}
