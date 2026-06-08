@@ -75,6 +75,28 @@ describe('NoteList keyboard activation', () => {
     })
   })
 
+  it('closes the search and returns to the list on Escape after focus moved into the results', async () => {
+    render(<NoteListKeyboardHarness onOpen={vi.fn()} />)
+
+    fireEvent.click(screen.getByTitle('Search notes'))
+    const input = await screen.findByPlaceholderText('Search notes...')
+    fireEvent.change(input, { target: { value: 'Facebook' } })
+
+    // ArrowDown hands focus from the search box into the results list.
+    const container = screen.getByTestId('note-list-container')
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    await waitFor(() => {
+      expect(document.activeElement).toBe(container)
+    })
+
+    // Escape from the results closes the search and returns to the unfiltered list.
+    fireEvent.keyDown(container, { key: 'Escape' })
+
+    await waitFor(() => {
+      expect(screen.queryByPlaceholderText('Search notes...')).not.toBeInTheDocument()
+    })
+  })
+
   it('navigates from global arrow keys when the editor is not focused', async () => {
     const onOpen = vi.fn()
     render(

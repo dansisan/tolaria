@@ -403,6 +403,7 @@ function useProcessKeyDown({
   cancelOpen,
   onEnterNeighborhood,
   onToggleSearchShortcut,
+  onEscapeWhileSearching,
   onFocusEditorOnEnter,
 }: {
   enabled: boolean
@@ -414,11 +415,18 @@ function useProcessKeyDown({
   cancelOpen: () => void
   onEnterNeighborhood?: (entry: VaultEntry) => void | Promise<void>
   onToggleSearchShortcut?: () => void
+  onEscapeWhileSearching?: () => boolean
   onFocusEditorOnEnter?: (path: string) => void
 }) {
   return useCallback((event: Pick<KeyboardEvent, 'key' | 'code' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey' | 'preventDefault'>) => {
     if (!enabled) return
 
+    // Escape closes an open search and returns to the unfiltered list, even when
+    // focus has moved from the search box into the results (via ArrowDown).
+    if (event.key === 'Escape') {
+      if (onEscapeWhileSearching?.()) event.preventDefault()
+      return
+    }
     if (handleSearchShortcutEvent(event, onToggleSearchShortcut)) return
     if (items.length === 0) return
     if (handleNeighborhoodShortcutEvent({
@@ -442,7 +450,7 @@ function useProcessKeyDown({
     const pendingPath = event.key === 'Enter' ? highlightedPathRef.current : null
     handleEnterShortcutEvent(event, items, highlightedPathRef, flushOpen)
     if (pendingPath) onFocusEditorOnEnter?.(pendingPath)
-  }, [cancelOpen, enabled, flushOpen, highlightedPathRef, items, jumpToEdge, moveHighlight, onEnterNeighborhood, onFocusEditorOnEnter, onToggleSearchShortcut])
+  }, [cancelOpen, enabled, flushOpen, highlightedPathRef, items, jumpToEdge, moveHighlight, onEnterNeighborhood, onEscapeWhileSearching, onFocusEditorOnEnter, onToggleSearchShortcut])
 }
 
 function useFocusHandlers({
@@ -682,6 +690,14 @@ export function useNoteListKeyboard({
     onPrefetch,
     scheduleOpen,
   })
+  const handleEscapeWhileSearching = useCallback(() => {
+    if (!searchVisible || !toggleSearch) return false
+    // Mirror the search box's own Escape: clear the query, hide the bar, and
+    // keep keyboard focus on the now-unfiltered list.
+    toggleSearch()
+    focusList()
+    return true
+  }, [focusList, searchVisible, toggleSearch])
   const processKeyDown = useProcessKeyDown({
     enabled,
     items,
@@ -692,6 +708,7 @@ export function useNoteListKeyboard({
     cancelOpen,
     onEnterNeighborhood,
     onToggleSearchShortcut: handleToggleSearchShortcut,
+    onEscapeWhileSearching: handleEscapeWhileSearching,
     onFocusEditorOnEnter,
   })
   const handleKeyDown = useDirectKeyDownHandler(processKeyDown)
