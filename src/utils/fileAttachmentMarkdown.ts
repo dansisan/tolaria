@@ -318,7 +318,7 @@ function readBlockAttachmentUrl(block: BlockLike, vaultPath?: VaultPath): Attach
 }
 
 function readBlockAttachmentName(block: BlockLike, url: AttachmentUrl): MarkdownText {
-  return block.props?.name?.trim() || fileNameFromUrl(url)
+  return readNonEmptyText(block.props?.name) ?? fileNameFromUrl(url)
 }
 
 function readFileAttachmentBlockPayload(block: BlockLike, vaultPath?: VaultPath): FileAttachmentPayload | null {
@@ -328,7 +328,7 @@ function readFileAttachmentBlockPayload(block: BlockLike, vaultPath?: VaultPath)
   return fileAttachmentPayload({
     name: readBlockAttachmentName(block, url),
     url,
-    caption: block.props?.caption?.trim(),
+    caption: readNonEmptyText(block.props?.caption) ?? undefined,
   })
 }
 

@@ -46,7 +46,7 @@ const codeBlockFenceDecorationPlugin = new Plugin({
   },
 })
 
-export const createCodeBlockFenceDecorationExtension = createExtension({
+export const createCodeBlockFenceDecorationExtension = createExtension(() => ({
   key: 'codeBlockFenceDecoration',
   prosemirrorPlugins: [codeBlockFenceDecorationPlugin],
-})
+}))

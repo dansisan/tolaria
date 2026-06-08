@@ -13,6 +13,7 @@
     "docs:build": "pnpm agent-docs && vitepress build site",
     "docs:preview": "vitepress preview site --host 127.0.0.1",
     "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc -b",
     "l10n:translate": "lara-cli translate",
     "l10n:translate:force": "lara-cli translate --force",
     "l10n:validate": "node scripts/validate-locales.mjs",

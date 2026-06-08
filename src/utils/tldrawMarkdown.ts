@@ -2,6 +2,7 @@ import {
   type BlockLike,
   type DurableBlockCodec,
   type DurableFencePayloadInput,
+  blockPropString,
   injectDurableMarkdownBlocks,
   preProcessDurableMarkdownBlocks,
   readCodeBlockLanguage,
@@ -144,10 +145,10 @@ export function isTldrawBlock(block: BlockLike): boolean {
 export function tldrawMarkdown(block: BlockLike): string {
   const props = block.props ?? {}
   return tldrawFenceSource({
-    boardId: props.boardId ?? '',
-    height: props.height ?? TLDRAW_DEFAULT_HEIGHT,
-    snapshot: props.snapshot ?? '{}',
-    width: props.width ?? '',
+    boardId: blockPropString(props.boardId),
+    height: blockPropString(props.height, TLDRAW_DEFAULT_HEIGHT),
+    snapshot: blockPropString(props.snapshot, '{}'),
+    width: blockPropString(props.width),
   })
 }
 

@@ -14,6 +14,11 @@ export interface BlockLike {
   [key: string]: unknown
 }
 
+/** Read a block prop as a string, falling back when it is absent or non-string. */
+export function blockPropString(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback
+}
+
 export interface MarkdownSerializer {
   blocksToMarkdownLossy: (blocks: unknown[]) => string
 }

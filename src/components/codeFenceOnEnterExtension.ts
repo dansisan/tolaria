@@ -99,7 +99,7 @@ function convertFenceParagraph(editor: FenceEditor, fence: CodeFence): boolean {
     return false
   }
 
-  trackEvent('code_block_fence_converted', { has_language: fence.language !== '', has_nowrap: fence.nowrap })
+  trackEvent('code_block_fence_converted', { has_language: fence.language !== '' ? 1 : 0, has_nowrap: fence.nowrap ? 1 : 0 })
   return true
 }
 

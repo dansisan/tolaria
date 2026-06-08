@@ -2,6 +2,7 @@ import {
   type BlockLike,
   type DurableBlockCodec,
   type DurableFencePayloadInput,
+  blockPropString,
   injectDurableMarkdownBlocks,
   preProcessDurableMarkdownBlocks,
   readCodeBlockLanguage,
@@ -109,10 +110,10 @@ function isMermaidBlock(block: BlockLike): boolean {
 
 function mermaidMarkdown(block: BlockLike): string {
   const props = block.props ?? {}
-  const source = props.source
+  const source = blockPropString(props.source)
   if (source) return source
 
-  return mermaidFenceSource({ diagram: props.diagram ?? '' })
+  return mermaidFenceSource({ diagram: blockPropString(props.diagram) })
 }
 
 export const mermaidMarkdownCodec: DurableBlockCodec = {
