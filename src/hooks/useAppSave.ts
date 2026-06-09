@@ -473,6 +473,7 @@ interface AppSaveDeps {
   writableVaultPaths?: readonly string[]
   initialH1AutoRenameEnabled: boolean
   onInternalVaultWrite?: (path: string) => void
+  refreshEntries?: (paths: string[]) => Promise<void>
   locale?: AppLocale
 }
 
@@ -484,6 +485,7 @@ interface EditorPersistenceOptions {
   trackUnsaved?: AppSaveDeps['trackUnsaved']
   clearUnsaved: AppSaveDeps['clearUnsaved']
   onInternalVaultWrite?: AppSaveDeps['onInternalVaultWrite']
+  refreshEntries?: AppSaveDeps['refreshEntries']
   reloadViews: AppSaveDeps['reloadViews']
   refreshPendingUntitledRename: (path: string, content: string) => void
   scheduleUntitledRename: (path: string, content: string) => void
@@ -677,6 +679,7 @@ function useEditorPersistence({
   trackUnsaved,
   clearUnsaved,
   onInternalVaultWrite,
+  refreshEntries,
   reloadViews,
   refreshPendingUntitledRename,
   scheduleUntitledRename,
@@ -690,14 +693,17 @@ function useEditorPersistence({
     loadModifiedFiles()
   }, [loadModifiedFiles])
 
-  // The `modified` frontmatter date is now stamped on the write path (Rust
-  // `save_note_content`), so it never rewrites the content the editor is showing.
+  // `save_note_content` stamps derived frontmatter (`modified`, `codeBlocks`) on
+  // the write path, so the content the editor shows is untouched — but the
+  // in-memory entry's `properties` are now stale. Re-read the entry from disk so
+  // those derived fields stay searchable without waiting for a full rescan.
   const onNotePersisted = useCallback((path: string, content: string) => {
     onInternalVaultWrite?.(path)
     clearUnsaved(path)
     if (path.endsWith('.yml')) reloadViews?.()
     scheduleUntitledRename(path, content)
-  }, [clearUnsaved, onInternalVaultWrite, reloadViews, scheduleUntitledRename])
+    void refreshEntries?.([path])
+  }, [clearUnsaved, onInternalVaultWrite, refreshEntries, reloadViews, scheduleUntitledRename])
 
   const {
     handleSave: handleSaveRaw,
@@ -843,6 +849,7 @@ export function useAppSave({
   reloadViews, trackUnsaved, clearUnsaved, unsavedPaths, tabs, activeTabPath,
   handleRenameNote, handleRenameFilename: handleRenameFilenameRaw, replaceEntry,
   resolvedPath, writableVaultPaths, initialH1AutoRenameEnabled, onInternalVaultWrite,
+  refreshEntries,
   locale = 'en',
 }: AppSaveDeps) {
   const contentChangeRef = useRef<(path: string, content: string) => void>(() => {})
@@ -858,7 +865,7 @@ export function useAppSave({
   })
   const { handleSaveRaw, handleContentChange, savePendingForPath, savePending } = useEditorPersistence({
     updateEntry, setTabs, setToastMessage, loadModifiedFiles, trackUnsaved,
-    clearUnsaved, onInternalVaultWrite, reloadViews, refreshPendingUntitledRename, scheduleUntitledRename,
+    clearUnsaved, onInternalVaultWrite, refreshEntries, reloadViews, refreshPendingUntitledRename, scheduleUntitledRename,
     resolveCurrentPath, resolvePathBeforeSave, canPersist,
     persistenceScope: writableVaultPaths && writableVaultPaths.length > 0 ? writableVaultPaths : resolvedPath,
     locale,

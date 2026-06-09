@@ -190,6 +190,28 @@ describe('buildSettingsCommands', () => {
     window.removeEventListener(TOGGLE_GITIGNORED_VISIBILITY_EVENT, listener)
   })
 
+  it('adds a recompute-metadata command when the handler is available', () => {
+    const onRecomputeMetadata = vi.fn()
+    const command = findCommand('recompute-metadata', buildSettingsCommands({
+      onOpenSettings: vi.fn(),
+      onRecomputeMetadata,
+    }))
+
+    expect(command).toMatchObject({
+      label: 'Recompute Note Metadata',
+      enabled: true,
+      group: 'Settings',
+    })
+    expect(command?.keywords).toEqual(expect.arrayContaining(['metadata', 'codeblocks', 'backfill']))
+
+    command?.execute()
+    expect(onRecomputeMetadata).toHaveBeenCalledTimes(1)
+  })
+
+  it('disables the recompute-metadata command without a handler', () => {
+    expect(findCommand('recompute-metadata')).toMatchObject({ enabled: false })
+  })
+
   it('makes external AI setup discoverable for Gemini CLI', () => {
     const onInstallMcp = vi.fn()
     const command = findCommand('install-mcp', buildSettingsCommands({

@@ -1,3 +1,4 @@
+mod derive;
 pub(crate) mod keys;
 mod ops;
 #[cfg(test)]
@@ -7,6 +8,7 @@ mod yaml;
 use std::fs;
 use std::path::Path;
 
+pub use derive::{apply_content_frontmatter, apply_derived_frontmatter, DeriveContext};
 pub use ops::{frontmatter_has_key, update_frontmatter_content};
 pub use yaml::{format_yaml_key, FrontmatterValue};
 

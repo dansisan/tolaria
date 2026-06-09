@@ -113,6 +113,7 @@ interface AppCommandsConfig {
   claudeCodeVersion?: string
   onReloadVault?: () => void
   onRepairVault?: () => void
+  onRecomputeMetadata?: () => void
   onSetNoteIcon?: () => void
   onRemoveNoteIcon?: () => void
   onChangeNoteType?: () => void
@@ -225,6 +226,7 @@ type CommandRegistryVaultActions = Pick<
   | 'vaultCount'
   | 'onReloadVault'
   | 'onRepairVault'
+  | 'onRecomputeMetadata'
   | 'onOpenInNewWindow'
   | 'onRevealActiveFile'
   | 'onCopyActiveFilePath'
@@ -406,6 +408,7 @@ function createMenuEventVaultHandlers(
   | 'onInstallMcp'
   | 'onReloadVault'
   | 'onRepairVault'
+  | 'onRecomputeMetadata'
   | 'onOpenInNewWindow'
   | 'onRestoreDeletedNote'
 > {
@@ -421,6 +424,7 @@ function createMenuEventVaultHandlers(
     onInstallMcp: config.onInstallMcp,
     onReloadVault: config.onReloadVault,
     onRepairVault: config.onRepairVault,
+    onRecomputeMetadata: config.onRecomputeMetadata,
     onOpenInNewWindow: config.onOpenInNewWindow,
     onRestoreDeletedNote: config.onRestoreDeletedNote,
   }
@@ -543,6 +547,7 @@ function createCommandRegistryVaultConfig(
     vaultCount: config.vaultCount,
     onReloadVault: config.onReloadVault,
     onRepairVault: config.onRepairVault,
+    onRecomputeMetadata: config.onRecomputeMetadata,
     onOpenInNewWindow: config.onOpenInNewWindow,
     onRevealActiveFile: config.onRevealActiveFile,
     onCopyActiveFilePath: config.onCopyActiveFilePath,
