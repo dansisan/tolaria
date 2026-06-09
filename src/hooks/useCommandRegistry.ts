@@ -69,6 +69,7 @@ interface CommandRegistryConfig {
   canRestoreDeletedNote?: boolean
   onQuickOpen: () => void
   onCreateNote: (type?: string, options?: ImmediateCreateOptions) => void
+  onCreateNoteForDate?: () => void
   onCreateNoteOfType: (type: string) => void
   onSave: () => void
   onUndo?: () => void
@@ -150,7 +151,7 @@ function currentFolderCreateOptions(selection: SidebarSelection | undefined): Im
 export function useCommandRegistry(config: CommandRegistryConfig): import('./commands/types').CommandAction[] {
   const {
     activeTabPath, entries, modifiedCount,
-    onQuickOpen, onCreateNote, onCreateNoteOfType, onSave, onUndo, onRedo, canUndo, canRedo, undoLabel, redoLabel,
+    onQuickOpen, onCreateNote, onCreateNoteForDate, onCreateNoteOfType, onSave, onUndo, onRedo, canUndo, canRedo, undoLabel, redoLabel,
     onPastePlainText, onOpenSettings, onOpenFeedback,
     onDeleteNote, onArchiveNote, onUnarchiveNote,
     onCommitPush, onPull, onResolveConflicts, onSetViewMode, onToggleInspector, onToggleDiff, onToggleRawEditor, onFindInNote, onReplaceInNote,
@@ -215,7 +216,7 @@ export function useCommandRegistry(config: CommandRegistryConfig): import('./com
 
   const noteCommands = useMemo(() => buildNoteCommands({
     hasActiveNote, activeTabPath, activeFileKind: activeEntry?.fileKind ?? 'markdown', isArchived, locale,
-    currentFolderCreateOptions: folderCreateOptions, onCreateNote, onCreateType, onSave,
+    currentFolderCreateOptions: folderCreateOptions, onCreateNote, onCreateNoteForDate, onCreateType, onSave,
     onUndo, onRedo, canUndo, canRedo, undoLabel, redoLabel,
     onFindInNote, onReplaceInNote, onPastePlainText,
     onDeleteNote, onArchiveNote, onUnarchiveNote,
@@ -228,7 +229,7 @@ export function useCommandRegistry(config: CommandRegistryConfig): import('./com
     onRestoreDeletedNote, canRestoreDeletedNote,
   }), [
     hasActiveNote, activeTabPath, activeEntry?.fileKind, isArchived, locale,
-    folderCreateOptions, onCreateNote, onCreateType, onSave, onUndo, onRedo, canUndo, canRedo, undoLabel, redoLabel,
+    folderCreateOptions, onCreateNote, onCreateNoteForDate, onCreateType, onSave, onUndo, onRedo, canUndo, canRedo, undoLabel, redoLabel,
     onFindInNote, onReplaceInNote, onPastePlainText, onDeleteNote, onArchiveNote, onUnarchiveNote,
     onChangeNoteType, onMoveNoteToFolder, canMoveNoteToFolder,
     onSetNoteIcon, onRemoveNoteIcon, activeNoteHasIcon, onOpenInNewWindow,

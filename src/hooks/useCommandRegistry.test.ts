@@ -755,6 +755,27 @@ describe('useCommandRegistry', () => {
     expect(findCommand(result.current, 'create-note-current-folder')?.enabled).toBe(false)
   })
 
+  it('exposes a New Note for Date command that opens the date picker when wired', () => {
+    const onCreateNoteForDate = vi.fn()
+    const { result } = renderHook(() => useCommandRegistry(makeConfig({ onCreateNoteForDate })))
+
+    const command = findCommand(result.current, 'create-note-for-date')
+    expect(command).toMatchObject({
+      label: 'New Note for Date…',
+      group: 'Note',
+      shortcut: formatShortcutDisplay({ display: '⌘⇧N' }),
+      enabled: true,
+    })
+
+    command!.execute()
+    expect(onCreateNoteForDate).toHaveBeenCalledOnce()
+  })
+
+  it('disables the New Note for Date command when no handler is provided', () => {
+    const { result } = renderHook(() => useCommandRegistry(makeConfig()))
+    expect(findCommand(result.current, 'create-note-for-date')?.enabled).toBe(false)
+  })
+
   it('exposes paste without formatting in the command palette', () => {
     const onPastePlainText = vi.fn()
     const { result } = renderHook(() => useCommandRegistry(makeConfig({ onPastePlainText })))

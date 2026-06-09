@@ -30,6 +30,19 @@
         "requiresManualNativeAcceleratorQa": true
       }
     },
+    "fileNewNoteForDate": {
+      "id": "file-new-note-for-date",
+      "route": { "kind": "handler", "handler": "onCreateNoteForDate" },
+      "menuOwned": true,
+      "shortcut": {
+        "combo": "command-or-ctrl-shift",
+        "key": "n",
+        "code": "KeyN",
+        "display": "⌘⇧N",
+        "accelerator": "CmdOrCtrl+Shift+N",
+        "requiresManualNativeAcceleratorQa": true
+      }
+    },
     "fileNewType": {
       "id": "file-new-type",
       "route": { "kind": "handler", "handler": "onCreateType" },
@@ -447,6 +460,7 @@
       "label": "File",
       "items": [
         { "kind": "command", "command": "fileNewNote", "label": "New Note" },
+        { "kind": "command", "command": "fileNewNoteForDate", "label": "New Note for Date…" },
         { "kind": "command", "command": "fileNewType", "label": "New Type" },
         { "kind": "command", "command": "fileQuickOpen", "label": "Quick Open" },
         {

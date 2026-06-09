@@ -11,6 +11,7 @@ interface NoteCommandsConfig {
   isArchived: boolean
   activeNoteHasIcon?: boolean
   onCreateNote: (type?: string, options?: ImmediateCreateOptions) => void
+  onCreateNoteForDate?: () => void
   onCreateType?: () => void
   currentFolderCreateOptions?: ImmediateCreateOptions
   onSave: () => void
@@ -94,6 +95,14 @@ function buildCoreNoteCommands(config: NoteCommandsConfig): CommandAction[] {
       keywords: ['new', 'create', 'add'],
       enabled: true,
       execute: config.onCreateNote,
+    }),
+    createNoteCommand({
+      id: 'create-note-for-date',
+      label: 'New Note for Date…',
+      shortcut: getAppCommandShortcutDisplay(APP_COMMAND_IDS.fileNewNoteForDate),
+      keywords: ['new', 'create', 'add', 'date', 'past', 'backdate', 'day', 'calendar', 'when'],
+      enabled: !!config.onCreateNoteForDate,
+      execute: () => config.onCreateNoteForDate?.(),
     }),
     buildCurrentFolderNoteCommand(config),
     createNoteCommand({

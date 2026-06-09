@@ -4,6 +4,7 @@ import { NoteList, type NoteListHandle } from './components/NoteList'
 import { Editor } from './components/Editor'
 import { ResizeHandle } from './components/ResizeHandle'
 import { CreateTypeDialog } from './components/CreateTypeDialog'
+import { CreateNoteForDateDialog } from './components/CreateNoteForDateDialog'
 import { CreateViewDialog } from './components/CreateViewDialog'
 import { QuickOpenPalette } from './components/QuickOpenPalette'
 import { CommandPalette } from './components/CommandPalette'
@@ -1323,6 +1324,10 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     return created
   }, [notes])
 
+  const handleCreateNoteForDate = useCallback((title: string, createdDate: Date) => {
+    void notes.handleCreateNoteForDate(title, createdDate)
+  }, [notes])
+
   const handleCreateMissingType = useCallback(async (path: string, missingType: string, nextTypeName: string) => {
     const trimmed = nextTypeName.trim()
     if (!trimmed) return false
@@ -1831,6 +1836,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     onOpenVault: vaultSwitcher.handleOpenLocalFolder,
     onCreateEmptyVault: vaultSwitcher.handleCreateEmptyVault,
     onCreateType: dialogs.openCreateType,
+    onCreateNoteForDate: dialogs.openCreateNoteForDate,
     ...commandAiActions,
     onCheckForUpdates: handleCheckForUpdates,
     onRemoveActiveVault: removeActiveVaultCommand,
@@ -2114,6 +2120,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
         />
         <SearchPanel open={dialogs.showSearch} vaultPath={resolvedPath} entries={visibleEntries} onSelectNote={notes.handleSelectNote} onClose={dialogs.closeSearch} />
         <CreateTypeDialog open={dialogs.showCreateTypeDialog} onClose={dialogs.closeCreateType} onCreate={handleCreateType} />
+        <CreateNoteForDateDialog open={dialogs.showCreateNoteForDate} onClose={dialogs.closeCreateNoteForDate} onCreate={handleCreateNoteForDate} locale={appLocale} />
         <NoteRetargetingDialogs
           dialogState={noteRetargetingUi.dialogState}
           dialogEntry={noteRetargetingUi.dialogEntry}

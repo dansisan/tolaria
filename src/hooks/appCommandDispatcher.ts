@@ -30,6 +30,7 @@ type SuppressedShortcutSource = Extract<AppCommandDispatchSource, 'renderer-keyb
 export interface AppCommandHandlers {
   onSetViewMode: (mode: ViewMode) => void
   onCreateNote: () => void
+  onCreateNoteForDate?: () => void
   onCreateType?: () => void
   onQuickOpen: () => void
   onSave: () => void
@@ -80,6 +81,7 @@ type SimpleHandlerKey = keyof Pick<
   | 'onOpenSettings'
   | 'onCheckForUpdates'
   | 'onCreateNote'
+  | 'onCreateNoteForDate'
   | 'onCreateType'
   | 'onQuickOpen'
   | 'onSave'
@@ -128,6 +130,7 @@ const SIMPLE_HANDLER_EXECUTORS: readonly [SimpleHandlerKey, SimpleHandlerExecuto
   ['onOpenSettings', (handlers) => handlers.onOpenSettings()],
   ['onCheckForUpdates', (handlers) => handlers.onCheckForUpdates?.()],
   ['onCreateNote', (handlers) => handlers.onCreateNote()],
+  ['onCreateNoteForDate', (handlers) => handlers.onCreateNoteForDate?.()],
   ['onCreateType', (handlers) => handlers.onCreateType?.()],
   ['onQuickOpen', (handlers) => handlers.onQuickOpen()],
   ['onSave', (handlers) => handlers.onSave()],

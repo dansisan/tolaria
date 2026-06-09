@@ -3,6 +3,7 @@ import type { ViewDefinition } from '../types'
 
 export function useDialogs() {
   const [showCreateTypeDialog, setShowCreateTypeDialog] = useState(false)
+  const [showCreateNoteForDate, setShowCreateNoteForDate] = useState(false)
   const [showQuickOpen, setShowQuickOpen] = useState(false)
   const [showCommandPalette, setShowCommandPalette] = useState(false)
   const [showAIChat, setShowAIChat] = useState(false)
@@ -15,6 +16,8 @@ export function useDialogs() {
 
   const openCreateType = useCallback(() => setShowCreateTypeDialog(true), [])
   const closeCreateType = useCallback(() => setShowCreateTypeDialog(false), [])
+  const openCreateNoteForDate = useCallback(() => setShowCreateNoteForDate(true), [])
+  const closeCreateNoteForDate = useCallback(() => setShowCreateNoteForDate(false), [])
   const openQuickOpen = useCallback(() => setShowQuickOpen(true), [])
   const closeQuickOpen = useCallback(() => setShowQuickOpen(false), [])
   const openCommandPalette = useCallback(() => setShowCommandPalette(true), [])
@@ -39,6 +42,7 @@ export function useDialogs() {
 
   return {
     showCreateTypeDialog, openCreateType, closeCreateType,
+    showCreateNoteForDate, openCreateNoteForDate, closeCreateNoteForDate,
     showQuickOpen, openQuickOpen, closeQuickOpen,
     showCommandPalette, openCommandPalette, closeCommandPalette,
     showAIChat, openAIChat, closeAIChat, toggleAIChat,

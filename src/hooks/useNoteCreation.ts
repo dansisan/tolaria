@@ -25,15 +25,17 @@ export interface NewEntryParams {
   title: string
   type: string
   status: string | null
+  /** Override the entry's createdAt (epoch seconds). Defaults to now. */
+  createdAt?: number
 }
 
-export function buildNewEntry({ path, slug, title, type, status }: NewEntryParams): VaultEntry {
+export function buildNewEntry({ path, slug, title, type, status, createdAt }: NewEntryParams): VaultEntry {
   const now = Math.floor(Date.now() / 1000)
   return {
     path, filename: `${slug}.md`, title, isA: type,
     aliases: [], belongsTo: [], relatedTo: [],
     status, archived: false,
-    modifiedAt: now, createdAt: now, fileSize: 0,
+    modifiedAt: now, createdAt: createdAt ?? now, fileSize: 0,
     snippet: '', wordCount: 0, relationships: {}, icon: null, color: null, order: null, outgoingLinks: [], inlineTags: [], sidebarLabel: null, template: null, sort: null, view: null, visible: null, properties: {}, organized: false, favorite: false, favoriteIndex: null, listPropertiesDisplay: [], hasH1: false,
   }
 }
@@ -117,6 +119,8 @@ export interface NoteContentParams {
   template?: string | null
   initialEmptyHeading?: boolean
   defaults?: TypeInstanceDefault[]
+  /** Backdate the note's `created`/`dayCreated` to this date. `modified` always stays the real save time. */
+  createdDate?: Date
 }
 
 type DefaultValue = string | number | boolean | string[]
@@ -248,17 +252,19 @@ function appendDefaultFrontmatterLines(lines: string[], defaults: TypeInstanceDe
   }
 }
 
-export function buildNoteContent({ title, type, status, template, initialEmptyHeading = false, defaults = [] }: NoteContentParams): string {
+export function buildNoteContent({ title, type, status, template, initialEmptyHeading = false, defaults = [], createdDate }: NoteContentParams): string {
   const now = new Date()
-  const datetime = formatLocalISODatetime(now)
-  const day = formatShortDayOfWeek(now)
+  const created = createdDate ?? now
+  const createdDatetime = formatLocalISODatetime(created)
+  const modifiedDatetime = formatLocalISODatetime(now)
+  const day = formatShortDayOfWeek(created)
   const lines = ['---']
   if (title) lines.push(`title: ${title}`)
   lines.push(`type: ${type}`)
   if (status) lines.push(`status: ${status}`)
-  lines.push(`created: ${formatYamlScalar(datetime)}`)
+  lines.push(`created: ${formatYamlScalar(createdDatetime)}`)
   lines.push(`dayCreated: ${day}`)
-  lines.push(`modified: ${formatYamlScalar(datetime)}`)
+  lines.push(`modified: ${formatYamlScalar(modifiedDatetime)}`)
   appendDefaultFrontmatterLines(lines, defaults)
   lines.push('---')
   const body = buildNoteBody({ template, initialEmptyHeading })
@@ -273,19 +279,47 @@ export interface NewNoteParams {
   vaults?: readonly VaultOption[]
   template?: string | null
   defaults?: TypeInstanceDefault[]
+  createdDate?: Date
+  /** Use this exact stem for the filename (sanitized) instead of slugifying the title. */
+  filenameStem?: string
 }
 
-export function resolveNewNote({ title, type, vaultPath, defaultWorkspacePath, vaults = [], template, defaults = [] }: NewNoteParams): { entry: VaultEntry; content: string } {
+/**
+ * Keep a typed filename close to what the user entered — preserve spaces and case
+ * like the breadcrumb rename does, only stripping characters that are unsafe in a path.
+ */
+function sanitizeFilenameStem(text: string): string {
+  const cleaned = text
+    .normalize('NFKC')
+    .replace(/[/\\:*?"<>|]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return cleaned || slugify(text)
+}
+
+/**
+ * Match the backend's `created` parsing: a naive `YYYY-MM-DD HH:MM:SS` datetime is read as UTC.
+ * Keeps the optimistic entry's createdAt identical to what a vault reload computes from the frontmatter.
+ */
+function frontmatterCreatedSeconds(date: Date): number {
+  return Math.floor(Date.UTC(
+    date.getFullYear(), date.getMonth(), date.getDate(),
+    date.getHours(), date.getMinutes(), date.getSeconds(),
+  ) / 1000)
+}
+
+export function resolveNewNote({ title, type, vaultPath, defaultWorkspacePath, vaults = [], template, defaults = [], createdDate, filenameStem }: NewNoteParams): { entry: VaultEntry; content: string } {
   const creationVaultPath = resolveCreationVaultPath(vaultPath, defaultWorkspacePath, vaults)
-  const slug = slugify(title)
+  const slug = filenameStem ? sanitizeFilenameStem(filenameStem) : slugify(title)
   const status = null
+  const createdAt = createdDate ? frontmatterCreatedSeconds(createdDate) : undefined
   const entry = {
-    ...buildNewEntry({ path: joinVaultPath(creationVaultPath, `${slug}.md`), slug, title, type, status }),
+    ...buildNewEntry({ path: joinVaultPath(creationVaultPath, `${slug}.md`), slug, title, type, status, createdAt }),
     workspace: workspaceForVaultPath(creationVaultPath, vaults, defaultWorkspacePath),
   }
   return applyTypeDefaults({
     entry,
-    content: buildNoteContent({ title, type, status, template, defaults }),
+    content: buildNoteContent({ title, type, status, template, defaults, createdDate }),
     defaults,
   })
 }
@@ -394,8 +428,10 @@ export function planNewNoteCreation({
   vaults,
   template,
   defaults,
+  createdDate,
+  filenameStem,
 }: NewNoteParams & { entries: VaultEntry[] }): NoteCreationPlan {
-  const resolved = resolveNewNote({ title, type, vaultPath, defaultWorkspacePath, vaults, template, defaults })
+  const resolved = resolveNewNote({ title, type, vaultPath, defaultWorkspacePath, vaults, template, defaults, createdDate, filenameStem })
   const collision = findPathCollision(entries, resolved.entry.path)
   if (collision) {
     return {
@@ -541,10 +577,15 @@ interface CreationDeps {
   persistResolvedEntry: PersistResolvedEntryFn
 }
 
+type NamedCreationPath = 'plus_button' | 'quick_open' | 'date_picker'
+
 interface NoteCreationRequest extends CreationDeps {
   title: string
   type: string
-  creationPath?: 'plus_button' | 'quick_open'
+  creationPath?: NamedCreationPath
+  createdDate?: Date
+  focusOnCreate?: boolean
+  filenameStem?: string
 }
 
 async function createNamedNote({
@@ -557,10 +598,13 @@ async function createNamedNote({
   setToastMessage,
   persistResolvedEntry,
   creationPath,
+  createdDate,
+  focusOnCreate,
+  filenameStem,
 }: NoteCreationRequest): Promise<boolean> {
   const template = resolveTemplate({ entries, typeName: type })
   const defaults = resolveTypeInstanceDefaults({ entries, typeName: type })
-  const plan = planNewNoteCreation({ entries, title, type, vaultPath, defaultWorkspacePath, vaults, template, defaults })
+  const plan = planNewNoteCreation({ entries, title, type, vaultPath, defaultWorkspacePath, vaults, template, defaults, createdDate, filenameStem })
   if (plan.status === 'blocked') {
     setToastMessage(plan.message)
     return false
@@ -570,6 +614,9 @@ async function createNamedNote({
     await persistResolvedEntry(plan.resolved)
     if (creationPath) {
       trackEvent('note_created', { has_type: type !== 'Note' ? 1 : 0, creation_path: creationPath })
+    }
+    if (focusOnCreate) {
+      signalFocusEditor({ path: plan.resolved.entry.path })
     }
     return true
   } catch (error) {
@@ -952,8 +999,12 @@ export function useNoteCreation(config: NoteCreationConfig, tabDeps: CreationTab
     }
   }, [openTabWithContent, addEntry, addPendingSave, removePendingSave, onNewNotePersisted, onTypeStateChanged, removeEntry])
 
-  const handleCreateNote = useCallback((title: string, type: string, creationPath: 'plus_button' | 'quick_open' = 'plus_button'): Promise<boolean> =>
+  const handleCreateNote = useCallback((title: string, type: string, creationPath: NamedCreationPath = 'plus_button'): Promise<boolean> =>
     createNamedNote({ entries, vaultPath, defaultWorkspacePath, vaults, setToastMessage, persistResolvedEntry, title, type, creationPath }),
+  [entries, vaultPath, defaultWorkspacePath, vaults, setToastMessage, persistResolvedEntry])
+
+  const handleCreateNoteForDate = useCallback((title: string, createdDate: Date): Promise<boolean> =>
+    createNamedNote({ entries, vaultPath, defaultWorkspacePath, vaults, setToastMessage, persistResolvedEntry, title, type: 'Note', creationPath: 'date_picker', createdDate, focusOnCreate: true, filenameStem: title }),
   [entries, vaultPath, defaultWorkspacePath, vaults, setToastMessage, persistResolvedEntry])
 
   const handleCreateType = useCallback((typeName: string): Promise<boolean> =>
@@ -984,6 +1035,7 @@ export function useNoteCreation(config: NoteCreationConfig, tabDeps: CreationTab
 
   return {
     handleCreateNote,
+    handleCreateNoteForDate,
     handleCreateNoteImmediate,
     handleCreateNoteForRelationship,
     handleCreateType,

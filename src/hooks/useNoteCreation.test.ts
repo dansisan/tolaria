@@ -184,6 +184,18 @@ describe('buildNoteContent', () => {
     })
     expect(content).toBe(`---\ntype: Weekly\n${DATE_FIELDS}\n---\n\n\n\n# Woche 2026.21\n`)
   })
+
+  it('backdates created/dayCreated to a chosen date while keeping modified at the real save time', () => {
+    const content = buildNoteContent({
+      title: 'Backdated',
+      type: 'Note',
+      status: null,
+      createdDate: new Date('2026-01-10T09:00:00'),
+    })
+    expect(content).toBe(
+      '---\ntitle: Backdated\ntype: Note\ncreated: "2026-01-10 09:00:00"\ndayCreated: Sat\nmodified: "2026-01-15 12:30:45"\n---\n',
+    )
+  })
 })
 
 describe('resolveNewNote', () => {
@@ -199,6 +211,26 @@ describe('resolveNewNote', () => {
   it('omits status for Topic type', () => {
     const { entry } = resolveNewNote({ title: 'ML', type: 'Topic', vaultPath: '/vault' })
     expect(entry.status).toBeNull()
+  })
+
+  it('preserves a typed filename stem (spaces and case) instead of slugifying', () => {
+    const { entry } = resolveNewNote({ title: 'My Test', type: 'Note', vaultPath: '/vault', filenameStem: 'My Test' })
+    expect(entry.path).toBe('/vault/My Test.md')
+    expect(entry.filename).toBe('My Test.md')
+    expect(entry.title).toBe('My Test')
+  })
+
+  it('strips path-unsafe characters from a typed filename stem', () => {
+    const { entry } = resolveNewNote({ title: 'a/b: c', type: 'Note', vaultPath: '/vault', filenameStem: 'a/b: c' })
+    expect(entry.filename).toBe('a b c.md')
+  })
+
+  it('backdates the entry createdAt to match the chosen date (parsed as UTC like the backend)', () => {
+    const createdDate = new Date('2026-01-10T09:00:00')
+    const { entry, content } = resolveNewNote({ title: 'Backdated', type: 'Note', vaultPath: '/vault', createdDate })
+    expect(entry.createdAt).toBe(Math.floor(Date.UTC(2026, 0, 10, 9, 0, 0) / 1000))
+    expect(content).toContain('created: "2026-01-10 09:00:00"')
+    expect(content).toContain('dayCreated: Sat')
   })
 
   it('does not add a default status for other regular types', () => {

@@ -37,6 +37,7 @@ interface AppCommandsConfig {
   onReplaceInNote?: () => void
   onPastePlainText: () => void
   onCreateNote: (type?: string, options?: ImmediateCreateOptions) => void
+  onCreateNoteForDate?: () => void
   onCreateNoteOfType: (type: string) => void
   onSave: () => void
   onOpenSettings: () => void
@@ -164,6 +165,7 @@ type CommandRegistryCoreActions = Pick<
   | 'modifiedCount'
   | 'onQuickOpen'
   | 'onCreateNote'
+  | 'onCreateNoteForDate'
   | 'onCreateNoteOfType'
   | 'onSave'
   | 'onUndo'
@@ -282,6 +284,7 @@ function createKeyboardActions(
     onReplaceInNote: config.onReplaceInNote,
     onPastePlainText: config.onPastePlainText,
     onCreateNote: config.onCreateNote,
+    onCreateNoteForDate: config.onCreateNoteForDate,
     onSave: config.onSave,
     onUndo: config.onUndo,
     onRedo: config.onRedo,
@@ -326,6 +329,7 @@ function createMenuEventActionHandlers(
   Omit<Parameters<typeof useMenuEvents>[0], 'onArchiveNote'>,
   | 'onSetViewMode'
   | 'onCreateNote'
+  | 'onCreateNoteForDate'
   | 'onCreateType'
   | 'onQuickOpen'
   | 'onSave'
@@ -356,6 +360,7 @@ function createMenuEventActionHandlers(
   return {
     onSetViewMode: config.onSetViewMode,
     onCreateNote: config.onCreateNote,
+    onCreateNoteForDate: config.onCreateNoteForDate,
     onCreateType: config.onCreateType,
     onQuickOpen: config.onQuickOpen,
     onSave: config.onSave,
@@ -474,6 +479,7 @@ function createCommandRegistryCoreConfig(
     modifiedCount: config.modifiedCount,
     onQuickOpen: config.onQuickOpen,
     onCreateNote: config.onCreateNote,
+    onCreateNoteForDate: config.onCreateNoteForDate,
     onCreateNoteOfType: config.onCreateNoteOfType,
     onSave: config.onSave,
     onUndo: config.onUndo,
