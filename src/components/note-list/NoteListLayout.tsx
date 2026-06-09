@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { BulkActionBar } from '../BulkActionBar'
 import { FilterPills } from './FilterPills'
 import { NoteListHeader } from './NoteListHeader'
+import { NoteTimelineDialog } from './NoteTimelineDialog'
 import { EntityView, ListView } from './NoteListViews'
+import { trackEvent } from '../../lib/telemetry'
 import type { useNoteListModel } from './useNoteListModel'
 
 type NoteListLayoutProps = ReturnType<typeof useNoteListModel> & {
@@ -320,7 +323,13 @@ function NoteListLayoutHeader({
   | 'setSearch'
   | 'handleSearchKeyDown'
 >) {
+  const [showTimeline, setShowTimeline] = useState(false)
+  const openTimeline = () => {
+    trackEvent('note_timeline_opened', { count: searched.length })
+    setShowTimeline(true)
+  }
   return (
+    <>
     <NoteListHeader
       searchResultCount={noteListSearchResultCount({ entitySelection, query, searched, searchedGroups })}
       title={title}
@@ -344,9 +353,17 @@ function NoteListLayoutHeader({
       onCreateNote={handleCreateNote}
       onOpenType={onOpenType}
       onToggleSearch={toggleSearch}
+      onOpenTimeline={openTimeline}
       onSearchChange={setSearch}
       onSearchKeyDown={handleSearchKeyDown}
     />
+    <NoteTimelineDialog
+      open={showTimeline}
+      onClose={() => setShowTimeline(false)}
+      entries={searched}
+      locale={locale}
+    />
+    </>
   )
 }
 

@@ -21,6 +21,7 @@ const baseProps = {
   onCreateNote: vi.fn(),
   onOpenType: vi.fn(),
   onToggleSearch: vi.fn(),
+  onOpenTimeline: vi.fn(),
   onSearchChange: vi.fn(),
   onSearchKeyDown: vi.fn(),
 }

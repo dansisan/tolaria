@@ -1,4 +1,4 @@
-import { CircleNotch as Loader2, MagnifyingGlass, Plus, SidebarSimple, X } from '@phosphor-icons/react'
+import { ChartBar, CircleNotch as Loader2, MagnifyingGlass, Plus, SidebarSimple, X } from '@phosphor-icons/react'
 import type { VaultEntry } from '../../types'
 import type { SortOption, SortDirection } from '../../utils/noteListHelpers'
 import { translate, type AppLocale, type TranslationKey } from '../../lib/i18n'
@@ -57,6 +57,7 @@ interface NoteListHeaderProps {
   onCreateNote: () => void
   onOpenType: (entry: VaultEntry) => void
   onToggleSearch: () => void
+  onOpenTimeline: () => void
   onSearchChange: (value: string) => void
   onSearchKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void
   onGitRepositoryChange?: (path: string) => void
@@ -173,6 +174,7 @@ function HeaderActions({
   onSortChange,
   onCreateNote,
   onToggleSearch,
+  onOpenTimeline,
 }: Pick<
   NoteListHeaderProps,
   | 'isEntityView'
@@ -184,12 +186,16 @@ function HeaderActions({
   | 'onSortChange'
   | 'onCreateNote'
   | 'onToggleSearch'
+  | 'onOpenTimeline'
 > & {
   locale: AppLocale
 }) {
   return (
     <div className="ml-3 flex shrink-0 items-center justify-end gap-2" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
       {!isEntityView && <SortDropdown groupLabel="__list__" current={listSort} direction={listDirection} customProperties={customProperties} locale={locale} onChange={onSortChange} />}
+      <Button type="button" variant="ghost" size="icon-xs" className={NOTE_LIST_ACTION_BUTTON_CLASSNAME} onClick={onOpenTimeline} title={translate(locale, 'noteList.timeline.action')} aria-label={translate(locale, 'noteList.timeline.action')}>
+        <ChartBar size={16} />
+      </Button>
       <Button type="button" variant="ghost" size="icon-xs" className={NOTE_LIST_ACTION_BUTTON_CLASSNAME} onClick={onToggleSearch} title={translate(locale, 'noteList.searchAction')} aria-label={translate(locale, 'noteList.searchAction')}>
         <MagnifyingGlass size={16} />
       </Button>
@@ -312,6 +318,7 @@ export function NoteListHeader({
   onCreateNote,
   onOpenType,
   onToggleSearch,
+  onOpenTimeline,
   onSearchChange,
   onSearchKeyDown,
   onGitRepositoryChange,
@@ -341,6 +348,7 @@ export function NoteListHeader({
           onSortChange={onSortChange}
           onCreateNote={onCreateNote}
           onToggleSearch={onToggleSearch}
+          onOpenTimeline={onOpenTimeline}
         />
       </div>
       <RepositorySelectorRow
