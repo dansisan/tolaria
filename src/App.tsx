@@ -916,6 +916,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     writableVaultPaths,
     initialH1AutoRenameEnabled: settings.initial_h1_auto_rename_enabled !== false,
     onInternalVaultWrite: markRecentVaultWrite,
+    refreshEntries: refreshVaultEntries,
     locale: appLocale,
   })
   useEffect(() => {
@@ -1559,6 +1560,21 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     }
   }, [refreshVaultAiGuidance, resolvedPath, vault])
 
+  const handleRecomputeMetadata = useCallback(async () => {
+    if (!resolvedPath) return
+    try {
+      const tauriInvoke = isTauri() ? invoke : mockInvoke
+      const changed = await tauriInvoke<number>('backfill_derived_frontmatter', { path: resolvedPath })
+      await vault.reloadVault()
+      setToastMessage(changed > 0
+        ? translate(appLocale, 'command.recomputeMetadata.toast.done', { count: changed })
+        : translate(appLocale, 'command.recomputeMetadata.toast.none'))
+      trackEvent('note_metadata_recomputed', { changed })
+    } catch (err) {
+      setToastMessage(translate(appLocale, 'command.recomputeMetadata.toast.failed', { error: String(err) }))
+    }
+  }, [appLocale, resolvedPath, vault])
+
   const restoreVaultAiGuidance = useCallback(async (successToast: string | null = 'Tolaria AI guidance restored') => {
     if (!resolvedPath) return
     try {
@@ -1852,6 +1868,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     onInstallMcp: openMcpSetupDialog,
     onReloadVault: handleManualVaultReload,
     onRepairVault: handleRepairVault,
+    onRecomputeMetadata: handleRecomputeMetadata,
     onSetNoteIcon: handleSetNoteIconCommand,
     onRemoveNoteIcon: handleRemoveNoteIconCommand,
     onChangeNoteType: changeNoteTypeCommand,

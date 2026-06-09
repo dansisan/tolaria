@@ -199,6 +199,16 @@ pub fn update_frontmatter_content(
     .apply_to_content(DocumentText(&updated))
 }
 
+/// Returns the document body after the frontmatter block, or the whole
+/// document when there's no (valid) frontmatter. Used by derived-field stampers
+/// that must not look at frontmatter content when measuring the note body.
+pub(super) fn content_body(content: &str) -> &str {
+    match split_frontmatter_block(content) {
+        Ok(Some(block)) => block.rest,
+        _ => content,
+    }
+}
+
 /// Returns true when the content's frontmatter block already declares `key`
 /// (exact, top-level match). Used to avoid adding a key to notes that don't use it.
 pub fn frontmatter_has_key(content: &str, key: &str) -> bool {

@@ -153,10 +153,10 @@ pub async fn save_note_content(
     vault_path: Option<PathBuf>,
 ) -> Result<Vec<String>, String> {
     tokio::task::spawn_blocking(move || {
-        let stamped = crate::frontmatter::stamp_modified_date(
-            &content,
-            &chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
-        );
+        let ctx = crate::frontmatter::DeriveContext {
+            timestamp: chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+        };
+        let stamped = crate::frontmatter::apply_derived_frontmatter(&content, &ctx);
         with_writable_note_path(path, vault_path, |validated_path| {
             vault::save_note_content_tracking_removed_attachments(validated_path, &stamped)
         })
@@ -470,6 +470,25 @@ mod tests {
         assert!(!saved.contains("2020-01-01"));
         assert!(saved.contains("modified:"));
         assert!(saved.contains("# Note\n\nBody"));
+    }
+
+    #[tokio::test]
+    async fn save_note_content_refreshes_existing_code_block_count() {
+        let dir = TempDir::new().unwrap();
+        let root = vault_root(&dir);
+        let note = root.join("note.md");
+
+        save_note_content(
+            note.clone(),
+            "---\ncodeBlocks: 0\n---\n# Note\n\n```\ncode\n```\n".to_string(),
+            Some(root.clone()),
+        )
+        .await
+        .unwrap();
+
+        let saved = get_note_content(note, Some(root)).unwrap();
+        assert!(saved.contains("codeBlocks: 1"));
+        assert!(saved.contains("# Note"));
     }
 
     #[tokio::test]

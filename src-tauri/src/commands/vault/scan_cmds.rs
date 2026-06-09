@@ -96,6 +96,17 @@ pub async fn reload_vault(
     .map_err(|e| format!("Task panicked: {e}"))?
 }
 
+/// Re-derive content-based frontmatter (e.g. `codeBlocks`) across every note in
+/// the vault and return how many notes changed. Brings an existing vault up to
+/// date with fields that are otherwise only stamped on save.
+#[tauri::command]
+pub async fn backfill_derived_frontmatter(path: String) -> Result<usize, String> {
+    let path = expand_tilde(&path).into_owned();
+    tokio::task::spawn_blocking(move || vault::backfill_derived_frontmatter(Path::new(&path)))
+        .await
+        .map_err(|e| format!("Task panicked: {e}"))?
+}
+
 #[tauri::command]
 pub async fn search_vault(
     vault_path: String,

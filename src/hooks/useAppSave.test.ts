@@ -380,6 +380,26 @@ describe('useAppSave', () => {
     )
   })
 
+  it('re-reads the saved note from disk so backend-stamped frontmatter becomes searchable', async () => {
+    vi.mocked(isTauri).mockReturnValue(true)
+    const refreshEntries = vi.fn().mockResolvedValue(undefined)
+    const entry = makeEntry('/vault/note.md', 'Note', 'note.md')
+
+    const { result } = renderSave({
+      refreshEntries,
+      tabs: [{ entry, content: '# Note\n\nBefore' }],
+      activeTabPath: entry.path,
+      unsavedPaths: new Set([entry.path]),
+    })
+
+    await act(async () => {
+      result.current.handleContentChange(entry.path, '# Note\n\n```\ncode\n```')
+      await result.current.handleSave()
+    })
+
+    expect(refreshEntries).toHaveBeenCalledWith(['/vault/note.md'])
+  })
+
   it('debounces untitled H1 auto-rename until the user pauses typing', async () => {
     vi.useFakeTimers()
     vi.mocked(isTauri).mockReturnValue(true)
