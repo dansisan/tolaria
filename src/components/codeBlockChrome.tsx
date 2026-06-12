@@ -146,6 +146,7 @@ export function CodeBlockChrome({
       data-editor-code-copy
       style={{ left, top: target.top }}
     >
+      <CodeBlockCopyButton codeBlock={target.codeBlock} label={t('editor.codeBlock.copy')} />
       {editable && (
         <CodeBlockWrapToggle
           codeBlock={target.codeBlock}
@@ -153,7 +154,6 @@ export function CodeBlockChrome({
           labels={{ wrap: t('editor.codeBlock.wrapLines'), nowrap: t('editor.codeBlock.dontWrapLines') }}
         />
       )}
-      <CodeBlockCopyButton codeBlock={target.codeBlock} label={t('editor.codeBlock.copy')} />
     </div>
   )
 }
