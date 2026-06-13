@@ -58,4 +58,31 @@ describe('note list query filter tokens', () => {
     const result = filterEntriesByNoteListQuery(all, '#guitar created:2025', { allEntries: all, typeEntryMap: {} })
     expect(result.map((e) => e.title)).toEqual(['Riffs'])
   })
+
+  it('matches a value inside a list-valued property field', () => {
+    const all = [
+      makeEntry({ path: '/v/x.md', title: 'Has B', properties: { people: ['A', 'B', 'C'] } }),
+      makeEntry({ path: '/v/y.md', title: 'No B', properties: { people: ['A', 'C'] } }),
+    ]
+    const result = filterEntriesByNoteListQuery(all, 'people:B', { allEntries: all, typeEntryMap: {} })
+    expect(result.map((e) => e.title)).toEqual(['Has B'])
+  })
+
+  it('matches a value inside a relationship list', () => {
+    const all = [
+      makeEntry({ path: '/v/x.md', title: 'Linked', relationships: { people: ['[[Alice]]', '[[Bob]]'] } }),
+      makeEntry({ path: '/v/y.md', title: 'Unlinked', relationships: { people: ['[[Carol]]'] } }),
+    ]
+    const result = filterEntriesByNoteListQuery(all, 'people:Bob', { allEntries: all, typeEntryMap: {} })
+    expect(result.map((e) => e.title)).toEqual(['Linked'])
+  })
+
+  it('still matches scalar fields exactly, not as substrings', () => {
+    const all = [
+      makeEntry({ path: '/v/x.md', title: 'Active note', status: 'Active' }),
+      makeEntry({ path: '/v/y.md', title: 'Inactive note', status: 'Inactive' }),
+    ]
+    const result = filterEntriesByNoteListQuery(all, 'status:Active', { allEntries: all, typeEntryMap: {} })
+    expect(result.map((e) => e.title)).toEqual(['Active note'])
+  })
 })
