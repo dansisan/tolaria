@@ -70,20 +70,27 @@ function tokenConditions(options: {
   operator: string
   value: string
   quoted: boolean
+  isArray: boolean
 }): FilterCondition[] {
-  const { field, operator, value, quoted } = options
+  const { field, operator, value, quoted, isArray } = options
+  // List fields (relationships, list properties) match on membership: `people:B`
+  // should find any note whose people list contains B. `equals` on an array
+  // intentionally requires a single-item list, so use `contains` for lists.
+  // Scalars stay on `equals` so `status:Active` doesn't also match `Inactive`.
+  const matchOp = isArray ? 'contains' : 'equals'
   if (operator === '>') return [{ field, op: 'after', value }]
   if (operator === '<') return [{ field, op: 'before', value }]
   if (quoted && value === '') return [{ field, op: 'is_empty' }]
-  if (quoted) return [{ field, op: 'equals', value }]
+  if (quoted) return [{ field, op: matchOp, value }]
   if (value === '*') return [{ field, op: 'is_not_empty' }]
-  return shorthandDateConditions(field, value) ?? [{ field, op: 'equals', value }]
+  return shorthandDateConditions(field, value) ?? [{ field, op: matchOp, value }]
 }
 
 /** Split a search query into filter conditions and remaining free text. */
 export function parseSearchQueryFilters(
   query: string,
   isKnownField: SearchFilterFieldPredicate = () => true,
+  isArrayField: SearchFilterFieldPredicate = () => false,
 ): ParsedSearchQuery {
   const conditions: FilterCondition[] = []
   const text = query.replace(
@@ -97,6 +104,7 @@ export function parseSearchQueryFilters(
         operator,
         value: quotedValue ?? bareValue ?? '',
         quoted: quotedValue !== undefined,
+        isArray: isArrayField(field.toLowerCase()),
       }))
       return leading
     },
@@ -124,4 +132,28 @@ export function searchFilterFieldPredicate(entries: VaultEntry[]): SearchFilterF
     knownFieldsCache.set(entries, known)
   }
   return (field) => known.has(field)
+}
+
+const arrayFieldsCache = new WeakMap<VaultEntry[], Set<string>>()
+
+/** List-valued fields: relationships (always) and properties that hold an array. */
+function collectArrayFields(entries: VaultEntry[]): Set<string> {
+  const fields = new Set<string>()
+  for (const entry of entries) {
+    for (const key of Object.keys(entry.relationships)) fields.add(key.toLowerCase())
+    for (const [key, value] of Object.entries(entry.properties)) {
+      if (Array.isArray(value)) fields.add(key.toLowerCase())
+    }
+  }
+  return fields
+}
+
+/** Predicate marking which known fields are list-valued (memoized per entry list). */
+export function searchArrayFieldPredicate(entries: VaultEntry[]): SearchFilterFieldPredicate {
+  let arrays = arrayFieldsCache.get(entries)
+  if (!arrays) {
+    arrays = collectArrayFields(entries)
+    arrayFieldsCache.set(entries, arrays)
+  }
+  return (field) => arrays.has(field)
 }

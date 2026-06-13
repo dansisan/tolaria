@@ -1,7 +1,7 @@
 import type { VaultEntry } from '../../types'
 import type { DateDisplayFormat } from '../../utils/dateDisplay'
 import type { RelationshipGroup } from '../../utils/noteListHelpers'
-import { parseSearchQueryFilters, searchFilterFieldPredicate, type ParsedSearchQuery } from '../../utils/searchQueryFilters'
+import { parseSearchQueryFilters, searchArrayFieldPredicate, searchFilterFieldPredicate, type ParsedSearchQuery } from '../../utils/searchQueryFilters'
 import { entryMatchesFilterConditions } from '../../utils/viewFilters'
 import { resolvePropertyChipLabels } from '../note-item/propertyChipValues'
 
@@ -57,7 +57,11 @@ function matchesWords(texts: string[], words: string[]): boolean {
 
 /** Parse filter tokens against the fields known to this vault's entries. */
 export function parseNoteListQuery(query: string, context: NoteListSearchContext): ParsedSearchQuery {
-  return parseSearchQueryFilters(normalizeQuery(query), searchFilterFieldPredicate(context.allEntries))
+  return parseSearchQueryFilters(
+    normalizeQuery(query),
+    searchFilterFieldPredicate(context.allEntries),
+    searchArrayFieldPredicate(context.allEntries),
+  )
 }
 
 function matchesQueryText(entry: VaultEntry, text: string, context: NoteListSearchContext): boolean {

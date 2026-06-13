@@ -6,9 +6,10 @@
 //! across a whole vault, so the save path and the bulk path can never drift.
 //!
 //! Each stamper owns its own write policy: `modified` updates only when the
-//! note already declares the key, while `codeBlocks` is added as soon as a note
-//! contains code (and then kept in sync). Neither forces frontmatter onto a
-//! plain prose note that has nothing to record.
+//! note already declares the key, while content fields like `codeBlocks` and
+//! `bottomLines` are added as soon as a note has something to record (and then
+//! kept in sync). None forces frontmatter onto a plain prose note that has
+//! nothing to record.
 
 use super::ops::content_body;
 use super::{frontmatter_has_key, stamp_modified_date, update_frontmatter_content, FrontmatterValue};
@@ -34,24 +35,31 @@ pub fn apply_derived_frontmatter(content: &str, ctx: &DeriveContext) -> String {
 /// `modified` there would rewrite every note's timestamp, which a migration
 /// must not do.
 pub fn apply_content_frontmatter(content: &str) -> String {
-    stamp_code_block_count(content)
+    let content = stamp_code_block_count(content);
+    stamp_bottom_line_count(&content)
 }
 
-/// Refresh the `codeBlocks` count. The key is added as soon as a note contains
-/// at least one fenced code block, and thereafter kept in sync (including back
-/// down to `0` once present). A prose note that has never contained code — and
-/// so has no key — is left untouched, so frontmatter is never forced onto it.
+/// Refresh the `codeBlocks` count — the number of fenced code blocks in the body.
 pub fn stamp_code_block_count(content: &str) -> String {
-    let count = count_fenced_code_blocks(content);
-    if count == 0 && !frontmatter_has_key(content, "codeBlocks") {
+    stamp_content_count(content, "codeBlocks", count_fenced_code_blocks(content))
+}
+
+/// Refresh the `bottomLines` count — the number of non-blank lines below the
+/// last asterisk thematic break (`* * *`), typically draft fragments.
+pub fn stamp_bottom_line_count(content: &str) -> String {
+    stamp_content_count(content, "bottomLines", count_bottom_lines(content))
+}
+
+/// Write a content-derived count to `key`. The key is added as soon as `count`
+/// is non-zero, and thereafter kept in sync (including back down to `0` once
+/// present). A note that has nothing to record — `count == 0` and no existing
+/// key — is left untouched, so frontmatter is never forced onto plain prose.
+fn stamp_content_count(content: &str, key: &str, count: u32) -> String {
+    if count == 0 && !frontmatter_has_key(content, key) {
         return content.to_string();
     }
-    update_frontmatter_content(
-        content,
-        "codeBlocks",
-        Some(FrontmatterValue::Number(f64::from(count))),
-    )
-    .unwrap_or_else(|_| content.to_string())
+    update_frontmatter_content(content, key, Some(FrontmatterValue::Number(f64::from(count))))
+        .unwrap_or_else(|_| content.to_string())
 }
 
 /// Count fenced code blocks (```` ``` ```` or `~~~`) in the note body. A block
@@ -100,6 +108,29 @@ impl Fence {
     fn closes(self, open: Fence) -> bool {
         self.marker == open.marker && self.length >= open.length
     }
+}
+
+/// Count the non-blank lines below the last asterisk thematic break in the body.
+/// The bottom-most divider wins, so the count reflects the final fragment
+/// section; returns 0 when the note has no such divider.
+fn count_bottom_lines(content: &str) -> u32 {
+    let lines: Vec<&str> = content_body(content).lines().collect();
+    let Some(divider) = lines.iter().rposition(|line| is_asterisk_thematic_break(line)) else {
+        return 0;
+    };
+    lines[divider + 1..]
+        .iter()
+        .filter(|line| !line.trim().is_empty())
+        .count() as u32
+}
+
+/// Whether a line is a thematic break written with asterisks — only `*` and
+/// spaces, with at least three asterisks (`***`, `* * *`). Excludes list items
+/// like `* note` and emphasis runs.
+fn is_asterisk_thematic_break(line: &str) -> bool {
+    let trimmed = line.trim();
+    trimmed.chars().filter(|&c| c == '*').count() >= 3
+        && trimmed.chars().all(|c| c == '*' || c == ' ')
 }
 
 #[cfg(test)]
@@ -192,6 +223,47 @@ mod tests {
         assert!(derived.contains("2026-06-09 12:00:00"));
         assert!(derived.contains("codeBlocks: 1"));
         assert!(!derived.contains("2020-01-01"));
+    }
+
+    #[test]
+    fn counts_non_blank_lines_below_the_last_asterisk_divider() {
+        assert_eq!(count_bottom_lines("# Note\n\n* * *\n\ndraft a\ndraft b\n"), 2);
+        // Blank lines below the divider don't count.
+        assert_eq!(count_bottom_lines("# Note\n\n***\n\n\nonly one\n\n"), 1);
+        // No divider → nothing below to count.
+        assert_eq!(count_bottom_lines("# Note\n\nJust prose.\n"), 0);
+    }
+
+    #[test]
+    fn ignores_list_items_and_counts_below_the_final_divider() {
+        // `* item` is a list bullet, not a thematic break.
+        assert_eq!(count_bottom_lines("* item one\n* item two\n"), 0);
+        // With several dividers, only the bottom-most section is counted.
+        assert_eq!(
+            count_bottom_lines("a\n* * *\nb\nc\n***\nfinal fragment\n"),
+            1
+        );
+    }
+
+    #[test]
+    fn stamp_adds_bottom_lines_for_a_plain_note_with_draft_fragments() {
+        let stamped = stamp_bottom_line_count("# Note\n\n* * *\n\ndraft a\ndraft b\n");
+        assert!(stamped.starts_with("---\n"));
+        assert!(stamped.contains("bottomLines: 2"));
+    }
+
+    #[test]
+    fn stamp_leaves_notes_without_a_divider_or_key_alone() {
+        let content = "---\ntitle: Note\n---\n# Note\n\nProse only.\n";
+        assert_eq!(stamp_bottom_line_count(content), content);
+    }
+
+    #[test]
+    fn content_pipeline_stamps_code_blocks_and_bottom_lines_together() {
+        let content = "# Note\n\n```\ncode\n```\n\n* * *\n\ndraft a\ndraft b\n";
+        let derived = apply_content_frontmatter(content);
+        assert!(derived.contains("codeBlocks: 1"));
+        assert!(derived.contains("bottomLines: 2"));
     }
 
     #[test]
