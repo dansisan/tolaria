@@ -1,5 +1,10 @@
 const ROOT_EDITABLE_SELECTOR = '.ProseMirror[contenteditable="true"]'
 const FALLBACK_EDITABLE_SELECTOR = '.bn-editor [contenteditable="true"]'
+// Raw mode unmounts the BlockNote editor and renders CodeMirror instead, whose
+// editable element is `.cm-content`. Without this the focus-editor flow finds
+// nothing to focus and silently gives up.
+const RAW_EDITABLE_SELECTOR = '.cm-content[contenteditable="true"]'
+const EDITABLE_SELECTORS = [ROOT_EDITABLE_SELECTOR, FALLBACK_EDITABLE_SELECTOR, RAW_EDITABLE_SELECTOR]
 const MAX_FOCUS_ATTEMPTS = 12
 const MAX_TITLE_SELECTION_ATTEMPTS = 12
 
@@ -125,14 +130,9 @@ function focusEditableCandidate(editable: HTMLElement): boolean {
 }
 
 function focusEditableNode(): boolean {
-  const rootEditable = document.querySelector<HTMLElement>(ROOT_EDITABLE_SELECTOR)
-  if (rootEditable && focusEditableCandidate(rootEditable)) {
-    return true
-  }
-
-  const fallbackEditable = document.querySelector<HTMLElement>(FALLBACK_EDITABLE_SELECTOR)
-  if (fallbackEditable && focusEditableCandidate(fallbackEditable)) {
-    return true
+  for (const selector of EDITABLE_SELECTORS) {
+    const editable = document.querySelector<HTMLElement>(selector)
+    if (editable && focusEditableCandidate(editable)) return true
   }
 
   return false

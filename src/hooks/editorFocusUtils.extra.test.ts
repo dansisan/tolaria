@@ -83,6 +83,24 @@ describe('editorFocusUtils extra coverage', () => {
     expect(setTextCursorPosition).toHaveBeenCalledWith('title', 'start')
   })
 
+  it('focuses the CodeMirror editable when raw mode is active and no rich editor exists', () => {
+    const editable = document.createElement('div')
+    editable.className = 'cm-content'
+    editable.contentEditable = 'true'
+    editable.setAttribute('contenteditable', 'true')
+    editable.tabIndex = -1
+    Object.defineProperty(editable, 'isContentEditable', { configurable: true, value: true })
+    document.body.appendChild(editable)
+
+    const realFocus = HTMLElement.prototype.focus.bind(editable)
+    const focusSpy = vi.spyOn(editable, 'focus').mockImplementation(() => realFocus())
+
+    focusEditorWithRetries({ focus: vi.fn() }, false, undefined)
+
+    expect(focusSpy).toHaveBeenCalled()
+    expect(document.activeElement).toBe(editable)
+  })
+
   it('schedules another animation frame when nothing focusable is available yet', () => {
     const rAF = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 1)
 
