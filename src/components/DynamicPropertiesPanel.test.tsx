@@ -236,6 +236,35 @@ describe('DynamicPropertiesPanel', () => {
     expect(screen.getByText('Cadence')).toBeInTheDocument()
   })
 
+  it('renders the aliases chip editor (not as a generic property row)', () => {
+    renderPanel({ entry: makeEntry({ aliases: ['Ali', 'A.'] }), onUpdateProperty })
+    const row = screen.getByTestId('aliases-property')
+    expect(within(row).getByText('Ali')).toBeInTheDocument()
+    expect(within(row).getByText('A.')).toBeInTheDocument()
+  })
+
+  it('omits the aliases row when there is no update handler', () => {
+    renderPanel({ entry: makeEntry({ aliases: ['Ali'] }) })
+    expect(screen.queryByTestId('aliases-property')).not.toBeInTheDocument()
+  })
+
+  it('adds a new alias through the chip editor', () => {
+    renderPanel({ entry: makeEntry({ aliases: ['Ali'] }), onUpdateProperty })
+    fireEvent.click(screen.getByTitle('Add aliases'))
+    const input = screen.getByPlaceholderText('Aliases...')
+    fireEvent.change(input, { target: { value: 'Alex' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onUpdateProperty).toHaveBeenCalledWith('aliases', ['Ali', 'Alex'])
+  })
+
+  it('deletes the aliases key when the last chip is removed', () => {
+    renderPanel({ entry: makeEntry({ aliases: ['Ali'] }), onUpdateProperty, onDeleteProperty })
+    const row = screen.getByTestId('aliases-property')
+    fireEvent.click(within(row).getByTitle('Remove'))
+    expect(onDeleteProperty).toHaveBeenCalledWith('aliases')
+    expect(onUpdateProperty).not.toHaveBeenCalled()
+  })
+
   it('shows former relationship key with plain text value in Properties', () => {
     renderPanel({ frontmatter: { 'Belongs to': 'some-team', cadence: 'Monthly' } })
     // 'Belongs to' has a plain text value, not a wikilink — should render as property

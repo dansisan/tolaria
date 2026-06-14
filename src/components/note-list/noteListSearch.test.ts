@@ -68,6 +68,19 @@ describe('note list query filter tokens', () => {
     expect(result.map((e) => e.title)).toEqual(['Has B'])
   })
 
+  it('matches notes that used any merged variant when searching one alias', () => {
+    const harold = makeEntry({ path: '/v/harold.md', filename: 'harold.md', title: 'Harold', aliases: ['H', 'H.'] })
+    const all = [
+      harold,
+      makeEntry({ path: '/v/a.md', title: 'A', properties: { people: ['H'] } }),
+      makeEntry({ path: '/v/b.md', title: 'B', properties: { people: ['H.'] } }),
+      makeEntry({ path: '/v/c.md', title: 'C', properties: { people: ['Harold'] } }),
+      makeEntry({ path: '/v/d.md', title: 'D', properties: { people: ['Other'] } }),
+    ]
+    const result = filterEntriesByNoteListQuery(all, 'people:H', { allEntries: all, typeEntryMap: {} })
+    expect(result.map((e) => e.title)).toEqual(['A', 'B', 'C'])
+  })
+
   it('matches a value inside a relationship list', () => {
     const all = [
       makeEntry({ path: '/v/x.md', title: 'Linked', relationships: { people: ['[[Alice]]', '[[Bob]]'] } }),

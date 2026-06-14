@@ -30,6 +30,7 @@ import {
 } from './sidebar/SidebarLoadingSections'
 import { useSidebarTypeInteractions } from './sidebar/useSidebarTypeInteractions'
 import { TagsSection } from './sidebar/TagsSection'
+import { PeopleSection } from './sidebar/PeopleSection'
 import type { AppLocale } from '../lib/i18n'
 import type { FolderFileActions } from '../hooks/useFileActions'
 import type { AllNotesFileVisibility } from '../utils/allNotesFileVisibility'
@@ -40,6 +41,7 @@ interface SidebarProps {
   selection: SidebarSelection
   onSelect: (selection: SidebarSelection) => void
   onTagSearch?: (tag: string) => void
+  onPersonSearch?: (slug: string) => void
   currentSearch?: string
   onSelectNote?: (entry: VaultEntry) => void
   onCreateType?: (type: string) => void
@@ -87,6 +89,7 @@ interface SidebarNavigationProps extends Pick<
   | 'selection'
   | 'onSelect'
   | 'onTagSearch'
+  | 'onPersonSearch'
   | 'currentSearch'
   | 'onSelectFavorite'
   | 'onReorderFavorites'
@@ -478,6 +481,13 @@ function SidebarNavigation(props: SidebarNavigationProps) {
         toggleGroup={props.toggleGroup}
         locale={props.locale}
       />
+      {!props.loading && props.onPersonSearch && (
+        <PeopleSection
+          entries={props.entries}
+          onPersonSearch={props.onPersonSearch}
+          locale={props.locale}
+        />
+      )}
       {!props.loading && props.onTagSearch && (
         <TagsSection
           entries={props.entries}
@@ -610,6 +620,7 @@ function SidebarRuntimeNavigation({
       selection={props.selection}
       onSelect={props.onSelect}
       onTagSearch={props.onTagSearch}
+      onPersonSearch={props.onPersonSearch}
       currentSearch={props.currentSearch}
       onSelectFavorite={props.onSelectFavorite}
       onReorderFavorites={props.onReorderFavorites}

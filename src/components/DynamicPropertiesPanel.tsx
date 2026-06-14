@@ -1,4 +1,4 @@
-import { Plus } from '@phosphor-icons/react'
+import { At, Plus } from '@phosphor-icons/react'
 import { useMemo, useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import type { VaultEntry, WorkspaceIdentity } from '../types'
@@ -7,6 +7,7 @@ import type { ParsedFrontmatter } from '../utils/frontmatter'
 import { usePropertyPanelState } from '../hooks/usePropertyPanelState'
 import { getEffectiveDisplayMode, detectPropertyType, DISPLAY_MODE_ICONS } from '../utils/propertyTypes'
 import { SmartPropertyValueCell, DisplayModeSelector } from './PropertyValueCells'
+import { TagPillList } from './EditableValue'
 import { TypeSelector } from './TypeSelector'
 import { WorkspaceSelector } from './WorkspaceSelector'
 import { AddPropertyForm } from './AddPropertyForm'
@@ -33,6 +34,37 @@ export function containsWikilinks(value: FrontmatterValue): boolean {
 }
 
 const PROPERTY_ROW_CLASS_NAME = 'group/prop grid min-h-7 min-w-0 grid-cols-2 items-center gap-2 rounded px-1.5 outline-none transition-colors hover:bg-muted focus:bg-muted focus:ring-1 focus:ring-primary'
+
+/**
+ * `aliases` is a reserved/structural key, so it never appears in the generic
+ * property rows. Surface it here with the same chip editor relationship fields
+ * use, writing the structural `aliases` list (multiple values, no raw mode).
+ */
+function AliasesRow({ entry, onUpdate, onDelete }: {
+  entry: VaultEntry
+  onUpdate: (key: string, value: FrontmatterValue) => void
+  onDelete?: (key: string) => void
+}) {
+  const label = humanizePropertyKey('aliases')
+  const handleSave = (items: string[]) => {
+    if (items.length === 0 && onDelete) onDelete('aliases')
+    else onUpdate('aliases', items)
+  }
+
+  return (
+    <div className={PROPERTY_ROW_CLASS_NAME} style={PROPERTY_PANEL_ROW_STYLE} data-testid="aliases-property">
+      <span className={PROPERTY_PANEL_LABEL_CLASS_NAME}>
+        <span className={PROPERTY_PANEL_LABEL_ICON_SLOT_CLASS_NAME} data-testid="aliases-row-icon-slot">
+          <At size={14} className="shrink-0" data-testid="aliases-row-icon" />
+        </span>
+        <span className="min-w-0 flex-1 truncate">{label}</span>
+      </span>
+      <div className="min-w-0">
+        <TagPillList items={entry.aliases} onSave={handleSave} label={label} />
+      </div>
+    </div>
+  )
+}
 
 function PropertyRow({ propKey, value, editingKey, displayMode, autoMode, vaultStatuses, vaultTags, locale, onStartEdit, onSave, onSaveList, onUpdate, onDelete, onDisplayModeChange }: {
   propKey: string; value: FrontmatterValue; editingKey: string | null
@@ -541,6 +573,9 @@ function DynamicPropertiesPanelContent({
           typeIconKeys={typeIconKeys}
           workspaces={workspaces}
         />
+        {onUpdateProperty && (
+          <AliasesRow entry={entry} onUpdate={onUpdateProperty} onDelete={onDeleteProperty} />
+        )}
         <PropertyEntryRows
           source="frontmatter"
           entries={propertyEntries}

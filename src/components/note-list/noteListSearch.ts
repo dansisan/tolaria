@@ -2,8 +2,13 @@ import type { VaultEntry } from '../../types'
 import type { DateDisplayFormat } from '../../utils/dateDisplay'
 import type { RelationshipGroup } from '../../utils/noteListHelpers'
 import { parseSearchQueryFilters, searchArrayFieldPredicate, searchFilterFieldPredicate, type ParsedSearchQuery } from '../../utils/searchQueryFilters'
+import type { FilterCondition } from '../../types'
 import { entryMatchesFilterConditions } from '../../utils/viewFilters'
+import { expandPersonSearchValue } from '../../utils/peopleMentions'
 import { resolvePropertyChipLabels } from '../note-item/propertyChipValues'
+
+/** Frontmatter field whose values get merged across name variants. */
+const PEOPLE_FIELD = 'people'
 
 interface NoteListSearchContext {
   allEntries: VaultEntry[]
@@ -81,6 +86,18 @@ function matchesQueryText(entry: VaultEntry, text: string, context: NoteListSear
   return matchesWords(resolveSearchableText(entry, context), words)
 }
 
+/**
+ * Rewrite a `people:` condition into an "any of the merged variants" match, so a
+ * search for one alias finds notes that listed the person under a different one.
+ */
+function expandPeopleCondition(condition: FilterCondition, context: NoteListSearchContext): FilterCondition {
+  if (condition.field.toLowerCase() !== PEOPLE_FIELD) return condition
+  if (condition.op !== 'contains' && condition.op !== 'equals') return condition
+  if (typeof condition.value !== 'string') return condition
+  const variants = expandPersonSearchValue(condition.value, context.allEntries)
+  return variants ? { field: condition.field, op: 'any_of', value: variants } : condition
+}
+
 export function matchesNoteListQuery(
   entry: VaultEntry,
   query: string,
@@ -90,7 +107,8 @@ export function matchesNoteListQuery(
   if (!normalizedQuery) return true
 
   const { text, conditions } = parseNoteListQuery(normalizedQuery, context)
-  if (!entryMatchesFilterConditions(entry, conditions)) return false
+  const expanded = conditions.map((condition) => expandPeopleCondition(condition, context))
+  if (!entryMatchesFilterConditions(entry, expanded)) return false
   return matchesQueryText(entry, text, context)
 }
 
