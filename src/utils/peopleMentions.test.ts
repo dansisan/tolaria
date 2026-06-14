@@ -4,6 +4,8 @@ import {
   buildPeopleMentions,
   expandPersonSearchValue,
   filterPeople,
+  firstPersonRowIndex,
+  movePersonSelection,
   peopleSearchToken,
   sortPeopleByCount,
   type PersonMention,
@@ -165,6 +167,18 @@ describe('buildPeopleDialogRows', () => {
     expect(headers).toHaveLength(1)
     expect(headers[0].kind === 'header' && headers[0].label).toBe('results')
     expect(rows.filter((r) => r.kind === 'person').map((r) => r.kind === 'person' && r.person.name)).toEqual(['Carol', 'Alice'])
+  })
+
+  it('navigates person rows with the keyboard, skipping headers', () => {
+    // [header 'all', Bob, Carol, Alice] → person rows at flat indexes 1,2,3
+    const rows = buildPeopleDialogRows(PEOPLE, { query: '', sort: 'count', topCount: 10 })
+    expect(firstPersonRowIndex(rows)).toBe(1)
+    expect(movePersonSelection(rows, null, 'down')).toBe(1)
+    expect(movePersonSelection(rows, 1, 'down')).toBe(2)
+    expect(movePersonSelection(rows, 3, 'down')).toBe(3) // clamps at last
+    expect(movePersonSelection(rows, 2, 'up')).toBe(1)
+    expect(movePersonSelection(rows, 1, 'up')).toBeNull() // back to search box
+    expect(movePersonSelection([], null, 'down')).toBeNull()
   })
 
   it('orders the all-people section by the active sort', () => {

@@ -155,6 +155,33 @@ function personRow(person: PersonMention, section: string): PeopleDialogRow {
   return { kind: 'person', id: `${section}:${person.query}`, person }
 }
 
+/** Flat-row index of the first selectable person row, or null when there are none. */
+export function firstPersonRowIndex(rows: PeopleDialogRow[]): number | null {
+  const index = rows.findIndex((row) => row.kind === 'person')
+  return index >= 0 ? index : null
+}
+
+/**
+ * Move the keyboard highlight over person rows (skipping headers). Moving up past
+ * the first person returns null, i.e. focus goes back to the search box.
+ */
+export function movePersonSelection(
+  rows: PeopleDialogRow[],
+  current: number | null,
+  direction: 'up' | 'down',
+): number | null {
+  const personIndexes = rows.flatMap((row, index) => (row.kind === 'person' ? [index] : []))
+  if (personIndexes.length === 0) return null
+  if (direction === 'down') {
+    if (current === null) return personIndexes[0]
+    const pos = personIndexes.indexOf(current)
+    return personIndexes[Math.min(pos + 1, personIndexes.length - 1)]
+  }
+  if (current === null) return null
+  const pos = personIndexes.indexOf(current)
+  return pos <= 0 ? null : personIndexes[pos - 1]
+}
+
 /**
  * Flatten people into virtualizable rows. When searching, a single "results"
  * section. Otherwise the full "all people" list in the active sort, preceded by

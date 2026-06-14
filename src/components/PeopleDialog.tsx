@@ -1,16 +1,28 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MagnifyingGlass, User } from '@phosphor-icons/react'
-import { Virtuoso } from 'react-virtuoso'
+import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { buildPeopleDialogRows, type PeopleDialogRow, type PersonMention } from '../utils/peopleMentions'
+import {
+  buildPeopleDialogRows,
+  firstPersonRowIndex,
+  movePersonSelection,
+  type PeopleDialogRow,
+  type PersonMention,
+} from '../utils/peopleMentions'
 import { translate, type AppLocale } from '../lib/i18n'
 
 type SortMode = 'count' | 'name'
 
 /** How many people the "Top mentioned" preview section shows. */
 const TOP_MENTIONED_COUNT = 10
+
+interface PeopleDialogRowContext {
+  selectedIndex: number | null
+  locale: AppLocale
+  onSelect: (query: string) => void
+}
 
 function headerText(locale: AppLocale, row: Extract<PeopleDialogRow, { kind: 'header' }>): string {
   if (row.label === 'top') return translate(locale, 'people.dialog.topMentioned')
@@ -29,11 +41,12 @@ function SectionHeader({ text }: { text: string }) {
   )
 }
 
-function PersonRow({ person, onSelect }: { person: PersonMention; onSelect: () => void }) {
+function PersonRow({ person, isSelected, onSelect }: { person: PersonMention; isSelected: boolean; onSelect: () => void }) {
   return (
     <button
       type="button"
-      className="flex w-full cursor-pointer select-none items-center justify-between rounded px-2 py-1.5 text-left transition-colors hover:bg-accent"
+      data-selected={isSelected || undefined}
+      className={`flex w-full cursor-pointer select-none items-center justify-between rounded px-2 py-1.5 text-left transition-colors ${isSelected ? 'bg-accent' : 'hover:bg-accent'}`}
       style={{ gap: 8 }}
       onClick={onSelect}
     >
@@ -64,17 +77,15 @@ function SortToggle({ sort, onChange, locale }: { sort: SortMode; onChange: (sor
   )
 }
 
-function PeopleDialogRowContent({
-  row,
-  locale,
-  onSelect,
-}: {
-  row: PeopleDialogRow
-  locale: AppLocale
-  onSelect: (query: string) => void
-}) {
-  if (row.kind === 'header') return <SectionHeader text={headerText(locale, row)} />
-  return <PersonRow person={row.person} onSelect={() => onSelect(row.person.query)} />
+function renderPeopleDialogRow(index: number, row: PeopleDialogRow, context: PeopleDialogRowContext) {
+  if (row.kind === 'header') return <SectionHeader text={headerText(context.locale, row)} />
+  return (
+    <PersonRow
+      person={row.person}
+      isSelected={context.selectedIndex === index}
+      onSelect={() => context.onSelect(row.person.query)}
+    />
+  )
 }
 
 export function PeopleDialog({
@@ -92,6 +103,9 @@ export function PeopleDialog({
 }) {
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<SortMode>('count')
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
+  const virtuosoRef = useRef<VirtuosoHandle>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const rows = useMemo(
     () => buildPeopleDialogRows(people, { query, sort, topCount: TOP_MENTIONED_COUNT }),
@@ -99,10 +113,46 @@ export function PeopleDialog({
   )
   const hasPeople = rows.some((row) => row.kind === 'person')
 
-  const handleSelect = (personQuery: string) => {
+  useEffect(() => {
+    if (selectedIndex !== null) virtuosoRef.current?.scrollToIndex({ index: selectedIndex, align: 'center' })
+  }, [selectedIndex])
+
+  // Filtering or re-sorting invalidates the highlighted index, so drop back to the search box.
+  const handleQueryChange = useCallback((value: string) => {
+    setQuery(value)
+    setSelectedIndex(null)
+  }, [])
+  const handleSortChange = useCallback((next: SortMode) => {
+    setSort(next)
+    setSelectedIndex(null)
+  }, [])
+
+  const handleSelect = useCallback((personQuery: string) => {
     onSelect(personQuery)
     onOpenChange(false)
-  }
+  }, [onSelect, onOpenChange])
+
+  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      setSelectedIndex((current) => movePersonSelection(rows, current, 'down'))
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      setSelectedIndex((current) => movePersonSelection(rows, current, 'up'))
+    } else if (event.key === 'Enter') {
+      const targetIndex = selectedIndex ?? firstPersonRowIndex(rows)
+      const target = targetIndex !== null ? rows[targetIndex] : null
+      if (target?.kind === 'person') {
+        event.preventDefault()
+        handleSelect(target.person.query)
+      }
+    }
+  }, [rows, selectedIndex, handleSelect])
+
+  const context = useMemo<PeopleDialogRowContext>(
+    () => ({ selectedIndex, locale, onSelect: handleSelect }),
+    [selectedIndex, locale, handleSelect],
+  )
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -113,25 +163,27 @@ export function PeopleDialog({
             <div className="relative min-w-0 flex-1">
               <MagnifyingGlass size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
+                ref={inputRef}
                 autoFocus
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => handleQueryChange(event.target.value)}
+                onKeyDown={handleKeyDown}
                 placeholder={translate(locale, 'people.dialog.searchPlaceholder')}
                 className="h-8 pl-8 text-[13px]"
               />
             </div>
-            <SortToggle sort={sort} onChange={setSort} locale={locale} />
+            <SortToggle sort={sort} onChange={handleSortChange} locale={locale} />
           </div>
         </DialogHeader>
         {hasPeople ? (
           <Virtuoso
+            ref={virtuosoRef}
             className="flex-1"
             data={rows}
+            context={context}
             overscan={400}
-            itemContent={(_index, row) => (
-              <div className="px-2">
-                <PeopleDialogRowContent row={row} locale={locale} onSelect={handleSelect} />
-              </div>
+            itemContent={(index, row, ctx) => (
+              <div className="px-2">{renderPeopleDialogRow(index, row, ctx)}</div>
             )}
           />
         ) : (
