@@ -22,6 +22,7 @@ import {
   registerPlainTextPasteTarget,
   type PlainTextPasteTarget,
 } from '../utils/plainTextPaste'
+import { focusNoteListContainer } from '../utils/neighborhoodHistory'
 
 export interface RawEditorViewProps {
   content: string
@@ -421,10 +422,15 @@ export function RawEditorView({ content, path, entries, sourceEntry, onContentCh
   }, [onFindClose])
   const handleEscape = useCallback(() => {
     if (handleAutocompleteEscape()) return true
-    if (!findOpen) return false
-
-    handleFindClose()
-    return true
+    if (findOpen) {
+      handleFindClose()
+      return true
+    }
+    // Nothing to close: leave the editor and hand focus back to the note list
+    // directly. Relying on the Escape event bubbling to the window-level
+    // handler is unreliable here because focus races and Escape gating can
+    // swallow it before it reaches the list.
+    return focusNoteListContainer(document)
   }, [findOpen, handleAutocompleteEscape, handleFindClose])
   const viewRef = useCodeMirror(containerRef, content, {
     onDocChange: handleDocChange,

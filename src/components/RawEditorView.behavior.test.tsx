@@ -374,4 +374,32 @@ describe('RawEditorView behavior coverage', () => {
     expect(onFindClose).toHaveBeenCalledTimes(1)
   })
 
+  it('hands focus back to the note list when Escape is pressed with nothing to close', () => {
+    const noteList = document.createElement('div')
+    noteList.setAttribute('data-testid', 'note-list-container')
+    noteList.tabIndex = 0
+    document.body.appendChild(noteList)
+
+    render(
+      <RawEditorView
+        content="plain body text"
+        path="/vault/a.md"
+        entries={[entry('Alpha')]}
+        onContentChange={vi.fn()}
+        onSave={vi.fn()}
+      />,
+    )
+
+    const callbacks = useCodeMirrorMock.mock.calls.at(-1)![2] as { onEscape: () => boolean }
+    let consumed = false
+    act(() => {
+      consumed = callbacks.onEscape()
+    })
+
+    expect(consumed).toBe(true)
+    expect(document.activeElement).toBe(noteList)
+
+    noteList.remove()
+  })
+
 })
