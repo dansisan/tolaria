@@ -408,7 +408,6 @@ function createMenuEventVaultHandlers(
   | 'onInstallMcp'
   | 'onReloadVault'
   | 'onRepairVault'
-  | 'onRecomputeMetadata'
   | 'onOpenInNewWindow'
   | 'onRestoreDeletedNote'
 > {
@@ -424,7 +423,6 @@ function createMenuEventVaultHandlers(
     onInstallMcp: config.onInstallMcp,
     onReloadVault: config.onReloadVault,
     onRepairVault: config.onRepairVault,
-    onRecomputeMetadata: config.onRecomputeMetadata,
     onOpenInNewWindow: config.onOpenInNewWindow,
     onRestoreDeletedNote: config.onRestoreDeletedNote,
   }

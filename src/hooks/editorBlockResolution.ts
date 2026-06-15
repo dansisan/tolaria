@@ -4,6 +4,7 @@ import { injectBlankLineSeparatorBlocks, preProcessBlankLineSeparators } from '.
 import { preProcessMathMarkdown, injectMathInBlocks } from '../utils/mathMarkdown'
 import { injectDurableEditorMarkdownBlocks, preProcessDurableEditorMarkdown } from '../utils/editorDurableMarkdown'
 import { resolveImageUrls } from '../utils/vaultImages'
+import { separateImageBlockLines } from '../utils/imageBlockSeparators'
 import { repairMalformedEditorBlocks } from './editorBlockRepair'
 import { inferCodeBlockLanguages } from '../utils/codeBlockLanguage'
 import {
@@ -143,7 +144,8 @@ function preProcessEditorMarkdown(
   const withBlankSeparators = preProcessBlankLineSeparators({ markdown })
   const withDurableBlocks = preProcessDurableEditorMarkdown({ markdown: withBlankSeparators })
   const withImages = vaultPath ? resolveImageUrls(withDurableBlocks, vaultPath, notePath) : withDurableBlocks
-  const withWikilinks = preProcessWikilinks(withImages)
+  const withBlockImages = separateImageBlockLines({ markdown: withImages })
+  const withWikilinks = preProcessWikilinks(withBlockImages)
   return preProcessMathMarkdown({ markdown: withWikilinks })
 }
 
