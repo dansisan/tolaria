@@ -1,7 +1,9 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { EditorView } from '@codemirror/view'
+import type { StateEffect } from '@codemirror/state'
 import { RawEditorFindBar } from './RawEditorFindBar'
+import { setFindMatchHighlight } from '../extensions/findMatchHighlight'
 
 function renderFindBar(overrides: Partial<React.ComponentProps<typeof RawEditorFindBar>> = {}) {
   const view = {
@@ -93,5 +95,76 @@ describe('RawEditorFindBar', () => {
     fireEvent.keyDown(screen.getByTestId('raw-editor-find-bar'), { key: 'Escape' })
 
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('highlights the matched word via the find-match decoration effect', async () => {
+    const { view } = renderFindBar()
+
+    fireEvent.change(screen.getByTestId('raw-editor-find-input'), { target: { value: 'Alpha' } })
+
+    await waitFor(() => {
+      const dispatch = view.dispatch as unknown as ReturnType<typeof vi.fn>
+      const effects = dispatch.mock.calls.flatMap(([spec]) => {
+        const list = (spec as { effects?: StateEffect<unknown> | StateEffect<unknown>[] }).effects
+        return Array.isArray(list) ? list : list ? [list] : []
+      })
+      const highlightValues = effects
+        .filter((effect) => effect.is(setFindMatchHighlight))
+        .map((effect) => effect.value)
+      expect(highlightValues).toContainEqual({ from: 0, to: 5 })
+    })
+  })
+
+  it('cycles matches with Cmd+G and Cmd+Shift+G from the find input', async () => {
+    const { view } = renderFindBar()
+
+    const input = screen.getByTestId('raw-editor-find-input')
+    fireEvent.change(input, { target: { value: 'Alpha' } })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('raw-editor-find-count')).toHaveTextContent('1 / 2')
+    })
+
+    fireEvent.keyDown(input, { key: 'g', metaKey: true })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('raw-editor-find-count')).toHaveTextContent('2 / 2')
+      expect(view.dispatch).toHaveBeenLastCalledWith(expect.objectContaining({
+        selection: { anchor: 11, head: 16 },
+      }))
+    })
+
+    fireEvent.keyDown(input, { key: 'g', metaKey: true, shiftKey: true })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('raw-editor-find-count')).toHaveTextContent('1 / 2')
+      expect(view.dispatch).toHaveBeenLastCalledWith(expect.objectContaining({
+        selection: { anchor: 0, head: 5 },
+      }))
+    })
+  })
+
+  it('exposes match navigation through matchNavRef for the editor keymap', async () => {
+    const matchNavRef = { current: null } as React.MutableRefObject<
+      import('./RawEditorFindBar').RawEditorFindNav | null
+    >
+    const { view } = renderFindBar({ matchNavRef })
+
+    fireEvent.change(screen.getByTestId('raw-editor-find-input'), { target: { value: 'Alpha' } })
+
+    await waitFor(() => {
+      expect(matchNavRef.current).not.toBeNull()
+    })
+
+    // Driven by the CodeMirror Cmd+G keymap while focus is in the editor.
+    act(() => {
+      matchNavRef.current?.next()
+    })
+
+    await waitFor(() => {
+      expect(view.dispatch).toHaveBeenLastCalledWith(expect.objectContaining({
+        selection: { anchor: 11, head: 16 },
+      }))
+    })
   })
 })

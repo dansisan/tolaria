@@ -110,6 +110,7 @@
   --syntax-highlight-type: #E36209;
   --syntax-highlight-deletion: #B31D28;
   --syntax-highlight-deletion-bg: #FFEEF0;
+  --editor-find-match-bg: rgba(255, 196, 0, 0.5);
   --diff-added-text: #4CAF50;
   --diff-added-bg: rgba(76, 175, 80, 0.12);
   --diff-removed-text: #F44336;
@@ -262,6 +263,7 @@
   --syntax-highlight-type: #F3B175;
   --syntax-highlight-deletion: #FF9C9A;
   --syntax-highlight-deletion-bg: rgba(255, 138, 134, 0.16);
+  --editor-find-match-bg: rgba(255, 196, 0, 0.38);
   --diff-added-text: #79D89D;
   --diff-added-bg: rgba(121, 216, 157, 0.14);
   --diff-removed-text: #FF8A86;

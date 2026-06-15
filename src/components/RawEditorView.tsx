@@ -16,7 +16,7 @@ import {
 import { useCodeMirror } from '../hooks/useCodeMirror'
 import type { VaultEntry } from '../types'
 import { type AppLocale } from '../lib/i18n'
-import { RawEditorFindBar, type RawEditorFindRequest } from './RawEditorFindBar'
+import { RawEditorFindBar, type RawEditorFindNav, type RawEditorFindRequest } from './RawEditorFindBar'
 import {
   activatePlainTextPasteTarget,
   registerPlainTextPasteTarget,
@@ -402,6 +402,7 @@ export function RawEditorView({ content, path, entries, sourceEntry, onContentCh
   const [rawDoc, setRawDoc] = useState(content)
   const [findOpen, setFindOpen] = useState(false)
   const [replaceOpen, setReplaceOpen] = useState(false)
+  const findMatchNavRef = useRef<RawEditorFindNav | null>(null)
   const pendingChanges = useRawEditorPendingChanges({ content, latestContentRef, onContentChange, onSave, path })
   const {
     autocomplete,
@@ -432,11 +433,23 @@ export function RawEditorView({ content, path, entries, sourceEntry, onContentCh
     // swallow it before it reaches the list.
     return focusNoteListContainer(document)
   }, [findOpen, handleAutocompleteEscape, handleFindClose])
+  const handleFindNext = useCallback(() => {
+    if (!findMatchNavRef.current) return false
+    findMatchNavRef.current.next()
+    return true
+  }, [])
+  const handleFindPrevious = useCallback(() => {
+    if (!findMatchNavRef.current) return false
+    findMatchNavRef.current.previous()
+    return true
+  }, [])
   const viewRef = useCodeMirror(containerRef, content, {
     onDocChange: handleDocChange,
     onCursorActivity: handleCursorActivity,
     onSave: pendingChanges.handleSave,
     onEscape: handleEscape,
+    onFindNext: handleFindNext,
+    onFindPrevious: handleFindPrevious,
   })
   const activatePlainTextPaste = useRawEditorPlainTextPasteTarget({
     containerRef,
@@ -493,6 +506,7 @@ export function RawEditorView({ content, path, entries, sourceEntry, onContentCh
       <RawEditorFindBar
         doc={rawDoc}
         locale={locale}
+        matchNavRef={findMatchNavRef}
         onClose={handleFindClose}
         onReplaceOpenChange={setReplaceOpen}
         open={findOpen}

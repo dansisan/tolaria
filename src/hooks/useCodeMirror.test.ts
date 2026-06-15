@@ -10,6 +10,8 @@ const noopCallbacks: CodeMirrorCallbacks = {
   onCursorActivity: noop,
   onSave: noop,
   onEscape: () => false,
+  onFindNext: () => false,
+  onFindPrevious: () => false,
 }
 
 describe('useCodeMirror', () => {
@@ -137,6 +139,39 @@ describe('useCodeMirror', () => {
     })
 
     expect(onEscape).toHaveBeenCalledOnce()
+  })
+
+  it('routes Cmd+G and Cmd+Shift+G to the find navigation callbacks', () => {
+    const ref = { current: container }
+    const onFindNext = vi.fn(() => true)
+    const onFindPrevious = vi.fn(() => true)
+    const { result } = renderHook(() =>
+      useCodeMirror(ref, 'hello', { ...noopCallbacks, onFindNext, onFindPrevious }),
+    )
+    const view = result.current.current!
+
+    // CodeMirror maps `Mod` to Cmd on macOS and Ctrl elsewhere; match the
+    // platform the same way so the test works on dev Macs and Linux CI alike.
+    const platformMod = /Mac/.test(navigator.platform) ? { metaKey: true } : { ctrlKey: true }
+    const dispatchKey = (init: KeyboardEventInit) => {
+      act(() => {
+        view.focus()
+        view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', {
+          bubbles: true,
+          cancelable: true,
+          ...init,
+        }))
+      })
+    }
+
+    // keyCode 71 ('g') lets CodeMirror recover the base key for the shifted
+    // binding, exactly as a real browser reports it.
+    dispatchKey({ key: 'g', code: 'KeyG', keyCode: 71, ...platformMod })
+    expect(onFindNext).toHaveBeenCalledOnce()
+    expect(onFindPrevious).not.toHaveBeenCalled()
+
+    dispatchKey({ key: 'G', code: 'KeyG', keyCode: 71, ...platformMod, shiftKey: true })
+    expect(onFindPrevious).toHaveBeenCalledOnce()
   })
 
   it('does not sync when content matches current editor state', () => {

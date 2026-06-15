@@ -1,6 +1,7 @@
 import { CaretDown as ChevronDown, CaretRight as ChevronRight, CaretUp as ChevronUp, X } from '@phosphor-icons/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { EditorView } from '@codemirror/view'
+import { setFindMatchHighlight } from '../extensions/findMatchHighlight'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
@@ -21,9 +22,16 @@ export interface RawEditorFindRequest {
   replace: boolean
 }
 
+/** Imperative handle so the editor keymap (Cmd+G) can drive match navigation. */
+export interface RawEditorFindNav {
+  next: () => void
+  previous: () => void
+}
+
 interface RawEditorFindBarProps {
   doc: string
   locale?: AppLocale
+  matchNavRef?: React.MutableRefObject<RawEditorFindNav | null>
   onClose: () => void
   onReplaceOpenChange: (open: boolean) => void
   open: boolean
@@ -36,9 +44,16 @@ interface RawEditorFindBarProps {
 function selectMatch(view: EditorView, match: EditorFindMatch, focusEditor: boolean): void {
   view.dispatch({
     selection: { anchor: match.from, head: match.to },
-    effects: EditorView.scrollIntoView(match.from, { y: 'center' }),
+    effects: [
+      EditorView.scrollIntoView(match.from, { y: 'center' }),
+      setFindMatchHighlight.of({ from: match.from, to: match.to }),
+    ],
   })
   if (focusEditor) view.focus()
+}
+
+function clearMatchHighlight(viewRef: React.MutableRefObject<EditorView | null>): void {
+  viewRef.current?.dispatch({ effects: setFindMatchHighlight.of(null) })
 }
 
 function matchStatusText(
@@ -93,6 +108,10 @@ function closeRawEditorFind(
   focusEditorOnNextFrame(viewRef)
 }
 
+function isFindNextShortcut(event: React.KeyboardEvent<HTMLInputElement>): boolean {
+  return (event.metaKey || event.ctrlKey) && (event.key === 'g' || event.key === 'G')
+}
+
 function handleRawEditorFindKeyDown(
   event: React.KeyboardEvent<HTMLInputElement>,
   close: () => void,
@@ -103,7 +122,7 @@ function handleRawEditorFindKeyDown(
     close()
     return
   }
-  if (event.key !== 'Enter') return
+  if (event.key !== 'Enter' && !isFindNextShortcut(event)) return
 
   event.preventDefault()
   moveMatch(event.shiftKey ? -1 : 1)
@@ -115,8 +134,32 @@ function selectActiveEditorFindMatch(
   activeMatch?: EditorFindMatch,
 ): void {
   const view = viewRef.current
-  if (!open || !view || !activeMatch) return
+  if (!view) return
+  if (!open || !activeMatch) {
+    clearMatchHighlight(viewRef)
+    return
+  }
   selectMatch(view, activeMatch, false)
+}
+
+function useRegisterFindNav({
+  hasMatches,
+  matchNavRef,
+  moveNext,
+  movePrevious,
+  open,
+}: {
+  hasMatches: boolean
+  matchNavRef?: React.MutableRefObject<RawEditorFindNav | null>
+  moveNext: () => void
+  movePrevious: () => void
+  open: boolean
+}): void {
+  useEffect(() => {
+    if (!matchNavRef) return
+    matchNavRef.current = open && hasMatches ? { next: moveNext, previous: movePrevious } : null
+    return () => { matchNavRef.current = null }
+  }, [hasMatches, matchNavRef, moveNext, movePrevious, open])
 }
 
 function replaceCurrentEditorFindMatch({
@@ -189,6 +232,7 @@ interface RawEditorFindController {
 function useRawEditorFindController({
   doc,
   locale = 'en',
+  matchNavRef,
   onClose,
   onReplaceOpenChange,
   open,
@@ -220,6 +264,7 @@ function useRawEditorFindController({
   }, [result.matches.length])
   const movePrevious = useCallback(() => moveMatch(-1), [moveMatch])
   const moveNext = useCallback(() => moveMatch(1), [moveMatch])
+  useRegisterFindNav({ hasMatches, matchNavRef, moveNext, movePrevious, open })
   const handleFindChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(event.target.value)
     setActiveIndex(0)

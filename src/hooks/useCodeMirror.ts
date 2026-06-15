@@ -12,6 +12,7 @@ import {
 import { EditorState, Prec } from '@codemirror/state'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { frontmatterHighlightPlugin, frontmatterHighlightTheme } from '../extensions/frontmatterHighlight'
+import { findMatchHighlightField, findMatchHighlightTheme } from '../extensions/findMatchHighlight'
 import { markdownLanguage } from '../extensions/markdownHighlight'
 import { RUNTIME_STYLE_NONCE } from '../lib/runtimeStyleNonce'
 import { resolveArrowLigatureInput } from '../utils/arrowLigatures'
@@ -41,6 +42,10 @@ export interface CodeMirrorCallbacks {
   onCursorActivity: (view: EditorView) => void
   onSave: () => void
   onEscape: () => boolean
+  /** Move to the next find match (Cmd/Ctrl+G). Returns true if it navigated. */
+  onFindNext: () => boolean
+  /** Move to the previous find match (Cmd/Ctrl+Shift+G). Returns true if it navigated. */
+  onFindPrevious: () => boolean
 }
 
 function readMarkdownFence(line: string): MarkdownFence | null {
@@ -168,6 +173,12 @@ function buildSaveKeymap(callbacks: { current: CodeMirrorCallbacks }) {
   }, {
     key: 'Escape',
     run: () => callbacks.current.onEscape(),
+  }, {
+    key: 'Mod-g',
+    run: () => callbacks.current.onFindNext(),
+  }, {
+    key: 'Mod-Shift-g',
+    run: () => callbacks.current.onFindPrevious(),
   }]))
 }
 
@@ -258,6 +269,8 @@ export function useCodeMirror(
         markdownLanguage(),
         frontmatterHighlightTheme(),
         frontmatterHighlightPlugin,
+        findMatchHighlightField,
+        findMatchHighlightTheme(),
         zoomCursorFix(),
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !externalSyncRef.current) {

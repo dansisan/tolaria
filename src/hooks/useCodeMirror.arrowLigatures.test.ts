@@ -11,6 +11,8 @@ const noopCallbacks: CodeMirrorCallbacks = {
   onCursorActivity: noop,
   onSave: noop,
   onEscape: () => false,
+  onFindNext: () => false,
+  onFindPrevious: () => false,
 }
 
 function applyTypedInput(view: EditorView, text: string) {
