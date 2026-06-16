@@ -66,4 +66,15 @@ test.describe('note list focus indicator', () => {
     await expect(row).toHaveCSS('border-left-color', ACTIVE_SELECTION_BORDER)
     await expect(row).toHaveCSS('background-color', ACTIVE_SELECTION_BG)
   })
+
+  test('arrow navigation from a fresh start focuses the list and shows the active blue border', async ({ page }) => {
+    // Nothing clicked yet: focus sits on <body> and arrows drive the list via the
+    // global key handler. The list should claim focus so the indicator turns on.
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('ArrowDown')
+
+    const row = page.locator('[role="option"][aria-selected="true"]').first()
+    await expect(row).toHaveCSS('border-left-color', ACTIVE_SELECTION_BORDER)
+    await expect(row).toHaveCSS('background-color', ACTIVE_SELECTION_BG)
+  })
 })

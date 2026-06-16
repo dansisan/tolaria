@@ -527,11 +527,11 @@ function useGlobalKeyboardHandling({
 
   useEffect(() => {
     if (!enabled) return
-    const handleWindowKeyDown = createGlobalKeyDownHandler(panelRef, shouldSkipGlobalKeyDown, processKeyDown)
+    const handleWindowKeyDown = createGlobalKeyDownHandler(panelRef, containerRef, shouldSkipGlobalKeyDown, processKeyDown)
 
     window.addEventListener('keydown', handleWindowKeyDown)
     return () => window.removeEventListener('keydown', handleWindowKeyDown)
-  }, [enabled, panelRef, processKeyDown, shouldSkipGlobalKeyDown])
+  }, [containerRef, enabled, panelRef, processKeyDown, shouldSkipGlobalKeyDown])
 }
 
 function useSearchToggleShortcut({
@@ -627,8 +627,34 @@ function handleEnterShortcutEvent(
   })
 }
 
+/** Keys that drive the note list itself (highlight movement / jumps). */
+function isListNavigationKey(event: Pick<KeyboardEvent, 'key'>): boolean {
+  return event.key === 'ArrowUp'
+    || event.key === 'ArrowDown'
+    || event.key === 'Home'
+    || event.key === 'End'
+}
+
+/**
+ * When the list handles a navigation key while DOM focus sits on `<body>` (e.g.
+ * right after startup, before anything has been clicked), pull focus into the
+ * container. Arrows are clearly driving the list at that point, so the
+ * active-pane indicator should turn on. Runs only while focus is outside the
+ * container — once focused, the container's own keydown handler takes over.
+ */
+function claimNoteListFocusForNavigation(
+  event: Pick<KeyboardEvent, 'key'>,
+  container: HTMLDivElement | null,
+): void {
+  if (!isListNavigationKey(event) || !container) return
+  const active = document.activeElement
+  if (active === container || container.contains(active)) return
+  container.focus()
+}
+
 function createGlobalKeyDownHandler(
   panelRef: React.RefObject<HTMLDivElement | null>,
+  containerRef: React.RefObject<HTMLDivElement | null>,
   shouldSkipGlobalKeyDown: (activeElement: Element | null) => boolean,
   processKeyDown: (event: KeyboardEvent) => void,
 ) {
@@ -640,6 +666,7 @@ function createGlobalKeyDownHandler(
     }
     if (shouldSkipGlobalKeyDown(document.activeElement)) return
     processKeyDown(event)
+    claimNoteListFocusForNavigation(event, containerRef.current)
   }
 }
 
