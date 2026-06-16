@@ -6,7 +6,7 @@ import {
   Users, CalendarBlank, Tag, FileText, StackSimple,
   File, FileDashed, FilePdf, ImageSquare, SpeakerHigh, Video,
 } from '@phosphor-icons/react'
-import { getTypeColor, getTypeLightColor } from '../utils/typeColors'
+import { getTypeColor } from '../utils/typeColors'
 import { resolveIcon } from '../utils/iconRegistry'
 import { getDisplayDate } from '../utils/noteListHelpers'
 import { formatRelativeTime, formatTimestampForDateDisplay } from '../utils/dateDisplay'
@@ -341,10 +341,24 @@ function NoteDateRow({
   )
 }
 
-function noteItemStyle(isSelected: boolean, isMultiSelected: boolean, typeColor: string, typeLightColor: string): CSSProperties {
+// The selected row always keeps its 3px left border as the focus signal. The
+// border (and a matching row tint) is the active-selection blue while the note
+// list panel holds focus, and switches to a clearly visible neutral grey once
+// focus moves to the editor. Both colours are type-independent, so the flip
+// reads on every note — that is what tells you which pane your keystrokes drive.
+function selectedRowColors(isPanelActive: boolean): CSSProperties {
+  if (isPanelActive) return { borderLeftColor: 'var(--border-focus)', backgroundColor: 'var(--state-selected)' }
+  return { borderLeftColor: 'var(--muted-foreground)', backgroundColor: 'var(--state-hover)' }
+}
+
+function noteItemStyle({ isSelected, isMultiSelected, isPanelActive }: {
+  isSelected: boolean
+  isMultiSelected: boolean
+  isPanelActive: boolean
+}): CSSProperties {
   const base: CSSProperties = { padding: isSelected && !isMultiSelected ? '14px 16px 14px 13px' : '14px 16px' }
   if (isMultiSelected) base.backgroundColor = 'color-mix(in srgb, var(--accent-blue) 10%, transparent)'
-  else if (isSelected) { base.borderLeftColor = typeColor; base.backgroundColor = typeLightColor }
+  else if (isSelected) Object.assign(base, selectedRowColors(isPanelActive))
   return base
 }
 
@@ -364,6 +378,8 @@ type NoteItemProps = {
   isSelected: boolean
   isMultiSelected?: boolean
   isHighlighted?: boolean
+  /** Whether the note list panel currently holds focus; drives the selected row's active vs. dimmed treatment. */
+  isPanelActive?: boolean
   noteStatus?: NoteStatus
   /** When set, renders in Changes-view style: filename + change type icon */
   changeStatus?: 'modified' | 'added' | 'deleted' | 'untracked' | 'renamed'
@@ -401,14 +417,12 @@ function resolveNoteItemSurfaceStyle({
   isUnavailableBinary,
   isSelected,
   isMultiSelected,
-  typeColor,
-  typeLightColor,
+  isPanelActive,
 }: Pick<NoteItemVisualState, 'isUnavailableBinary' | 'isSelected' | 'isMultiSelected'> & {
-  typeColor: string
-  typeLightColor: string
+  isPanelActive: boolean
 }) {
   if (isUnavailableBinary) return BINARY_NOTE_STYLE
-  return noteItemStyle(isSelected, isMultiSelected, typeColor, typeLightColor)
+  return noteItemStyle({ isSelected, isMultiSelected, isPanelActive })
 }
 
 function resolveNoteItemTestId({
@@ -443,23 +457,21 @@ function resolveNoteItemSurfaceProps({
   isSelected,
   isMultiSelected,
   isHighlighted,
+  isPanelActive,
   onClickNote,
   onPrefetch,
   onContextMenu,
-  typeColor,
-  typeLightColor,
 }: NoteItemVisualState & {
   entry: VaultEntry
   previewKind: FilePreviewKind | null
+  isPanelActive: boolean
   onClickNote: NoteItemProps['onClickNote']
   onPrefetch?: NoteItemProps['onPrefetch']
   onContextMenu?: NoteItemProps['onContextMenu']
-  typeColor: string
-  typeLightColor: string
 }): NoteItemSurfaceProps {
   return {
     className: noteItemClassName({ isUnavailableBinary, isSelected, isMultiSelected, isHighlighted }),
-    style: resolveNoteItemSurfaceStyle({ isUnavailableBinary, isSelected, isMultiSelected, typeColor, typeLightColor }),
+    style: resolveNoteItemSurfaceStyle({ isUnavailableBinary, isSelected, isMultiSelected, isPanelActive }),
     onClick: createNoteItemClickHandler(entry, isUnavailableBinary, onClickNote),
     onContextMenu: onContextMenu ? (event) => onContextMenu(entry, event) : undefined,
     onMouseEnter: entry.fileKind !== 'binary' && onPrefetch ? () => onPrefetch(entry) : undefined,
@@ -560,7 +572,7 @@ function NoteItemContent({
   )
 }
 
-export function NoteItem({ entry, isSelected, isMultiSelected = false, isHighlighted = false, noteStatus = 'clean', changeStatus, typeEntryMap, allEntries, displayPropsOverride, sortedByModified = false, onClickNote, onPrefetch, onContextMenu }: NoteItemProps) {
+export function NoteItem({ entry, isSelected, isMultiSelected = false, isHighlighted = false, isPanelActive = true, noteStatus = 'clean', changeStatus, typeEntryMap, allEntries, displayPropsOverride, sortedByModified = false, onClickNote, onPrefetch, onContextMenu }: NoteItemProps) {
   const isBinary = entry.fileKind === 'binary'
   const previewKind = filePreviewKind(entry)
   const isPreviewableFile = previewKind !== null
@@ -568,7 +580,6 @@ export function NoteItem({ entry, isSelected, isMultiSelected = false, isHighlig
   const te = typeEntryMap[entry.isA ?? '']
   const displayProps = resolveDisplayProps(entry, typeEntryMap, displayPropsOverride)
   const typeColor = isPreviewableFile ? 'var(--accent-blue)' : isBinary ? 'var(--muted-foreground)' : getTypeColor(entry.isA ?? 'Note', te?.color)
-  const typeLightColor = getTypeLightColor(entry.isA ?? 'Note', te?.color)
   const surfaceProps = resolveNoteItemSurfaceProps({
     entry,
     isUnavailableBinary,
@@ -576,11 +587,10 @@ export function NoteItem({ entry, isSelected, isMultiSelected = false, isHighlig
     isSelected,
     isMultiSelected,
     isHighlighted,
+    isPanelActive,
     onClickNote,
     onPrefetch,
     onContextMenu,
-    typeColor,
-    typeLightColor,
   })
 
   return (

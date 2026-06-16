@@ -481,7 +481,7 @@ interface UseRenderItemParams {
   changesContextMenu?: ((entry: VaultEntry, event: React.MouseEvent) => void) | undefined
   noteListContextMenu?: ((entry: VaultEntry, event: React.MouseEvent) => void) | undefined
   multiSelect: MultiSelectState
-  noteListKeyboard: { highlightedPath: string | null }
+  noteListKeyboard: { highlightedPath: string | null; isPanelActive: boolean }
   listSort: SortOption
 }
 
@@ -512,6 +512,7 @@ function useRenderItem({
         isSelected={options?.forceSelected || selectedNotePath === entry.path}
         isMultiSelected={multiSelect.selectedPaths.has(entry.path)}
         isHighlighted={entry.path === noteListKeyboard.highlightedPath}
+        isPanelActive={noteListKeyboard.isPanelActive}
         noteStatus={resolvedGetNoteStatus(entry.path)}
         changeStatus={getChangeStatus(entry.path)}
         typeEntryMap={typeEntryMap}
@@ -528,6 +529,7 @@ function useRenderItem({
         isSelected={options?.forceSelected || selectedNotePath === entry.path}
         isMultiSelected={multiSelect.selectedPaths.has(entry.path)}
         isHighlighted={entry.path === noteListKeyboard.highlightedPath}
+        isPanelActive={noteListKeyboard.isPanelActive}
         noteStatus={resolvedGetNoteStatus(entry.path)}
         changeStatus={getChangeStatus(entry.path)}
         typeEntryMap={typeEntryMap}
@@ -547,6 +549,7 @@ function useRenderItem({
     handleClickNote,
     multiSelect.selectedPaths,
     noteListKeyboard.highlightedPath,
+    noteListKeyboard.isPanelActive,
     resolvedGetNoteStatus,
     selectedNotePath,
     sortedByModified,

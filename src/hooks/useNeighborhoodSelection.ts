@@ -118,6 +118,32 @@ export function useNeighborhoodHistoryBack({
 }
 
 /**
+ * The BlockNote (rich) editor handles Escape itself: it blurs to `<body>` and
+ * calls `preventDefault` before the window-level navigation handler runs, so
+ * focus is dropped rather than handed to the note list — leaving the list
+ * looking inactive. This capture-phase listener notes when Escape fires from an
+ * editor surface and, only if the editor was actually dropped to `<body>` (not
+ * a menu/toolbar close that keeps editor focus), routes focus to the note list
+ * so keyboard navigation visibly resumes there. Raw mode already focuses the
+ * list in its own Escape handler, so the `<body>` guard makes this a no-op there.
+ */
+function useEditorEscapeRefocus(): void {
+  useEffect(() => {
+    const handleEscapeCapture = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.metaKey || event.ctrlKey || event.altKey) return
+      if (!isEditorEscapeTarget(document.activeElement)) return
+      requestAnimationFrame(() => {
+        const active = document.activeElement
+        if (active === null || active === document.body) focusNoteListContainer(document)
+      })
+    }
+
+    window.addEventListener('keydown', handleEscapeCapture, true)
+    return () => window.removeEventListener('keydown', handleEscapeCapture, true)
+  }, [])
+}
+
+/**
  * Global Escape navigation. When no higher-priority surface owns the key
  * (dialog, search, multi-select, focused editor/input), Escape runs `onEscape`,
  * which steps back through neighborhood history or returns to the main note
@@ -149,4 +175,6 @@ export function useEscapeNavigation({
     window.addEventListener('keydown', handleWindowKeyDown)
     return () => window.removeEventListener('keydown', handleWindowKeyDown)
   }, [onEscape, shouldBlockEscape])
+
+  useEditorEscapeRefocus()
 }

@@ -524,6 +524,27 @@ describe('NoteItem', () => {
     expect(onClickNote).not.toHaveBeenCalled()
   })
 
+  it('shows the active-selection accent on the selected row while the note list panel is focused', () => {
+    const entry = makeEntry({ title: 'Active note', isA: 'Project' })
+
+    render(<NoteItem entry={entry} isSelected isPanelActive typeEntryMap={{}} onClickNote={vi.fn()} />)
+
+    const row = screen.getByRole('option')
+    expect(row).toHaveStyle({ borderLeftColor: 'var(--border-focus)' })
+    expect(row).toHaveStyle({ backgroundColor: 'var(--state-selected)' })
+  })
+
+  it('keeps a visible neutral left border on the selected row when the panel loses focus', () => {
+    const entry = makeEntry({ title: 'Inactive note', isA: 'Project' })
+
+    render(<NoteItem entry={entry} isSelected isPanelActive={false} typeEntryMap={{}} onClickNote={vi.fn()} />)
+
+    const row = screen.getByRole('option')
+    expect(row.className).toContain('border-l-[3px]')
+    expect(row).toHaveStyle({ borderLeftColor: 'var(--muted-foreground)' })
+    expect(row).toHaveStyle({ backgroundColor: 'var(--state-hover)' })
+  })
+
   it('renders broken relationship chips as neutral and non-interactive', () => {
     const entry = makeEntry({
       path: '/vault/note/source.md',
