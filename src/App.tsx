@@ -1303,6 +1303,16 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     else closeAllTabs()
   }, [notes.activeTabPathRef, handleSelectNote, closeAllTabs])
 
+  // Cmd+W closes the open note (returning to the list) rather than the window.
+  // Flush pending editor edits first so closing never drops unsaved content.
+  const handleCloseActiveNote = useCallback(async () => {
+    const path = notes.activeTabPathRef.current
+    if (!path) return
+    await flushEditorStateBeforeAction(path)
+    closeAllTabs()
+    trackEvent('note_closed')
+  }, [notes.activeTabPathRef, flushEditorStateBeforeAction, closeAllTabs])
+
   // Opening a note from quick open should land the caret in the editor body,
   // mirroring Enter on the note list. handleSelectNote only swaps the tab, so
   // dispatch the focus request (path-scoped, so it waits for the swap) here.
@@ -1820,6 +1830,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     onCreateNote: notes.handleCreateNoteImmediate,
     onCreateNoteOfType: notes.handleCreateNoteImmediate,
     onSave: appSave.handleSave,
+    onCloseNote: handleCloseActiveNote,
     onUndo: undoCommand,
     onRedo: redoCommand,
     canUndo: notes.canUndo,

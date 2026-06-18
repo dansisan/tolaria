@@ -16,6 +16,7 @@ export type KeyboardActions = Pick<
   | 'onCreateNote'
   | 'onCreateNoteForDate'
   | 'onSave'
+  | 'onCloseNote'
   | 'onUndo'
   | 'onRedo'
   | 'onFindInNote'

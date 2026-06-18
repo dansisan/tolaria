@@ -386,12 +386,10 @@ fn build_window_menu(app: &App) -> MenuResult {
         builder = builder.id(id);
     }
 
-    Ok(builder
-        .minimize()
-        .maximize()
-        .separator()
-        .close_window()
-        .build()?)
+    // Intentionally omit `.close_window()`: in this single-window app its
+    // built-in Cmd+W accelerator quit the whole app. Cmd+W is now owned by the
+    // `noteClose` command (File ▸ Close Note), which closes the open note.
+    Ok(builder.minimize().maximize().build()?)
 }
 
 pub fn setup_menu(app: &App) -> Result<(), Box<dyn Error>> {

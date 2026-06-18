@@ -41,6 +41,7 @@ interface AppCommandsConfig {
   onCreateNoteForDate?: () => void
   onCreateNoteOfType: (type: string) => void
   onSave: () => void
+  onCloseNote?: () => void
   onOpenSettings: () => void
   onOpenFeedback?: () => void
   onDeleteNote: (path: string) => void
@@ -290,6 +291,7 @@ function createKeyboardActions(
     onCreateNote: config.onCreateNote,
     onCreateNoteForDate: config.onCreateNoteForDate,
     onSave: config.onSave,
+    onCloseNote: config.onCloseNote,
     onUndo: config.onUndo,
     onRedo: config.onRedo,
     canUndo: config.canUndo,
@@ -337,6 +339,7 @@ function createMenuEventActionHandlers(
   | 'onCreateType'
   | 'onQuickOpen'
   | 'onSave'
+  | 'onCloseNote'
   | 'onOpenSettings'
   | 'onToggleInspector'
   | 'onCommandPalette'
@@ -368,6 +371,7 @@ function createMenuEventActionHandlers(
     onCreateType: config.onCreateType,
     onQuickOpen: config.onQuickOpen,
     onSave: config.onSave,
+    onCloseNote: config.onCloseNote,
     onOpenSettings: config.onOpenSettings,
     onToggleInspector: config.onToggleInspector,
     onCommandPalette: config.onCommandPalette,

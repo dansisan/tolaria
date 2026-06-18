@@ -34,6 +34,7 @@ export interface AppCommandHandlers {
   onCreateType?: () => void
   onQuickOpen: () => void
   onSave: () => void
+  onCloseNote?: () => void
   onOpenSettings: () => void
   onToggleInspector: () => void
   onCommandPalette: () => void
@@ -85,6 +86,7 @@ type SimpleHandlerKey = keyof Pick<
   | 'onCreateType'
   | 'onQuickOpen'
   | 'onSave'
+  | 'onCloseNote'
   | 'onFindInNote'
   | 'onUndo'
   | 'onRedo'
@@ -134,6 +136,7 @@ const SIMPLE_HANDLER_EXECUTORS: readonly [SimpleHandlerKey, SimpleHandlerExecuto
   ['onCreateType', (handlers) => handlers.onCreateType?.()],
   ['onQuickOpen', (handlers) => handlers.onQuickOpen()],
   ['onSave', (handlers) => handlers.onSave()],
+  ['onCloseNote', (handlers) => handlers.onCloseNote?.()],
   ['onFindInNote', (handlers) => handlers.onFindInNote?.()],
   ['onUndo', (handlers) => handlers.onUndo?.()],
   ['onRedo', (handlers) => handlers.onRedo?.()],

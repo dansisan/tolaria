@@ -38,6 +38,7 @@ type SimpleHandlerKey =
   | 'onCreateType'
   | 'onQuickOpen'
   | 'onSave'
+  | 'onCloseNote'
   | 'onFindInNote'
   | 'onUndo'
   | 'onRedo'

@@ -34,6 +34,7 @@ function makeHandlers(): AppCommandHandlers {
     onCreateType: vi.fn(),
     onQuickOpen: vi.fn(),
     onSave: vi.fn(),
+    onCloseNote: vi.fn(),
     onUndo: vi.fn(),
     onRedo: vi.fn(),
     onOpenSettings: vi.fn(),
@@ -237,6 +238,16 @@ describe('appCommandDispatcher', () => {
     const handlers = makeHandlers()
     expect(dispatchAppCommand(APP_COMMAND_IDS.fileNewNote, handlers)).toBe(true)
     expect(handlers.onCreateNote).toHaveBeenCalled()
+  })
+
+  it('dispatches close note through the shared command path', () => {
+    const handlers = makeHandlers()
+    expect(dispatchAppCommand(APP_COMMAND_IDS.fileCloseNote, handlers)).toBe(true)
+    expect(handlers.onCloseNote).toHaveBeenCalled()
+  })
+
+  it('maps Cmd+W to the close note command', () => {
+    expect(findShortcutCommandId('command-or-ctrl', 'w', 'KeyW')).toBe(APP_COMMAND_IDS.fileCloseNote)
   })
 
   it('dispatches inspector toggle through the shared command path', () => {

@@ -75,6 +75,19 @@
         "requiresManualNativeAcceleratorQa": true
       }
     },
+    "fileCloseNote": {
+      "id": "file-close-note",
+      "route": { "kind": "handler", "handler": "onCloseNote" },
+      "menuOwned": true,
+      "shortcut": {
+        "combo": "command-or-ctrl",
+        "key": "w",
+        "code": "KeyW",
+        "display": "⌘W",
+        "accelerator": "CmdOrCtrl+W",
+        "requiresManualNativeAcceleratorQa": true
+      }
+    },
     "editUndo": {
       "id": "edit-undo",
       "route": { "kind": "handler", "handler": "onUndo" },
@@ -471,7 +484,8 @@
           "accelerator": "CmdOrCtrl+O"
         },
         { "kind": "separator" },
-        { "kind": "command", "command": "fileSave", "label": "Save" }
+        { "kind": "command", "command": "fileSave", "label": "Save" },
+        { "kind": "command", "command": "fileCloseNote", "label": "Close Note" }
       ]
     },
     {
@@ -572,6 +586,7 @@
   "menuStateGroups": {
     "noteDependent": [
       { "command": "fileSave" },
+      { "command": "fileCloseNote" },
       { "command": "noteToggleOrganized" },
       { "command": "noteArchive" },
       { "command": "noteDelete" },
