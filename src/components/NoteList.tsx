@@ -16,10 +16,11 @@ type NoteListInnerProps = NoteListProps & {
 const NoteListInner = forwardRef<NoteListHandle, NoteListInnerProps>(
   function NoteListInner({ onBulkOrganize, multiSelectionCommandRef, ...props }, ref) {
     const model = useNoteListModel(props)
+    const { openSearchWithQuery } = model
 
     useImperativeHandle(ref, () => ({
-      openSearchWithQuery: (query: string) => model.openSearchWithQuery(query),
-    }), [model.openSearchWithQuery])
+      openSearchWithQuery: (query: string) => openSearchWithQuery(query),
+    }), [openSearchWithQuery])
 
     const handleBulkOrganize = useCallback(() => {
       const paths = [...model.multiSelect.selectedPaths]
