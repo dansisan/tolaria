@@ -452,6 +452,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
   const handleGitSetupPreferenceChange = useCallback((preference: GitSetupPreference) => {
     updateConfig('git_setup_preference', preference)
   }, [updateConfig])
+  const vault = useVaultLoader(resolvedPath, graphVaults, multiWorkspaceEnabled ? defaultWorkspacePath : null, folderVaults)
   const {
     dismissGitSetupDialog,
     gitRepoState,
@@ -464,10 +465,10 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     onGitSetupPreferenceChange: handleGitSetupPreferenceChange,
     onToast: setToastMessage,
     resolvedPath,
+    vaultLoading: vault.isLoading,
     windowMode: Boolean(noteWindowParams) || aiWorkspaceWindow,
   })
 
-  const vault = useVaultLoader(resolvedPath, graphVaults, multiWorkspaceEnabled ? defaultWorkspacePath : null, folderVaults)
   const gitRepositories = useMemo(() => activeGitRepositories({
     defaultVaultPath: graphDefaultWorkspacePath,
     multiWorkspaceEnabled,
@@ -1805,6 +1806,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
   const commands = useAppCommands({
     activeTabPath: notes.activeTabPath, activeTabPathRef: notes.activeTabPathRef,
     entries: visibleEntries,
+    vaultLoading: vault.isLoading,
     visibleNotesRef,
     multiSelectionCommandRef,
     modifiedCount: gitModifiedCount,

@@ -16,12 +16,14 @@ vi.mock('../mock-tauri', () => ({
 function renderGitSetupState(
   preference: GitSetupPreference = 'prompt',
   onGitSetupPreferenceChange = vi.fn(),
+  vaultLoading = false,
 ) {
   return renderHook(() => useGitSetupState({
     gitSetupPreference: preference,
     onGitSetupPreferenceChange,
     onToast: vi.fn(),
     resolvedPath: '/vault',
+    vaultLoading,
     windowMode: false,
   }))
 }
@@ -48,6 +50,28 @@ describe('useGitSetupState', () => {
 
   it('still allows the Git setup dialog to be opened manually after never is saved', async () => {
     const { result } = renderGitSetupState('never')
+
+    await waitFor(() => {
+      expect(result.current.gitRepoState).toBe('missing')
+    })
+
+    act(() => result.current.openGitSetupDialog())
+
+    expect(result.current.shouldShowGitSetupDialog).toBe(true)
+  })
+
+  it('does not auto-prompt while the vault is still loading', async () => {
+    const { result } = renderGitSetupState('prompt', vi.fn(), true)
+
+    await waitFor(() => {
+      expect(result.current.gitRepoState).toBe('missing')
+    })
+
+    expect(result.current.shouldShowGitSetupDialog).toBe(false)
+  })
+
+  it('still allows the dialog to be opened manually while the vault is loading', async () => {
+    const { result } = renderGitSetupState('prompt', vi.fn(), true)
 
     await waitFor(() => {
       expect(result.current.gitRepoState).toBe('missing')

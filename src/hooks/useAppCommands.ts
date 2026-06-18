@@ -20,6 +20,7 @@ interface AppCommandsConfig {
   activeTabPath: string | null
   activeTabPathRef: React.MutableRefObject<string | null>
   entries: VaultEntry[]
+  vaultLoading?: boolean
   visibleNotesRef: React.RefObject<VaultEntry[]>
   multiSelectionCommandRef: React.MutableRefObject<NoteListMultiSelectionCommands | null>
   modifiedCount: number
@@ -163,6 +164,7 @@ type CommandRegistryCoreActions = Pick<
   CommandRegistryConfig,
   | 'activeTabPath'
   | 'entries'
+  | 'vaultLoading'
   | 'modifiedCount'
   | 'onQuickOpen'
   | 'onCreateNote'
@@ -478,6 +480,7 @@ function createCommandRegistryCoreConfig(
   return {
     activeTabPath: config.activeTabPath,
     entries: config.entries,
+    vaultLoading: config.vaultLoading,
     modifiedCount: config.modifiedCount,
     onQuickOpen: config.onQuickOpen,
     onCreateNote: config.onCreateNote,

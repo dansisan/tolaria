@@ -13,6 +13,7 @@ interface GitSetupStateConfig {
   onGitSetupPreferenceChange?: (preference: GitSetupPreference) => void
   onToast: (message: string | null) => void
   resolvedPath: string
+  vaultLoading?: boolean
   windowMode: boolean
 }
 
@@ -57,6 +58,7 @@ function shouldShowGitSetupDialog({
   gitSetupPreference,
   manuallyOpened,
   resolvedPath,
+  vaultLoading,
   windowMode,
 }: {
   dismissedGitSetupPath: string | null
@@ -64,10 +66,14 @@ function shouldShowGitSetupDialog({
   gitSetupPreference: GitSetupPreference | null | undefined
   manuallyOpened: boolean
   resolvedPath: string
+  vaultLoading: boolean
   windowMode: boolean
 }): boolean {
   if (windowMode || gitRepoState !== 'missing') return false
   if (manuallyOpened) return true
+  // Don't auto-prompt during startup: the stored "never"/"prompt" preference
+  // loads asynchronously, so prompting before it settles flashes the dialog.
+  if (vaultLoading) return false
   return gitSetupPreference !== 'never' && dismissedGitSetupPath !== resolvedPath
 }
 
@@ -76,6 +82,7 @@ export function useGitSetupState({
   onGitSetupPreferenceChange,
   onToast,
   resolvedPath,
+  vaultLoading = false,
   windowMode,
 }: GitSetupStateConfig) {
   const [dismissedGitSetupPath, setDismissedGitSetupPath] = useState<string | null>(null)
@@ -118,6 +125,7 @@ export function useGitSetupState({
     gitSetupPreference,
     manuallyOpened,
     resolvedPath,
+    vaultLoading,
     windowMode,
   })
 
