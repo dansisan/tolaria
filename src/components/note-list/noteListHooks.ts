@@ -21,6 +21,7 @@ import { prefetchNoteContent } from '../../hooks/useTabManagement'
 import type { NoteListPropertiesScope } from './noteListPropertiesEvents'
 import type { AllNotesFileVisibility } from '../../utils/allNotesFileVisibility'
 import { viewMatchesSelection } from '../../utils/viewIdentity'
+import { requestEditorFocus } from '../../utils/focusEditorEvent'
 
 // --- useTypeEntryMap ---
 
@@ -1097,7 +1098,7 @@ function useKeyboardInteractionState({
   }, [onEnterNeighborhood, onReplaceActiveTab])
 
   const handleFocusEditorOnEnter = useCallback((path: string) => {
-    window.dispatchEvent(new CustomEvent('laputa:focus-editor', { detail: { path } }))
+    requestEditorFocus(path)
   }, [])
 
   const noteListKeyboard = useNoteListKeyboard({

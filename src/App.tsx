@@ -46,6 +46,7 @@ import { useAppCommands } from './hooks/useAppCommands'
 import { triggerCommitEntryAction } from './utils/commitEntryAction'
 import { generateCommitMessage } from './utils/commitMessage'
 import { peopleSearchToken } from './utils/peopleMentions'
+import { requestEditorFocus } from './utils/focusEditorEvent'
 import { useDialogs } from './hooks/useDialogs'
 import { useVaultSwitcher } from './hooks/useVaultSwitcher'
 import { useGitHistory } from './hooks/useGitHistory'
@@ -1301,6 +1302,14 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     else closeAllTabs()
   }, [notes.activeTabPathRef, handleSelectNote, closeAllTabs])
 
+  // Opening a note from quick open should land the caret in the editor body,
+  // mirroring Enter on the note list. handleSelectNote only swaps the tab, so
+  // dispatch the focus request (path-scoped, so it waits for the swap) here.
+  const handleQuickOpenSelect = useCallback((entry: VaultEntry) => {
+    void handleSelectNote(entry)
+    requestEditorFocus(entry.path)
+  }, [handleSelectNote])
+
   const deleteActions = useDeleteActions({
     onDeselectNote: handleDeselectDeletedNote,
     removeEntry: vault.removeEntry,
@@ -2129,7 +2138,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
         <GitSetupDialog open={gitFeaturesEnabled && shouldShowGitSetupDialog} onInitGit={handleInitGitRepo} onDismiss={dismissGitSetupDialog} onNeverForVault={neverForVaultGitSetupDialog} />
         <DeleteProgressNotice count={deleteActions.pendingDeleteCount} />
         <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
-        <QuickOpenPalette open={dialogs.showQuickOpen} entries={visibleEntries} isLoading={vault.isLoading} onSelect={notes.handleSelectNote} onCreateNote={(title) => notes.handleCreateNote(title, 'Note', 'quick_open')} onClose={dialogs.closeQuickOpen} locale={appLocale} />
+        <QuickOpenPalette open={dialogs.showQuickOpen} entries={visibleEntries} isLoading={vault.isLoading} onSelect={handleQuickOpenSelect} onCreateNote={(title) => notes.handleCreateNote(title, 'Note', 'quick_open')} onClose={dialogs.closeQuickOpen} locale={appLocale} />
         <CommandPalette
           open={dialogs.showCommandPalette}
           commands={commands}
