@@ -164,6 +164,34 @@ function selectTitleWithRetries(
   requestAnimationFrame(() => selectTitleWithRetries(editor, t0, attempt + 1))
 }
 
+/** Move the caret to the top of the note so opening one starts the reader there. */
+function placeCursorAtDocumentStart(editor: FocusableEditor): boolean {
+  const firstBlock = editor.document?.[0]
+  if (!firstBlock || !editor.setTextCursorPosition) return false
+
+  try {
+    editor.setTextCursorPosition(firstBlock.id, 'start')
+  } catch {
+    return false
+  }
+  return true
+}
+
+function placeCursorAtStartWithRetries(
+  editor: FocusableEditor,
+  t0: number | undefined,
+  attempt = 0,
+): void {
+  const placed = ensureEditableFocus() && placeCursorAtDocumentStart(editor)
+
+  if (placed || attempt >= MAX_TITLE_SELECTION_ATTEMPTS) {
+    logFocusTiming(t0, 'focus')
+    return
+  }
+
+  requestAnimationFrame(() => placeCursorAtStartWithRetries(editor, t0, attempt + 1))
+}
+
 export function focusEditorWithRetries(
   editor: FocusableEditor,
   selectTitle: boolean,
@@ -177,6 +205,14 @@ export function focusEditorWithRetries(
     return
   }
   if (!selectTitle) {
+    // Land the caret at the top of the note. BlockNote's focus() otherwise
+    // restores the previous selection (often the end), so opening a note would
+    // drop the reader at the bottom. Raw (CodeMirror) editors expose no cursor
+    // API and already start at the top, so fall through to a plain focus there.
+    if (editor.setTextCursorPosition) {
+      requestAnimationFrame(() => placeCursorAtStartWithRetries(editor, t0))
+      return
+    }
     logFocusTiming(t0, 'focus')
     return
   }

@@ -83,6 +83,36 @@ describe('editorFocusUtils extra coverage', () => {
     expect(setTextCursorPosition).toHaveBeenCalledWith('title', 'start')
   })
 
+  it('places the caret at the start of the first block when opening a note (no title select)', () => {
+    const wrapper = document.createElement('div')
+    wrapper.className = 'bn-editor'
+    const editable = document.createElement('div')
+    editable.contentEditable = 'true'
+    editable.setAttribute('contenteditable', 'true')
+    editable.tabIndex = -1
+    Object.defineProperty(editable, 'isContentEditable', { configurable: true, value: true })
+    wrapper.appendChild(editable)
+    document.body.appendChild(wrapper)
+
+    const realFocus = HTMLElement.prototype.focus.bind(editable)
+    vi.spyOn(editable, 'focus').mockImplementation(() => realFocus())
+
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      cb(0)
+      return 1
+    })
+
+    const setTextCursorPosition = vi.fn()
+
+    focusEditorWithRetries({
+      focus: vi.fn(),
+      document: [{ id: 'first-block', type: 'paragraph', content: [] }],
+      setTextCursorPosition,
+    }, false, undefined)
+
+    expect(setTextCursorPosition).toHaveBeenCalledWith('first-block', 'start')
+  })
+
   it('focuses the CodeMirror editable when raw mode is active and no rich editor exists', () => {
     const editable = document.createElement('div')
     editable.className = 'cm-content'

@@ -46,4 +46,13 @@ test('selecting a note from quick open lands focus in the editor body @smoke', a
     const active = document.activeElement
     return Boolean(active?.closest('[contenteditable="true"]'))
   }), { timeout: 5_000 }).toBe(true)
+
+  // The caret should land at the top of the note (first block), not the bottom.
+  await expect.poll(async () => page.evaluate(() => {
+    const anchor = window.getSelection()?.anchorNode
+    const anchorEl = anchor instanceof Element ? anchor : anchor?.parentElement ?? null
+    const caretBlock = anchorEl?.closest('.bn-block')
+    const blocks = Array.from(document.querySelectorAll('.bn-block'))
+    return caretBlock ? blocks.indexOf(caretBlock) : -1
+  }), { timeout: 5_000 }).toBe(0)
 })
