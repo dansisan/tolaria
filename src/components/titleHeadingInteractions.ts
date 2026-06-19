@@ -1,5 +1,5 @@
 import { useCallback, type ClipboardEvent } from 'react'
-import { handleFreshListItemPlainTextPaste, type InlineContentEditor } from './freshListItemPaste'
+import { handleFreshEmptyBlockPlainTextPaste, type InlineContentEditor } from './freshEmptyBlockPaste'
 
 type TitleHeadingEditor = InlineContentEditor & {
   document: Array<{ id?: unknown; type?: string }>
@@ -50,7 +50,7 @@ export function useEditorPasteHandler(options: {
   const { editable, editor, runEditorAction } = options
 
   return useCallback((event: ClipboardEvent<HTMLDivElement>) => {
-    if (handleFreshListItemPlainTextPaste({
+    if (handleFreshEmptyBlockPlainTextPaste({
       editable,
       editor,
       event,
