@@ -300,14 +300,14 @@ function FilenameInput({
         onChange={(event) => onDraftStemChange(event.target.value)}
         onBlur={onBlur}
         onKeyDown={onKeyDown}
-        className="col-start-1 row-start-1 h-7 w-full text-lg md:text-lg"
+        className="col-start-1 row-start-1 h-7 w-full border-0 bg-transparent px-0 text-lg shadow-none focus-visible:border-0 focus-visible:ring-0 md:text-lg"
         data-testid="breadcrumb-filename-input"
         aria-label={translate(locale, 'editor.filename.rename')}
       />
       <span
         aria-hidden="true"
         data-testid="breadcrumb-filename-sizer"
-        className="invisible col-start-1 row-start-1 h-7 whitespace-pre border border-transparent pl-3 pr-4 text-lg"
+        className="invisible col-start-1 row-start-1 h-7 whitespace-pre px-0 pr-2 text-lg"
       >
         {draftStem}
       </span>
