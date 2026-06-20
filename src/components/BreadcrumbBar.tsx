@@ -289,17 +289,29 @@ function FilenameInput({
   onBlur: () => void
   onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void
 }) {
+  // Auto-size the field to its content so long titles aren't clipped: a hidden
+  // mirror span (same font/padding) sets the grid track width, the input fills
+  // it. Capped so it can grow until it would overlap the editor, no further.
   return (
-    <Input
-      ref={inputRef}
-      value={draftStem}
-      onChange={(event) => onDraftStemChange(event.target.value)}
-      onBlur={onBlur}
-      onKeyDown={onKeyDown}
-      className="h-7 w-[180px] text-lg md:text-lg"
-      data-testid="breadcrumb-filename-input"
-      aria-label={translate(locale, 'editor.filename.rename')}
-    />
+    <span className="inline-grid min-w-[180px] max-w-[min(36rem,50vw)] items-stretch">
+      <Input
+        ref={inputRef}
+        value={draftStem}
+        onChange={(event) => onDraftStemChange(event.target.value)}
+        onBlur={onBlur}
+        onKeyDown={onKeyDown}
+        className="col-start-1 row-start-1 h-7 w-full text-lg md:text-lg"
+        data-testid="breadcrumb-filename-input"
+        aria-label={translate(locale, 'editor.filename.rename')}
+      />
+      <span
+        aria-hidden="true"
+        data-testid="breadcrumb-filename-sizer"
+        className="invisible col-start-1 row-start-1 h-7 whitespace-pre border border-transparent pl-3 pr-4 text-lg"
+      >
+        {draftStem}
+      </span>
+    </span>
   )
 }
 
