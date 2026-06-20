@@ -296,7 +296,7 @@ function FilenameInput({
       onChange={(event) => onDraftStemChange(event.target.value)}
       onBlur={onBlur}
       onKeyDown={onKeyDown}
-      className="h-7 w-[180px] text-sm"
+      className="h-7 w-[180px] text-lg md:text-lg"
       data-testid="breadcrumb-filename-input"
       aria-label={translate(locale, 'editor.filename.rename')}
     />
@@ -323,7 +323,7 @@ function FilenameTrigger({
       type="button"
       variant="ghost"
       size="xs"
-      className="h-auto min-w-0 gap-1 px-0 py-0 text-sm font-medium text-foreground hover:bg-transparent hover:text-foreground"
+      className="h-auto min-w-0 gap-1 px-0 py-0 text-lg font-medium text-foreground hover:bg-transparent hover:text-foreground"
       onDoubleClick={onStartEditing}
       onKeyDown={handleKeyDown}
       data-testid="breadcrumb-filename-trigger"
