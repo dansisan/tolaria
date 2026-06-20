@@ -542,7 +542,9 @@ describe('NoteItem', () => {
     const row = screen.getByRole('option')
     expect(row.className).toContain('border-l-[3px]')
     expect(row).toHaveStyle({ borderLeftColor: 'var(--muted-foreground)' })
-    expect(row).toHaveStyle({ backgroundColor: 'var(--state-hover)' })
+    // Light card fill when inactive so the selected row recedes rather than
+    // out-competing the editor for attention.
+    expect(row).toHaveStyle({ backgroundColor: 'var(--surface-card)' })
   })
 
   it('renders broken relationship chips as neutral and non-interactive', () => {

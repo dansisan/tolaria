@@ -1053,7 +1053,7 @@ function BreadcrumbTitle({
   return (
     <div className="breadcrumb-bar__title-content flex items-center gap-1.5 min-w-0 text-sm text-muted-foreground">
       <WorkspaceCrumb entry={entry} />
-      <span className="shrink-0">{typeLabel}</span>
+      <span className="breadcrumb-bar__type shrink-0">{typeLabel}</span>
       <BreadcrumbSeparator />
       <div className="flex min-w-0 items-center gap-1 truncate">
         {loadingTitle

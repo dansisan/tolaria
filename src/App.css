@@ -40,6 +40,28 @@
   background: var(--surface-sidebar);
 }
 
+/* Active-pane cue. When the note list is active (incl. body-focus keyboard nav,
+   hence [data-panel-active]=isPanelActive rather than :focus-within), dim the
+   editor's title bar. */
+.app:has(.app__note-list [data-panel-active="true"]) .breadcrumb-bar {
+  opacity: 0.7;
+}
+
+/* When the editor has focus, fade the whole note list so the open note stays
+   the one bright element. CSS opacity on the pane would cap its children, so we
+   can't dim the pane and exonerate one child — instead dim the chrome regions
+   (header / repo / search rows) and every row EXCEPT the selected one (the open
+   note), which keeps full opacity. */
+.app:has(.app__editor:focus-within) .app__note-list > * > *:not([data-testid="note-list-container"]),
+.app:has(.app__editor:focus-within) .app__note-list [role="option"]:not([aria-selected="true"]) {
+  opacity: 0.7;
+}
+
+.app__note-list > * > *,
+.app__note-list [role="option"] {
+  transition: opacity 120ms ease;
+}
+
 .app__note-list > * {
   flex: 1;
   border-left: 1px solid var(--sidebar-border);
@@ -54,13 +76,6 @@
   flex-direction: column;
   container-type: inline-size;
   container-name: editor;
-  transition: box-shadow 120ms ease;
-}
-
-/* Mirror the note list's active selection: when keystrokes land in the editor,
-   mark the pane with a focus accent so it's clear which pane has focus. */
-.app__editor:focus-within {
-  box-shadow: inset 2px 0 0 0 var(--border-focus);
 }
 
 .app__editor > * {

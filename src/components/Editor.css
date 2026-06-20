@@ -43,7 +43,7 @@
 .breadcrumb-bar {
   container-type: inline-size;
   --breadcrumb-bar-left-padding: 16px;
-  transition: border-color 0.2s ease;
+  transition: border-color 0.2s ease, opacity 120ms ease;
 }
 
 body.mac-chrome .app:not(:has(.app__sidebar)):not(:has(.app__note-list)) .breadcrumb-bar {
@@ -52,6 +52,16 @@ body.mac-chrome .app:not(:has(.app__sidebar)):not(:has(.app__note-list)) .breadc
 
 .breadcrumb-bar[data-title-hidden] {
   border-bottom-color: var(--border);
+}
+
+/* Active-pane cue: tint the note's type label (e.g. "Note") blue while the
+   editor has focus, reinforcing that the editor is the active pane. */
+.breadcrumb-bar__type {
+  transition: color 120ms ease;
+}
+
+.app:has(.app__editor:focus-within) .breadcrumb-bar__type {
+  color: var(--border-focus);
 }
 
 .breadcrumb-bar__title {

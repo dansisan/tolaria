@@ -647,6 +647,7 @@ function buildNoteListLayoutModel(params: {
     handleSearchKeyDown: params.content.handleSearchKeyDown,
     handleListKeyDown: params.interaction.handleListKeyDown,
     noteListPanelRef: params.interaction.noteListKeyboard.panelRef,
+    noteListPanelActive: params.interaction.noteListKeyboard.isPanelActive,
     handleNoteListPanelBlurCapture: params.interaction.noteListKeyboard.handlePanelBlurCapture,
     handleNoteListPanelFocusCapture: params.interaction.noteListKeyboard.handlePanelFocusCapture,
     noteListContainerRef: params.interaction.noteListKeyboard.containerRef,

@@ -343,12 +343,15 @@ function NoteDateRow({
 
 // The selected row always keeps its 3px left border as the focus signal. The
 // border (and a matching row tint) is the active-selection blue while the note
-// list panel holds focus, and switches to a clearly visible neutral grey once
-// focus moves to the editor. Both colours are type-independent, so the flip
-// reads on every note — that is what tells you which pane your keystrokes drive.
+// list panel holds focus, and switches to a neutral grey once focus moves to
+// the editor. When inactive the fill is --surface-card, which is lighter than
+// the list background (--surface-sidebar) in both themes, so the selected row
+// recedes as a soft raised tile rather than drawing attention away from the
+// editor, which is where keystrokes now go. Both colours are type-independent,
+// so the flip reads on every note.
 function selectedRowColors(isPanelActive: boolean): CSSProperties {
   if (isPanelActive) return { borderLeftColor: 'var(--border-focus)', backgroundColor: 'var(--state-selected)' }
-  return { borderLeftColor: 'var(--muted-foreground)', backgroundColor: 'var(--state-hover)' }
+  return { borderLeftColor: 'var(--muted-foreground)', backgroundColor: 'var(--surface-card)' }
 }
 
 function noteItemStyle({ isSelected, isMultiSelected, isPanelActive }: {
