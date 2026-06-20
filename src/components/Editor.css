@@ -80,14 +80,6 @@ body.mac-chrome .app:not(:has(.app__sidebar)):not(:has(.app__note-list)) .breadc
   background: transparent;
 }
 
-.breadcrumb-bar__overflow-menu {
-  display: flex;
-}
-
-.breadcrumb-bar__actions[data-overflow-collapsed='true'] .breadcrumb-bar__overflowable-action {
-  display: none;
-}
-
 /* Scroll area wrapping title + editor — single scroll context for alignment */
 .editor-scroll-area {
   flex: 1;

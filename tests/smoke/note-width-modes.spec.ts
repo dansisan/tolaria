@@ -24,6 +24,11 @@ async function executePaletteCommand(page: Page, label: string) {
   await executeCommand(page, label)
 }
 
+async function selectOverflowAction(page: Page, name: string) {
+  await page.getByRole('button', { name: 'More note actions' }).click()
+  await page.getByRole('menuitem', { name }).click()
+}
+
 async function expectWideModeHasUnboundedWidth(page: Page) {
   const metrics = await page.locator('.editor-content-width--wide').evaluate((root) => {
     const wrapper = root.querySelector<HTMLElement>('.editor-content-wrapper')
@@ -75,7 +80,7 @@ test('note width modes persist only when frontmatter already exists', async ({ p
   await openNote(page, 'Alpha Project')
 
   await expect(page.locator('.editor-content-width--normal')).toBeVisible({ timeout: 5_000 })
-  await page.getByRole('button', { name: 'Switch to wide note width' }).click()
+  await selectOverflowAction(page, 'Switch to wide note width')
   await expect(page.locator('.editor-content-width--wide')).toBeVisible({ timeout: 5_000 })
   await expectWideModeHasUnboundedWidth(page)
   await expect.poll(() => fs.readFileSync(alphaProjectPath(tempVaultDir), 'utf8')).toMatch(/_width:\s+"?wide"?/)
@@ -85,7 +90,7 @@ test('note width modes persist only when frontmatter already exists', async ({ p
   await expect.poll(() => fs.readFileSync(alphaProjectPath(tempVaultDir), 'utf8')).toMatch(/_width:\s+"?normal"?/)
 
   await openNote(page, 'Plain Width Note')
-  await page.getByRole('button', { name: 'Switch to wide note width' }).click()
+  await selectOverflowAction(page, 'Switch to wide note width')
   await expect(page.locator('.editor-content-width--wide')).toBeVisible({ timeout: 5_000 })
   expect(fs.readFileSync(plainNotePath(tempVaultDir), 'utf8')).toBe('# Plain Width Note\n\nNo frontmatter here.\n')
 })

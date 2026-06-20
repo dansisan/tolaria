@@ -75,14 +75,11 @@ describe('BreadcrumbBar filename visibility', () => {
     expect(editorCss).toContain('--breadcrumb-bar-left-padding: 90px;')
   })
 
-  it('keeps a permanent overflow menu while moving lower-priority actions from measured overflow state', () => {
+  it('no longer ships the measured overflow-collapse machinery for the breadcrumb actions', () => {
     const editorCss = readFileSync(`${process.cwd()}/src/components/Editor.css`, 'utf8')
 
     expect(editorCss).not.toContain('@container (max-width:')
-    expect(editorCss).toContain('.breadcrumb-bar__overflow-menu')
-    expect(editorCss).toContain('display: flex;')
-    expect(editorCss).toContain(".breadcrumb-bar__actions[data-overflow-collapsed='true']")
-    expect(editorCss).toContain('.breadcrumb-bar__overflowable-action')
-    expect(editorCss).toContain('display: none;')
+    expect(editorCss).not.toContain('data-overflow-collapsed')
+    expect(editorCss).not.toContain('breadcrumb-bar__overflowable-action')
   })
 })

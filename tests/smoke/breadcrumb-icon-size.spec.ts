@@ -1,16 +1,20 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, type Page, type Locator } from '@playwright/test'
 import { createFixtureVaultCopy, openFixtureVault, removeFixtureVaultCopy } from '../helpers/fixtureVault'
 
 let tempVaultDir: string
 
-async function expectIconSize(buttonName: string, page: Page) {
-  const icon = page.getByRole('button', { name: buttonName }).locator('svg')
+async function expectIconSize(icon: Locator) {
   await expect(icon).toBeVisible({ timeout: 5_000 })
   const box = await icon.boundingBox()
   expect(box?.width).toBeGreaterThanOrEqual(15)
   expect(box?.width).toBeLessThanOrEqual(17)
   expect(box?.height).toBeGreaterThanOrEqual(15)
   expect(box?.height).toBeLessThanOrEqual(17)
+}
+
+async function expectMenuItemIconSize(page: Page, itemName: string) {
+  const icon = page.getByRole('menuitem', { name: itemName }).locator('svg').first()
+  await expectIconSize(icon)
 }
 
 async function selectAlphaProject(page: Page) {
@@ -33,15 +37,16 @@ test.describe('Breadcrumb action icon size regression', () => {
     removeFixtureVaultCopy(tempVaultDir)
   })
 
-  test('breadcrumb action icons render at the pre-regression 16px size', async ({ page }) => {
+  test('breadcrumb overflow-menu icons render at the pre-regression 16px size', async ({ page }) => {
     await openFixtureVault(page, tempVaultDir)
     await selectAlphaProject(page)
 
     await expect(page.locator('.breadcrumb-bar')).toBeVisible({ timeout: 5_000 })
 
-    await expectIconSize('Search within this note', page)
-    await expectIconSize('Open the raw editor', page)
-    await expectIconSize('Open the AI panel', page)
-    await expectIconSize('Archive this note', page)
+    await page.getByRole('button', { name: 'More note actions' }).click()
+    await expect(page.getByRole('menu')).toBeVisible({ timeout: 5_000 })
+
+    await expectMenuItemIconSize(page, 'Open the raw editor')
+    await expectMenuItemIconSize(page, 'Archive this note')
   })
 })
