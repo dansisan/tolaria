@@ -97,7 +97,7 @@ type NoteItemSurfaceProps = {
   testId?: string
 }
 
-const NOTE_ITEM_BASE_CLASS_NAME = 'relative w-full border-0 border-b border-[var(--border)] bg-transparent p-0 text-left transition-colors'
+const NOTE_ITEM_BASE_CLASS_NAME = 'relative w-full border-0 border-b border-r border-[var(--border)] bg-transparent p-0 text-left transition-colors'
 const BINARY_NOTE_STYLE: CSSProperties = { padding: '14px 16px' }
 const NOTE_ITEM_ROW_CLASS_NAMES: Record<NoteItemRowState, string> = {
   binary: 'cursor-default opacity-50',

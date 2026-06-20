@@ -62,6 +62,15 @@
   transition: opacity 120ms ease;
 }
 
+/* When the editor is active, drop the right divider on the open note only, so
+   that one row reads as connected to the editor. The list's right divider is an
+   inset shadow on the panel (see NoteListLayout) that each row redraws as its
+   own border-right; clearing it on the selected row lets the row fill flush to
+   the editor. Other rows and the chrome keep the divider. */
+.app:has(.app__editor:focus-within) .app__note-list [role="option"][aria-selected="true"] {
+  border-right-color: transparent;
+}
+
 .app__note-list > * {
   flex: 1;
   border-left: 1px solid var(--sidebar-border);
