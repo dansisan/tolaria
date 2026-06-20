@@ -41,9 +41,10 @@ pub use ignored::{filter_gitignored_entries, filter_gitignored_folders, filter_g
 pub use image::{copy_image_to_vault, delete_attachment, rename_attachment_via_command, save_image};
 pub use migration::migrate_is_a_to_type;
 pub use rename::{
-    auto_rename_untitled, detect_renames, move_note_to_folder, move_note_to_workspace, rename_note,
-    rename_note_filename, update_wikilinks_for_renames, AutoRenameUntitledRequest, DetectedRename,
-    MoveNoteToFolderRequest, MoveNoteToWorkspaceRequest, RenameNoteFilenameRequest,
+    auto_rename_untitled, detect_renames, move_note_to_folder, move_note_to_folder_with_links,
+    move_note_to_workspace, rename_note, rename_note_filename, rename_note_filename_with_links,
+    rename_note_with_links, update_wikilinks_for_renames, AutoRenameUntitledRequest,
+    DetectedRename, MoveNoteToFolderRequest, MoveNoteToWorkspaceRequest, RenameNoteFilenameRequest,
     RenameNoteRequest, RenameResult,
 };
 pub use title_sync::{sync_title_on_open, SyncAction};

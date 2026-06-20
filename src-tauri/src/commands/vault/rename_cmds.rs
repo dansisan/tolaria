@@ -108,23 +108,32 @@ enum NoteRenameCommandArgs {
 
 impl NoteRenameCommandArgs {
     fn run(self, note: ValidatedNotePath<'_>) -> Result<RenameResult, String> {
+        // Use the parsed link sets to update only the notes that actually link
+        // this one, instead of reading every file. Falls back to a full scan when
+        // the index is unavailable (e.g. non-git vault with no warm cache).
+        let entries = vault::scan_vault_cached(Path::new(note.vault_path)).ok();
+        let entries = entries.as_deref();
         match self {
             Self::Title {
                 new_title,
                 old_title,
-            } => vault::rename_note(vault::RenameNoteRequest {
-                vault_path: note.vault_path,
-                old_path: note.note_path,
-                new_title: &new_title,
-                old_title_hint: old_title.as_deref(),
-            }),
-            Self::Filename { new_filename_stem } => {
-                vault::rename_note_filename(vault::RenameNoteFilenameRequest {
+            } => vault::rename_note_with_links(
+                vault::RenameNoteRequest {
+                    vault_path: note.vault_path,
+                    old_path: note.note_path,
+                    new_title: &new_title,
+                    old_title_hint: old_title.as_deref(),
+                },
+                entries,
+            ),
+            Self::Filename { new_filename_stem } => vault::rename_note_filename_with_links(
+                vault::RenameNoteFilenameRequest {
                     vault_path: note.vault_path,
                     old_path: note.note_path,
                     new_filename_stem: &new_filename_stem,
-                })
-            }
+                },
+                entries,
+            ),
         }
     }
 }
@@ -206,11 +215,15 @@ fn run_folder_move(args: MoveNoteToFolderCommandArgs) -> Result<RenameResult, St
                 if !validated_folder.is_dir() {
                     return Err(format!("Folder does not exist: {}", trimmed_folder_path));
                 }
-                vault::move_note_to_folder(vault::MoveNoteToFolderRequest {
-                    vault_path: note.vault_path,
-                    old_path: note.note_path,
-                    destination_folder_path: validated_folder_path,
-                })
+                let entries = vault::scan_vault_cached(Path::new(note.vault_path)).ok();
+                vault::move_note_to_folder_with_links(
+                    vault::MoveNoteToFolderRequest {
+                        vault_path: note.vault_path,
+                        old_path: note.note_path,
+                        destination_folder_path: validated_folder_path,
+                    },
+                    entries.as_deref(),
+                )
             },
         )
     })

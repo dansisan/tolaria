@@ -8,8 +8,10 @@ use tempfile::NamedTempFile;
 use walkdir::WalkDir;
 
 use super::filename_rules::validate_filename_stem;
+use super::parsing::extract_outgoing_links;
 use super::path_identity::vault_relative_markdown_stem;
 use super::rename_transaction::RenameWorkspace;
+use super::VaultEntry;
 use crate::frontmatter::{update_frontmatter_content, FrontmatterValue};
 
 /// Result of a rename operation
@@ -137,6 +139,48 @@ fn collect_md_files(vault_path: &Path, exclude: &Path) -> Vec<std::path::PathBuf
         .collect()
 }
 
+/// Every bare wikilink target a note references where the app recognizes links:
+/// its body `[[target]]` links plus the targets inside every frontmatter
+/// relationship value. Reserved structural keys (title, type, status, tags, …)
+/// hold no inter-note links — the one that can, `type`, is folded into
+/// `relationships` during parsing — so this is a superset of what the rename
+/// regex matches for recognized links.
+fn entry_link_targets(entry: &VaultEntry) -> HashSet<String> {
+    let mut targets: HashSet<String> = entry.outgoing_links.iter().cloned().collect();
+    for values in entry.relationships.values() {
+        for value in values {
+            targets.extend(extract_outgoing_links(value));
+        }
+    }
+    targets
+}
+
+/// Narrow the vault to just the notes that reference one of `old_targets`, using
+/// the already-parsed link sets in `entries` instead of reading every file. The
+/// result is a superset of the files `collect_md_files` would yield a match for,
+/// so the exact regex rewrite that follows produces identical output far faster.
+fn collect_candidate_files(
+    entries: &[VaultEntry],
+    old_targets: &[&str],
+    exclude: &Path,
+) -> Vec<std::path::PathBuf> {
+    let wanted: HashSet<&str> = old_targets
+        .iter()
+        .copied()
+        .filter(|target| !target.is_empty())
+        .collect();
+    entries
+        .iter()
+        .filter(|entry| {
+            entry_link_targets(entry)
+                .iter()
+                .any(|target| wanted.contains(target.as_str()))
+        })
+        .map(|entry| std::path::PathBuf::from(&entry.path))
+        .filter(|path| is_replaceable_md_file(path, exclude))
+        .collect()
+}
+
 fn unique_wikilink_targets(targets: Vec<&str>) -> Vec<&str> {
     let mut seen = HashSet::new();
     targets
@@ -157,12 +201,17 @@ fn update_wikilinks_in_vault(
     old_targets: &[&str],
     new_target: &str,
     exclude_path: &Path,
+    entries: Option<&[VaultEntry]>,
 ) -> WikilinkUpdateSummary {
     let re = match build_wikilink_pattern(old_targets) {
         Some(r) => r,
         None => return WikilinkUpdateSummary::default(),
     };
-    replace_wikilinks_in_files(collect_md_files(vault_path, exclude_path), &re, new_target)
+    let files = match entries {
+        Some(entries) => collect_candidate_files(entries, old_targets, exclude_path),
+        None => collect_md_files(vault_path, exclude_path),
+    };
+    replace_wikilinks_in_files(files, &re, new_target)
 }
 
 fn replace_wikilinks_in_files(
@@ -246,10 +295,15 @@ fn persist_staged_note(staged: NamedTempFile, target_path: &Path) -> Result<(), 
         .map_err(|e| format!("Failed to replace {}: {}", target_path.display(), e.error))
 }
 
-fn finalize_rename(vault: &Path, old_targets: &[&str], new_file: &Path) -> RenameResult {
+fn finalize_rename(
+    vault: &Path,
+    old_targets: &[&str],
+    new_file: &Path,
+    entries: Option<&[VaultEntry]>,
+) -> RenameResult {
     let new_path = new_file.to_string_lossy().to_string();
     let new_path_stem = to_path_stem(new_file, vault);
-    let summary = update_wikilinks_in_vault(vault, old_targets, &new_path_stem, new_file);
+    let summary = update_wikilinks_in_vault(vault, old_targets, &new_path_stem, new_file, entries);
     RenameResult {
         new_path,
         updated_files: summary.updated_files,
@@ -360,6 +414,16 @@ fn persist_title_only_update(
 /// the file's frontmatter/filename.  This is needed when the caller has already saved
 /// updated content to disk before triggering the rename.
 pub fn rename_note(request: RenameNoteRequest<'_>) -> Result<RenameResult, String> {
+    rename_note_with_links(request, None)
+}
+
+/// Like [`rename_note`] but narrows the vault-wide wikilink update to the notes in
+/// `entries` that actually link this note, avoiding a full-vault read. Pass `None`
+/// to fall back to scanning every file.
+pub fn rename_note_with_links(
+    request: RenameNoteRequest<'_>,
+    entries: Option<&[VaultEntry]>,
+) -> Result<RenameResult, String> {
     let vault = Path::new(request.vault_path);
     let old_file = Path::new(request.old_path);
 
@@ -402,12 +466,21 @@ pub fn rename_note(request: RenameNoteRequest<'_>) -> Result<RenameResult, Strin
         )?;
     let old_path_stem = to_path_stem(old_file, vault);
     let old_targets = collect_legacy_wikilink_targets(&loaded.title, &old_path_stem);
-    Ok(finalize_rename(vault, &old_targets, committed.new_file()))
+    Ok(finalize_rename(vault, &old_targets, committed.new_file(), entries))
 }
 
 /// Rename only the file path stem while preserving title/frontmatter content.
 pub fn rename_note_filename(
     request: RenameNoteFilenameRequest<'_>,
+) -> Result<RenameResult, String> {
+    rename_note_filename_with_links(request, None)
+}
+
+/// Like [`rename_note_filename`] but narrows the vault-wide wikilink update to the
+/// notes in `entries` that actually link this note. Pass `None` to scan every file.
+pub fn rename_note_filename_with_links(
+    request: RenameNoteFilenameRequest<'_>,
+    entries: Option<&[VaultEntry]>,
 ) -> Result<RenameResult, String> {
     let vault = Path::new(request.vault_path);
     let old_file = Path::new(request.old_path);
@@ -444,11 +517,20 @@ pub fn rename_note_filename(
 
     let old_path_stem = to_path_stem(old_file, vault);
     let old_targets = collect_legacy_wikilink_targets(&old_title, &old_path_stem);
-    Ok(finalize_rename(vault, &old_targets, committed.new_file()))
+    Ok(finalize_rename(vault, &old_targets, committed.new_file(), entries))
 }
 
 /// Move a note into a different folder while preserving its filename and content.
 pub fn move_note_to_folder(request: MoveNoteToFolderRequest<'_>) -> Result<RenameResult, String> {
+    move_note_to_folder_with_links(request, None)
+}
+
+/// Like [`move_note_to_folder`] but narrows the vault-wide wikilink update to the
+/// notes in `entries` that actually link this note. Pass `None` to scan every file.
+pub fn move_note_to_folder_with_links(
+    request: MoveNoteToFolderRequest<'_>,
+    entries: Option<&[VaultEntry]>,
+) -> Result<RenameResult, String> {
     let vault = Path::new(request.vault_path);
     let old_file = Path::new(request.old_path);
     let destination_dir = Path::new(request.destination_folder_path);
@@ -490,7 +572,7 @@ pub fn move_note_to_folder(request: MoveNoteToFolderRequest<'_>) -> Result<Renam
 
     let old_path_stem = to_path_stem(old_file, vault);
     let old_targets = collect_legacy_wikilink_targets(&old_title, &old_path_stem);
-    Ok(finalize_rename(vault, &old_targets, committed.new_file()))
+    Ok(finalize_rename(vault, &old_targets, committed.new_file(), entries))
 }
 
 /// Move a note into another workspace while preserving its vault-relative path.
@@ -537,7 +619,7 @@ pub fn move_note_to_workspace(
     let fallback_target = to_path_stem(new_file, destination_vault);
     let replacement_target = request.replacement_target.unwrap_or(&fallback_target);
     let source_summary =
-        update_wikilinks_in_vault(source_vault, &old_targets, replacement_target, new_file);
+        update_wikilinks_in_vault(source_vault, &old_targets, replacement_target, new_file, None);
     let destination_summary = if source_vault == destination_vault {
         WikilinkUpdateSummary::default()
     } else {
@@ -546,6 +628,7 @@ pub fn move_note_to_workspace(
             &old_targets,
             replacement_target,
             new_file,
+            None,
         )
     };
 
@@ -664,7 +747,7 @@ pub fn update_wikilinks_for_renames(
         // Build title from filename stem (kebab-case → Title Case)
         let old_title = super::parsing::slug_to_title(old_filename_stem);
         let old_targets = collect_legacy_wikilink_targets(&old_title, &old_stem);
-        let summary = update_wikilinks_in_vault(vault, &old_targets, &new_stem, &new_file);
+        let summary = update_wikilinks_in_vault(vault, &old_targets, &new_stem, &new_file, None);
         total_updated += summary.updated_files;
     }
 
@@ -1485,5 +1568,105 @@ mod tests {
         assert!(!new_path.exists());
         assert!(!backup_path.exists());
         assert!(!manifest_path.exists());
+    }
+
+    // --- candidate narrowing: link-index path must match the full vault walk ---
+
+    /// A vault that references `note/weekly-review.md` four ways the regex matches
+    /// (path stem, title, filename stem, and a frontmatter relationship) plus one
+    /// note that links something else entirely.
+    fn build_wikilink_fixture(vault: &Path) {
+        create_test_file(
+            vault,
+            "note/weekly-review.md",
+            "---\ntitle: Weekly Review\ntype: Note\n---\n# Weekly Review\n\nBody.\n",
+        );
+        create_test_file(
+            vault,
+            "note/body-link.md",
+            "# Body Link\n\nSee [[note/weekly-review]], [[Weekly Review]], and [[weekly-review|alias]].\n",
+        );
+        create_test_file(
+            vault,
+            "project/fm-link.md",
+            "---\ntype: Project\nRelated to:\n  - \"[[Weekly Review]]\"\n---\n# Project\n",
+        );
+        create_test_file(
+            vault,
+            "note/unrelated.md",
+            "# Unrelated\n\nNo match here, just [[Some Other Note]].\n",
+        );
+    }
+
+    fn read_vault_md(vault: &Path) -> std::collections::BTreeMap<String, String> {
+        collect_md_files(vault, Path::new(""))
+            .into_iter()
+            .map(|p| (to_path_stem(&p, vault), fs::read_to_string(&p).unwrap()))
+            .collect()
+    }
+
+    fn scan_fixture(vault: &Path) -> Vec<VaultEntry> {
+        crate::vault::scan_vault(vault, &std::collections::HashMap::new(), "created").unwrap()
+    }
+
+    #[test]
+    fn test_rename_filename_with_links_matches_full_walk() {
+        let narrowed = TempDir::new().unwrap();
+        let full = TempDir::new().unwrap();
+        build_wikilink_fixture(narrowed.path());
+        build_wikilink_fixture(full.path());
+        let entries = scan_fixture(narrowed.path());
+
+        let narrowed_result = rename_note_filename_with_links(
+            RenameNoteFilenameRequest {
+                vault_path: narrowed.path().to_str().unwrap(),
+                old_path: narrowed.path().join("note/weekly-review.md").to_str().unwrap(),
+                new_filename_stem: "sprint-retro",
+            },
+            Some(&entries),
+        )
+        .unwrap();
+        let full_result = rename_note_filename_with_links(
+            RenameNoteFilenameRequest {
+                vault_path: full.path().to_str().unwrap(),
+                old_path: full.path().join("note/weekly-review.md").to_str().unwrap(),
+                new_filename_stem: "sprint-retro",
+            },
+            None,
+        )
+        .unwrap();
+
+        // The link-narrowed rewrite must update exactly the same files, and the
+        // resulting vault must be byte-identical to the brute-force walk.
+        assert_eq!(narrowed_result.updated_files, full_result.updated_files);
+        assert!(
+            narrowed_result.updated_files >= 2,
+            "expected body + frontmatter refs, got {}",
+            narrowed_result.updated_files
+        );
+        assert_eq!(read_vault_md(narrowed.path()), read_vault_md(full.path()));
+    }
+
+    #[test]
+    fn test_collect_candidate_files_excludes_non_linking_and_self() {
+        let dir = TempDir::new().unwrap();
+        build_wikilink_fixture(dir.path());
+        let entries = scan_fixture(dir.path());
+        let exclude = dir.path().join("note/weekly-review.md");
+
+        let candidates = collect_candidate_files(
+            &entries,
+            &["Weekly Review", "note/weekly-review", "weekly-review"],
+            &exclude,
+        );
+        let stems: HashSet<String> = candidates
+            .iter()
+            .map(|p| to_path_stem(p, dir.path()))
+            .collect();
+
+        assert!(stems.contains("note/body-link"), "body links are candidates");
+        assert!(stems.contains("project/fm-link"), "frontmatter links are candidates");
+        assert!(!stems.contains("note/unrelated"), "non-linking notes are skipped");
+        assert!(!stems.contains("note/weekly-review"), "the renamed note is excluded");
     }
 }
