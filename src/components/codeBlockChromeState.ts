@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { CODE_LINE_NUMBER_CLASS } from './codeBlockLineNumberExtension'
 import { readCodeFence, resolveFenceLanguage } from './codeFenceOnEnterExtension'
 
 export const CODE_BLOCK_SELECTOR = '[data-content-type="codeBlock"]'
@@ -35,7 +36,12 @@ export type CodeBlockChromeTarget = {
 
 export function codeBlockText(codeBlock: HTMLElement): string {
   const codeElement = codeBlock.querySelector<HTMLElement>('pre code')
-  return codeElement?.textContent ?? ''
+  if (!codeElement) return ''
+  // Line-number widgets live inside `pre code`; drop them so copy yields the
+  // pure source, not "1const x" (see codeBlockLineNumberExtension).
+  const clone = codeElement.cloneNode(true) as HTMLElement
+  clone.querySelectorAll(`.${CODE_LINE_NUMBER_CLASS}`).forEach((node) => node.remove())
+  return clone.textContent ?? ''
 }
 
 export function readDomNowrap(codeBlock: HTMLElement): boolean {

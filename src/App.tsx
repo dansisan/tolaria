@@ -34,6 +34,7 @@ import { useNoteWidthMode } from './hooks/useNoteWidthMode'
 import { useNoteBodyFontSize } from './hooks/useNoteBodyFontSize'
 import { resolveNoteFontSize } from './utils/noteBodyFontSize'
 import { useCodeFontSize } from './hooks/useCodeFontSize'
+import { useCodeLineNumbers } from './hooks/useCodeLineNumbers'
 import { normalizeCodeFontSize } from './utils/codeFontSize'
 import { resolveImageRenameCommand } from './utils/imageRename'
 import { useNoteActions } from './hooks/useNoteActions'
@@ -333,6 +334,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
   const aiFeaturesEnabled = areAiFeaturesEnabled(settings)
   useNoteBodyFontSize(resolveNoteFontSize(settings.note_body_font_size, null))
   useCodeFontSize(normalizeCodeFontSize(settings.code_font_size))
+  useCodeLineNumbers(settings.code_line_numbers === true)
   const imageRenameCommand = resolveImageRenameCommand(settings.image_rename_mode, settings.image_rename_command) ?? undefined
 
   // onSwitch closure captures `notes` declared below — safe because it's only

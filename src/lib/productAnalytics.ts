@@ -100,6 +100,10 @@ export function trackCodeFontSizeChanged(fontSize: number | null): void {
   trackEvent('code_font_size_changed', { fontSize: fontSize ?? 'default' })
 }
 
+export function trackCodeLineNumbersChanged(enabled: boolean): void {
+  trackEvent('code_line_numbers_changed', { enabled: enabled ? 1 : 0 })
+}
+
 export function trackImageRenameModeChanged(mode: string): void {
   trackEvent('image_rename_mode_changed', { mode })
 }

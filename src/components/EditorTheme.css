@@ -627,6 +627,37 @@
   background-color: transparent !important;
 }
 
+/* Line numbers (opt-in via Settings → Content; see useCodeLineNumbers). The
+   numbers are widget decorations injected at each line start
+   (codeBlockLineNumberExtension) and are always in the DOM but hidden until the
+   root opts in, so toggling the setting is a pure CSS change. The gutter is
+   reserved as extra padding on the block-level <pre> (not the inline <code>,
+   whose left padding would only indent the first line); a negative margin then
+   pulls each inline-block number back into that gutter, so every line's number
+   sits in the gutter while the code stays flush at the padding edge. */
+.editor__code-line-number {
+  display: none;
+}
+
+:root[data-code-line-numbers="true"] .editor__blocknote-container .bn-block-content[data-content-type="codeBlock"] > pre {
+  padding-left: calc(16px + 3em);
+}
+
+:root[data-code-line-numbers="true"] .editor__code-line-number {
+  display: inline-block;
+  box-sizing: border-box;
+  width: 3em;
+  margin-left: -3em;
+  padding-right: 1.25em;
+  text-align: right;
+  color: var(--editor-code-block-language);
+  opacity: 0.5;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+
 /* --- Blockquote --- */
 .editor__blocknote-container [data-content-type="blockquote"],
 .editor__blocknote-container blockquote {

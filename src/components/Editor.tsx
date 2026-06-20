@@ -36,6 +36,7 @@ import { createImeCompositionKeyGuardExtension } from './imeCompositionKeyGuardE
 import { createMathInputExtension } from './mathInputExtension'
 import { createCodeFenceOnEnterExtension } from './codeFenceOnEnterExtension'
 import { createCodeBlockFenceDecorationExtension } from './codeBlockFenceDecorationExtension'
+import { createCodeBlockLineNumberExtension } from './codeBlockLineNumberExtension'
 import { createEditTitleOnArrowUpExtension } from './editTitleOnArrowUpExtension'
 import { createRichEditorTransformErrorRecoveryExtension } from './richEditorTransformErrorRecoveryExtension'
 import { useFilenameAutolinkGuard } from './useFilenameAutolinkGuard'
@@ -240,6 +241,7 @@ function useEditorSetup({
       createEditTitleOnArrowUpExtension(),
       createCodeFenceOnEnterExtension(),
       createCodeBlockFenceDecorationExtension(),
+      createCodeBlockLineNumberExtension(),
     ],
   })
   useFilenameAutolinkGuard(editor)

@@ -128,6 +128,7 @@ export interface Settings {
   note_width_mode?: NoteWidthMode | null
   note_body_font_size?: number | null
   code_font_size?: number | null
+  code_line_numbers?: boolean | null
   image_rename_mode?: ImageRenameMode | null
   image_rename_command?: string | null
   sidebar_type_pluralization_enabled?: boolean | null

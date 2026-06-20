@@ -3,6 +3,7 @@ import { trackEvent } from '../lib/telemetry'
 import {
   trackAiFeaturesEnabledChanged,
   trackCodeFontSizeChanged,
+  trackCodeLineNumbersChanged,
   trackDateDisplayFormatChanged,
   trackDefaultNoteWidthChanged,
   trackGitFeaturesEnabledChanged,
@@ -29,6 +30,7 @@ export interface SettingsPreferenceDraft {
   defaultNoteWidth: NoteWidthMode
   noteBodyFontSize: number
   codeFontSize: number | null
+  codeLineNumbers: boolean
   imageRenameMode: ImageRenameMode
   gitFeaturesEnabled: boolean
   multiWorkspaceEnabled: boolean
@@ -69,6 +71,11 @@ export function trackSettingsPreferenceChanges(settings: Settings, draft: Settin
   const previousCodeFontSize = normalizeCodeFontSize(settings.code_font_size)
   if (previousCodeFontSize !== draft.codeFontSize) {
     trackCodeFontSizeChanged(draft.codeFontSize)
+  }
+
+  const previousCodeLineNumbers = settings.code_line_numbers === true
+  if (previousCodeLineNumbers !== draft.codeLineNumbers) {
+    trackCodeLineNumbersChanged(draft.codeLineNumbers)
   }
 
   const previousImageRenameMode = normalizeImageRenameMode(settings.image_rename_mode)

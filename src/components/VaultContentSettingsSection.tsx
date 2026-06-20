@@ -27,6 +27,8 @@ interface VaultContentSettingsSectionProps {
   setNoteBodyFontSize: (value: number) => void
   codeFontSize: number | null
   setCodeFontSize: (value: number | null) => void
+  codeLineNumbers: boolean
+  setCodeLineNumbers: (value: boolean) => void
   imageRenameMode: ImageRenameMode
   setImageRenameMode: (value: ImageRenameMode) => void
   imageRenameCommand: string
@@ -105,6 +107,8 @@ export function VaultContentSettingsSection({
   setNoteBodyFontSize,
   codeFontSize,
   setCodeFontSize,
+  codeLineNumbers,
+  setCodeLineNumbers,
   imageRenameMode,
   setImageRenameMode,
   imageRenameCommand,
@@ -183,6 +187,14 @@ export function VaultContentSettingsSection({
             testId="settings-code-font-size"
           />
         </SettingsRow>
+
+        <SettingsSwitchRow
+          label={t('settings.codeLineNumbers.label')}
+          description={t('settings.codeLineNumbers.description')}
+          checked={codeLineNumbers}
+          onChange={setCodeLineNumbers}
+          testId="settings-code-line-numbers"
+        />
 
         <SettingsRow
           label={t('settings.imageRename.default')}

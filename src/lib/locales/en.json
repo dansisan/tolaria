@@ -185,6 +185,8 @@
   "settings.codeFontSize.default": "Code font size",
   "settings.codeFontSize.defaultDescription": "Choose the font size for code blocks and inline code.",
   "settings.codeFontSize.defaultOption": "Default",
+  "settings.codeLineNumbers.label": "Show line numbers in code blocks",
+  "settings.codeLineNumbers.description": "Display a line number gutter on every code block.",
   "settings.imageRename.default": "Rename pasted images",
   "settings.imageRename.defaultDescription": "Run a command to rename images right after they are pasted.",
   "settings.imageRename.off": "Off",
