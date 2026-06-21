@@ -101,8 +101,29 @@ function EditorLoadingCanvas({ cssVars }: Pick<EditorContentModel, 'cssVars'>) {
   )
 }
 
+/** Closes diff mode when Escape is pressed. Diff view is plain (non-CodeMirror)
+ *  HTML that may not hold focus, so we listen on the window in the capture phase
+ *  to exit before the app-level Escape navigation handler can act on it. The
+ *  listener is scoped to the diff view's mount, which only happens in diff mode. */
+function useDiffEscapeExit(onToggleDiff: () => void) {
+  const onToggleDiffRef = useRef(onToggleDiff)
+  useEffect(() => { onToggleDiffRef.current = onToggleDiff }, [onToggleDiff])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      event.preventDefault()
+      event.stopPropagation()
+      onToggleDiffRef.current()
+    }
+    window.addEventListener('keydown', handleKeyDown, { capture: true })
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true })
+  }, [])
+}
+
 function DiffModeView({ diffContent, locale = 'en', onToggleDiff }: { diffContent: string | null; locale?: AppLocale; onToggleDiff: () => void }) {
   const label = translate(locale, 'editor.toolbar.rawReturn')
+  useDiffEscapeExit(onToggleDiff)
 
   return (
     <div className="flex-1 overflow-auto">

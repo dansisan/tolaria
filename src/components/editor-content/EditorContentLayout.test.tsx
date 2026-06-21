@@ -1,5 +1,5 @@
 import { createRef } from 'react'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { EditorContentLayout } from './EditorContentLayout'
 
@@ -127,6 +127,28 @@ describe('EditorContentLayout', () => {
       'data-content',
       '---\ntitle: Reference Planning Notes\n---\n\nBody',
     )
+  })
+
+  it('exits diff mode when Escape is pressed', () => {
+    const onToggleDiff = vi.fn()
+    render(<EditorContentLayout {...createModel({
+      diffMode: true,
+      diffContent: 'diff body',
+      onToggleDiff,
+    })} />)
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    expect(onToggleDiff).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not exit diff mode on Escape when diff mode is closed', () => {
+    const onToggleDiff = vi.fn()
+    render(<EditorContentLayout {...createModel({ diffMode: false, onToggleDiff })} />)
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    expect(onToggleDiff).not.toHaveBeenCalled()
   })
 
   it('keeps raw mode out of the rich-editor content wrapper', () => {
