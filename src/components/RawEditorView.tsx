@@ -40,6 +40,10 @@ export interface RawEditorViewProps {
   /** Called when the find bar closes, so a parent that auto-switched into raw
    *  mode for find can switch back to the rendered view. */
   onFindClose?: () => void
+  /** Called when Escape is pressed with nothing to close, to leave raw mode and
+   *  return to the rendered view. Omitted when raw mode cannot be exited (e.g.
+   *  non-markdown files), in which case Escape hands focus back to the note list. */
+  onExitRaw?: () => void
 }
 
 const DEBOUNCE_MS = 500
@@ -396,7 +400,7 @@ function useRawEditorPlainTextPasteTarget({
   }, [])
 }
 
-export function RawEditorView({ content, path, entries, sourceEntry, onContentChange, onSave, latestContentRef, vaultPath, locale = 'en', findRequest, onFindClose }: RawEditorViewProps) {
+export function RawEditorView({ content, path, entries, sourceEntry, onContentChange, onSave, latestContentRef, vaultPath, locale = 'en', findRequest, onFindClose, onExitRaw }: RawEditorViewProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [rawDoc, setRawDoc] = useState(content)
@@ -427,12 +431,17 @@ export function RawEditorView({ content, path, entries, sourceEntry, onContentCh
       handleFindClose()
       return true
     }
-    // Nothing to close: leave the editor and hand focus back to the note list
-    // directly. Relying on the Escape event bubbling to the window-level
-    // handler is unreliable here because focus races and Escape gating can
-    // swallow it before it reaches the list.
+    // Nothing to close: leave raw mode and return to the rendered view when the
+    // parent allows it. Otherwise (e.g. non-markdown files that can't render)
+    // hand focus back to the note list directly. Relying on the Escape event
+    // bubbling to the window-level handler is unreliable here because focus
+    // races and Escape gating can swallow it before it reaches the list.
+    if (onExitRaw) {
+      onExitRaw()
+      return true
+    }
     return focusNoteListContainer(document)
-  }, [findOpen, handleAutocompleteEscape, handleFindClose])
+  }, [findOpen, handleAutocompleteEscape, handleFindClose, onExitRaw])
   const handleFindNext = useCallback(() => {
     if (!findMatchNavRef.current) return false
     findMatchNavRef.current.next()
