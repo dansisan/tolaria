@@ -646,16 +646,29 @@ mod macos_impl {
                         counter: 0,
                     });
                 }
-                out.push('\n');
+                ensure_newline(out);
             }
             "li" if !is_close => push_list_marker(out, stack),
             "br" => out.push('\n'),
-            // Block tags break lines, but only outside a list so item text stays
-            // on one line.
-            "div" | "p" | "tr" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" if stack.is_empty() => {
-                out.push('\n')
+            // A block element starts a new line. Only the opening tag breaks the
+            // line, and only when not already at one, so consecutive lines stay
+            // adjacent instead of gaining a blank line from the matching close
+            // tag plus the source newline. Explicit blank lines come from `<br>`;
+            // lists manage their own breaks.
+            "div" | "p" | "tr" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
+                if stack.is_empty() && !is_close =>
+            {
+                ensure_newline(out)
             }
             _ => {}
+        }
+    }
+
+    /// Pushes a newline unless `out` is empty or already ends with one, so block
+    /// boundaries collapse to a single break instead of stacking up.
+    fn ensure_newline(out: &mut String) {
+        if !matches!(out.chars().last(), None | Some('\n')) {
+            out.push('\n');
         }
     }
 
@@ -809,6 +822,24 @@ mod macos_impl {
                 html_to_plain_text("<div>Hello</div><div><br></div><div>World</div>"),
                 "Hello\n\nWorld"
             );
+        }
+
+        #[test]
+        fn keeps_consecutive_lines_adjacent() {
+            // Apple Notes separates each line with `</div>\n<div>`. Consecutive
+            // content lines must stay adjacent, not gain a blank line from the
+            // matching close tag plus the source newline.
+            let html =
+                "<div><h1><br></h1></div>\n<div>Pears</div>\n<div>Coconut milk</div>\n<div>Lemon</div>";
+            assert_eq!(html_to_plain_text(html), "Pears\nCoconut milk\nLemon");
+        }
+
+        #[test]
+        fn keeps_line_after_bold_first_line_adjacent() {
+            // Apple Notes styles the title line as bold/heading; the following
+            // line must not be pushed onto a separate paragraph.
+            let html = "<div><b>Shopping</b></div>\n<div>milk</div>";
+            assert_eq!(html_to_plain_text(html), "Shopping\nmilk");
         }
 
         #[test]
