@@ -36,12 +36,19 @@ pub fn apply_derived_frontmatter(content: &str, ctx: &DeriveContext) -> String {
 /// must not do.
 pub fn apply_content_frontmatter(content: &str) -> String {
     let content = stamp_code_block_count(content);
+    let content = stamp_image_count(&content);
     stamp_bottom_line_count(&content)
 }
 
 /// Refresh the `codeBlocks` count — the number of fenced code blocks in the body.
 pub fn stamp_code_block_count(content: &str) -> String {
     stamp_content_count(content, "codeBlocks", count_fenced_code_blocks(content))
+}
+
+/// Refresh the `images` count — the number of embedded markdown images
+/// (`![alt](dest)`) in the body.
+pub fn stamp_image_count(content: &str) -> String {
+    stamp_content_count(content, "images", count_images(content))
 }
 
 /// Refresh the `bottomLines` count — the number of non-blank lines below the
@@ -108,6 +115,35 @@ impl Fence {
     fn closes(self, open: Fence) -> bool {
         self.marker == open.marker && self.length >= open.length
     }
+}
+
+/// Count embedded markdown images (`![alt](dest)`) in the note body. The `!`
+/// prefix is what distinguishes an image from a plain `[label](dest)` link, so
+/// those — and wikilink embeds (`![[note]]`) — are not counted.
+fn count_images(content: &str) -> u32 {
+    let body = content_body(content);
+    let mut count = 0;
+    let mut rest = body;
+    while let Some(bang) = rest.find("![") {
+        // The alt text runs to the first `]`, which must be immediately
+        // followed by a `(dest)` destination for this to be an image embed.
+        rest = &rest[bang + 2..];
+        let Some(close_bracket) = rest.find(']') else {
+            break;
+        };
+        let after = &rest[close_bracket + 1..];
+        match after
+            .strip_prefix('(')
+            .and_then(|dest| dest.find(')').map(|end| &dest[end + 1..]))
+        {
+            Some(remainder) => {
+                count += 1;
+                rest = remainder;
+            }
+            None => rest = after,
+        }
+    }
+    count
 }
 
 /// Count the non-blank lines below the last asterisk thematic break in the body.
@@ -226,6 +262,47 @@ mod tests {
     }
 
     #[test]
+    fn counts_markdown_image_embeds() {
+        assert_eq!(count_images("# Note\n\n![](attachments/a.png)\n"), 1);
+        assert_eq!(
+            count_images("![one](attachments/a.png) text ![two](https://x/b.jpg)"),
+            2
+        );
+    }
+
+    #[test]
+    fn ignores_plain_links_and_wikilink_embeds() {
+        // A plain `[label](dest)` link has no `!` prefix; `![[note]]` is a
+        // wikilink embed, not a markdown image.
+        assert_eq!(
+            count_images("[a link](attachments/a.png) and ![[some-note]]"),
+            0
+        );
+    }
+
+    #[test]
+    fn stamp_adds_image_count_for_a_plain_note_with_an_image() {
+        let stamped = stamp_image_count("# Note\n\n![](attachments/a.png)\n");
+        assert!(stamped.starts_with("---\n"));
+        assert!(stamped.contains("images: 1"));
+        assert!(stamped.contains("# Note"));
+    }
+
+    #[test]
+    fn stamp_updates_existing_image_count() {
+        let content = "---\ntitle: Note\nimages: 5\n---\n# Note\n\n![](a.png)\n![](b.png)\n";
+        let stamped = stamp_image_count(content);
+        assert!(stamped.contains("images: 2"));
+        assert!(!stamped.contains("images: 5"));
+    }
+
+    #[test]
+    fn stamp_leaves_image_free_notes_without_a_key_alone() {
+        let content = "---\ntitle: Note\n---\n# Note\n\nJust prose.\n";
+        assert_eq!(stamp_image_count(content), content);
+    }
+
+    #[test]
     fn counts_non_blank_lines_below_the_last_asterisk_divider() {
         assert_eq!(count_bottom_lines("# Note\n\n* * *\n\ndraft a\ndraft b\n"), 2);
         // Blank lines below the divider don't count.
@@ -260,9 +337,10 @@ mod tests {
 
     #[test]
     fn content_pipeline_stamps_code_blocks_and_bottom_lines_together() {
-        let content = "# Note\n\n```\ncode\n```\n\n* * *\n\ndraft a\ndraft b\n";
+        let content = "# Note\n\n```\ncode\n```\n\n![](a.png)\n\n* * *\n\ndraft a\ndraft b\n";
         let derived = apply_content_frontmatter(content);
         assert!(derived.contains("codeBlocks: 1"));
+        assert!(derived.contains("images: 1"));
         assert!(derived.contains("bottomLines: 2"));
     }
 
