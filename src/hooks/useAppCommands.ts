@@ -116,6 +116,7 @@ interface AppCommandsConfig {
   onReloadVault?: () => void
   onRepairVault?: () => void
   onRecomputeMetadata?: () => void
+  onImportAppleNotes?: () => void
   onSetNoteIcon?: () => void
   onRemoveNoteIcon?: () => void
   onChangeNoteType?: () => void
@@ -230,6 +231,7 @@ type CommandRegistryVaultActions = Pick<
   | 'onReloadVault'
   | 'onRepairVault'
   | 'onRecomputeMetadata'
+  | 'onImportAppleNotes'
   | 'onOpenInNewWindow'
   | 'onRevealActiveFile'
   | 'onCopyActiveFilePath'
@@ -553,6 +555,7 @@ function createCommandRegistryVaultConfig(
     onReloadVault: config.onReloadVault,
     onRepairVault: config.onRepairVault,
     onRecomputeMetadata: config.onRecomputeMetadata,
+    onImportAppleNotes: config.onImportAppleNotes,
     onOpenInNewWindow: config.onOpenInNewWindow,
     onRevealActiveFile: config.onRevealActiveFile,
     onCopyActiveFilePath: config.onCopyActiveFilePath,

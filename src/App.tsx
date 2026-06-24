@@ -1602,6 +1602,53 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     }
   }, [appLocale, resolvedPath, vault])
 
+  const handleImportAppleNotes = useCallback(async () => {
+    if (!resolvedPath) return
+    const tauriInvoke = isTauri() ? invoke : mockInvoke
+    let unlisten: (() => void) | undefined
+    try {
+      const { listen } = await import('@tauri-apps/api/event')
+      unlisten = await listen<{ processed: number; total: number }>(
+        'apple-notes-import-progress',
+        (event) => {
+          setToastMessage(translate(appLocale, 'command.importAppleNotes.toast.progress', {
+            processed: event.payload.processed,
+            total: event.payload.total,
+          }))
+        },
+      )
+      setToastMessage(translate(appLocale, 'command.importAppleNotes.toast.start'))
+      const result = await tauriInvoke<{
+        created: number
+        updated: number
+        unchanged: number
+        failed: number
+      }>('import_apple_notes', {
+        vaultPath: resolvedPath,
+        createdKey: settings.frontmatter_created_key ?? 'created',
+      })
+      await vault.reloadVault()
+      const touched = result.created + result.updated + result.unchanged
+      setToastMessage(touched > 0
+        ? translate(appLocale, 'command.importAppleNotes.toast.done', {
+            created: result.created,
+            updated: result.updated,
+            unchanged: result.unchanged,
+          })
+        : translate(appLocale, 'command.importAppleNotes.toast.none'))
+      trackEvent('apple_notes_imported', {
+        created: result.created,
+        updated: result.updated,
+        unchanged: result.unchanged,
+        failed: result.failed,
+      })
+    } catch (err) {
+      setToastMessage(translate(appLocale, 'command.importAppleNotes.toast.failed', { error: String(err) }))
+    } finally {
+      unlisten?.()
+    }
+  }, [appLocale, resolvedPath, settings.frontmatter_created_key, vault])
+
   const restoreVaultAiGuidance = useCallback(async (successToast: string | null = 'Tolaria AI guidance restored') => {
     if (!resolvedPath) return
     try {
@@ -1898,6 +1945,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     onReloadVault: handleManualVaultReload,
     onRepairVault: handleRepairVault,
     onRecomputeMetadata: handleRecomputeMetadata,
+    onImportAppleNotes: handleImportAppleNotes,
     onSetNoteIcon: handleSetNoteIconCommand,
     onRemoveNoteIcon: handleRemoveNoteIconCommand,
     onChangeNoteType: changeNoteTypeCommand,

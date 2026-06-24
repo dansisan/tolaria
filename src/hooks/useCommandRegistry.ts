@@ -8,6 +8,8 @@ import type { NoteListFilter } from '../utils/noteListHelpers'
 import type { ViewMode } from './useViewMode'
 import { buildNavigationCommands } from './commands/navigationCommands'
 import { buildNoteCommands } from './commands/noteCommands'
+import { buildAppleNotesCommands } from './commands/appleNotesCommands'
+import { isMac } from '../utils/platform'
 import { buildGitCommands } from './commands/gitCommands'
 import { buildViewCommands } from './commands/viewCommands'
 import { buildSettingsCommands } from './commands/settingsCommands'
@@ -46,6 +48,7 @@ interface CommandRegistryConfig {
   onReloadVault?: () => void
   onRepairVault?: () => void
   onRecomputeMetadata?: () => void
+  onImportAppleNotes?: () => void
   onSetNoteIcon?: () => void
   onRemoveNoteIcon?: () => void
   locale?: AppLocale
@@ -169,7 +172,7 @@ export function useCommandRegistry(config: CommandRegistryConfig): import('./com
     mcpStatus, onInstallMcp, aiFeaturesEnabled,
     aiAgentsStatus, vaultAiGuidanceStatus,
     onOpenAiAgents, onRestoreVaultAiGuidance, onSetDefaultAiAgent, selectedAiAgent, onCycleDefaultAiAgent, selectedAiAgentLabel,
-    onReloadVault, onRepairVault, onRecomputeMetadata,
+    onReloadVault, onRepairVault, onRecomputeMetadata, onImportAppleNotes,
     locale, systemLocale, selectedUiLanguage, onSetUiLanguage, onSetThemeMode,
     onSetNoteIcon, onRemoveNoteIcon, activeNoteHasIcon, onChangeNoteType, onMoveNoteToFolder, canMoveNoteToFolder,
     onOpenInNewWindow, onRevealActiveFile, onCopyActiveFilePath, onCopyActiveDeepLink, onOpenActiveFileExternal, onExportNoteAsPdf, onToggleFavorite, onToggleOrganized,
@@ -310,9 +313,14 @@ export function useCommandRegistry(config: CommandRegistryConfig): import('./com
     () => buildFilterCommands({ isSectionGroup, noteListFilter, onSetNoteListFilter }),
     [isSectionGroup, noteListFilter, onSetNoteListFilter],
   )
+  const appleNotesCommands = useMemo(
+    () => buildAppleNotesCommands({ locale, enabled: isMac(), onImportAppleNotes }),
+    [locale, onImportAppleNotes],
+  )
   const commands = useMemo(() => [
     ...navigationCommands,
     ...noteCommands,
+    ...appleNotesCommands,
     ...gitCommands,
     ...viewCommands,
     ...settingsCommands,
@@ -320,7 +328,7 @@ export function useCommandRegistry(config: CommandRegistryConfig): import('./com
     ...typeCommands,
     ...filterCommands,
   ], [
-    navigationCommands, noteCommands, gitCommands, viewCommands,
+    navigationCommands, noteCommands, appleNotesCommands, gitCommands, viewCommands,
     settingsCommands, aiCommands, typeCommands, filterCommands,
   ])
 
