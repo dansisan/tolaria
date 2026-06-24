@@ -39,6 +39,7 @@ pub use folders::{delete_folder, rename_folder, FolderRenameResult};
 pub use getting_started::{create_getting_started_vault, default_vault_path, vault_exists};
 pub use ignored::{filter_gitignored_entries, filter_gitignored_folders, filter_gitignored_paths};
 pub use image::{copy_image_to_vault, delete_attachment, rename_attachment_via_command, save_image};
+pub(crate) use image::{prepare_attachment_payload, stored_attachment_name};
 pub use migration::migrate_is_a_to_type;
 pub use rename::{
     auto_rename_untitled, detect_renames, move_note_to_folder, move_note_to_folder_with_links,

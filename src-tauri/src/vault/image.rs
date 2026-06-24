@@ -54,15 +54,28 @@ fn encode_webp(bytes: &[u8]) -> Result<Vec<u8>, String> {
     Ok(encoder.encode(WEBP_QUALITY).to_vec())
 }
 
-/// Determine the bytes and filename to persist for a pasted image, transcoding
+/// Determine the bytes and filename to persist for an image, transcoding
 /// PNG/JPEG to WebP and falling back to the original on any decode/encode error.
-fn prepare_payload(filename: &str, bytes: Vec<u8>) -> (String, Vec<u8>) {
+/// Shared by the paste/drop path and the Apple Notes importer so both store
+/// images the same way.
+pub(crate) fn prepare_attachment_payload(filename: &str, bytes: Vec<u8>) -> (String, Vec<u8>) {
     if !WEBP_SOURCE_EXTENSIONS.contains(&extension_of(filename).as_str()) {
         return (filename.to_string(), bytes);
     }
     match encode_webp(&bytes) {
         Ok(webp_bytes) => (with_webp_extension(filename), webp_bytes),
         Err(_) => (filename.to_string(), bytes),
+    }
+}
+
+/// The name an image would be stored under once transcoded — the PNG/JPEG → WebP
+/// extension swap [`prepare_attachment_payload`] applies, without decoding the
+/// bytes. Lets a caller detect an already-saved attachment before doing work.
+pub(crate) fn stored_attachment_name(filename: &str) -> String {
+    if WEBP_SOURCE_EXTENSIONS.contains(&extension_of(filename).as_str()) {
+        with_webp_extension(filename)
+    } else {
+        filename.to_string()
     }
 }
 
@@ -89,7 +102,7 @@ pub fn save_image(vault_path: &str, filename: &str, data: &str) -> Result<String
         .decode(data)
         .map_err(|e| format!("Invalid base64 data: {}", e))?;
 
-    let (target_filename, payload) = prepare_payload(filename, bytes);
+    let (target_filename, payload) = prepare_attachment_payload(filename, bytes);
     let target_path = prepare_attachment_path(vault_path, &target_filename)?;
 
     fs::write(&target_path, payload).map_err(|e| format!("Failed to write image: {}", e))?;

@@ -473,7 +473,9 @@ mod macos_impl {
 
     /// Writes the decoded image to `attachments_dir` under a content-hashed name
     /// (so identical images dedupe and re-syncs don't rewrite them) and returns the
-    /// filename. Skips the write when the file already exists.
+    /// filename. PNG/JPEG are transcoded to WebP through the same path the
+    /// paste/drop hook uses, so imported images aren't left as oversized originals.
+    /// Skips the work when the file already exists.
     fn save_inline_image(
         attachments_dir: &Path,
         ext: String,
@@ -482,17 +484,25 @@ mod macos_impl {
         use base64::Engine;
         let mut hasher = DefaultHasher::new();
         base64_data.hash(&mut hasher);
-        let filename = format!("applenotes-{:016x}.{ext}", hasher.finish());
-        let path = attachments_dir.join(&filename);
-        if path.exists() {
-            return Ok(filename);
+        let source_name = format!("applenotes-{:016x}.{ext}", hasher.finish());
+
+        // Fast path for an already-imported image: check both the transcoded name
+        // and the original (in case a prior transcode failed) before decoding.
+        let stored_name = crate::vault::stored_attachment_name(&source_name);
+        for name in [&stored_name, &source_name] {
+            if attachments_dir.join(name).exists() {
+                return Ok(name.to_string());
+            }
         }
+
         let bytes = base64::engine::general_purpose::STANDARD
             .decode(base64_data.trim())
             .map_err(|e| format!("invalid base64: {e}"))?;
+        let (filename, payload) = crate::vault::prepare_attachment_payload(&source_name, bytes);
+        let path = attachments_dir.join(&filename);
         std::fs::create_dir_all(attachments_dir)
             .map_err(|e| format!("could not create attachments dir: {e}"))?;
-        std::fs::write(&path, bytes).map_err(|e| format!("could not write {filename}: {e}"))?;
+        std::fs::write(&path, payload).map_err(|e| format!("could not write {filename}: {e}"))?;
         Ok(filename)
     }
 
@@ -927,6 +937,31 @@ mod macos_impl {
             let files: Vec<_> = std::fs::read_dir(&attachments).unwrap().flatten().collect();
             assert_eq!(files.len(), 1);
             assert_eq!(std::fs::read(files[0].path()).unwrap(), b"\xff\xd8\xff jpeg bytes");
+        }
+
+        #[test]
+        fn transcodes_inline_png_to_webp() {
+            use base64::Engine;
+            // A real, decodable PNG so the shared transcode path produces WebP.
+            let img = image::RgbaImage::from_pixel(4, 4, image::Rgba([10, 120, 200, 255]));
+            let mut png: Vec<u8> = Vec::new();
+            image::DynamicImage::ImageRgba8(img)
+                .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+                .unwrap();
+            let data = base64::engine::general_purpose::STANDARD.encode(&png);
+            let html = format!("<img src=\"data:image/png;base64,{data}\">");
+
+            let dir = tempfile::TempDir::new().unwrap();
+            let attachments = dir.path().join("attachments");
+            let body = render_body(&html, &attachments);
+
+            assert!(body.contains("![](attachments/applenotes-"));
+            assert!(body.contains(".webp)"), "expected webp reference, got {body}");
+            let files: Vec<_> = std::fs::read_dir(&attachments).unwrap().flatten().collect();
+            assert_eq!(files.len(), 1);
+            let bytes = std::fs::read(files[0].path()).unwrap();
+            assert_eq!(&bytes[0..4], b"RIFF");
+            assert_eq!(&bytes[8..12], b"WEBP");
         }
 
         #[test]
