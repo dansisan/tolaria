@@ -1,7 +1,9 @@
-import { startTransition, useCallback, useState } from 'react'
+import { startTransition, useCallback, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { isTauri, mockInvoke } from '../mock-tauri'
 import { trackEvent } from '../lib/telemetry'
+import type { VaultEntry } from '../types'
+import { orphanedImageAttachmentsForDeletedNotes } from '../utils/attachmentPruning'
 
 interface ConfirmDeleteState {
   title: string
@@ -19,6 +21,10 @@ interface UseDeleteActionsInput {
   refreshModifiedFiles: () => Promise<unknown> | void
   reloadVault: () => Promise<unknown> | void
   setToastMessage: (msg: string | null) => void
+  /** Vault entries snapshot, used to find images orphaned by a deletion. */
+  entries?: VaultEntry[]
+  /** Default vault path, used to delete orphaned attachment files. */
+  vaultPath?: string
 }
 
 interface DeleteCommandBatch {
@@ -87,6 +93,25 @@ async function runDeleteCommand(
   return deletedGroups.flat()
 }
 
+function pruneOrphanedAttachments(
+  deletedPaths: string[],
+  entriesBeforeDelete: VaultEntry[],
+  vaultPath: string | undefined,
+): void {
+  if (!isTauri() || !vaultPath || deletedPaths.length === 0) return
+  const orphans = orphanedImageAttachmentsForDeletedNotes({
+    deletedPaths,
+    entries: entriesBeforeDelete,
+  })
+  if (orphans.length === 0) return
+  trackEvent('attachment_pruned', { count: orphans.length })
+  for (const attachmentPath of orphans) {
+    void invoke('delete_attachment', { vaultPath, attachmentPath }).catch(() => {
+      // Best-effort cleanup: a failed delete just leaves an unused file behind.
+    })
+  }
+}
+
 function useDeleteRunner({
   onDeselectNote,
   removeEntry,
@@ -95,8 +120,12 @@ function useDeleteRunner({
   refreshModifiedFiles,
   reloadVault,
   setToastMessage,
+  entries,
+  vaultPath,
 }: UseDeleteActionsInput) {
   const [pendingDeleteCount, setPendingDeleteCount] = useState(0)
+  const entriesRef = useRef(entries)
+  entriesRef.current = entries
 
   const reconcileDeleteFailure = useCallback(async () => {
     await Promise.allSettled([
@@ -119,6 +148,9 @@ function useDeleteRunner({
   const deleteNotesFromDisk = useCallback(async (paths: string[]) => {
     if (paths.length === 0) return 0
 
+    // Snapshot entries before optimistic removal so the deleted notes' attachment
+    // links survive long enough to identify which images become orphaned.
+    const entriesBeforeDelete = entriesRef.current ?? []
     setPendingDeleteCount((count) => count + paths.length)
     setToastMessage(buildDeleteProgressMessage(paths.length))
     optimisticallyRemoveEntries(paths)
@@ -129,6 +161,7 @@ function useDeleteRunner({
 
       if (deletedCount > 0) {
         trackEvent('note_deleted')
+        pruneOrphanedAttachments(deletedPaths, entriesBeforeDelete, vaultPath)
       }
 
       if (deletedCount !== paths.length) {
@@ -147,7 +180,7 @@ function useDeleteRunner({
     } finally {
       setPendingDeleteCount((count) => Math.max(0, count - paths.length))
     }
-  }, [optimisticallyRemoveEntries, reconcileDeleteFailure, refreshModifiedFiles, resolveVaultPathForPath, setToastMessage])
+  }, [optimisticallyRemoveEntries, reconcileDeleteFailure, refreshModifiedFiles, resolveVaultPathForPath, setToastMessage, vaultPath])
 
   const deleteNoteFromDisk = useCallback(async (path: string) => {
     const deletedCount = await deleteNotesFromDisk([path])
@@ -169,6 +202,8 @@ export function useDeleteActions({
   refreshModifiedFiles,
   reloadVault,
   setToastMessage,
+  entries,
+  vaultPath,
 }: UseDeleteActionsInput) {
   const [confirmDelete, setConfirmDelete] = useState<ConfirmDeleteState | null>(null)
   const {
@@ -183,6 +218,8 @@ export function useDeleteActions({
     refreshModifiedFiles,
     reloadVault,
     setToastMessage,
+    entries,
+    vaultPath,
   })
 
   const handleDeleteNote = useCallback(async (path: string) => {

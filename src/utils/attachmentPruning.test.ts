@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { VaultEntry } from '../types'
-import { orphanedImageAttachments } from './attachmentPruning'
+import { orphanedImageAttachments, orphanedImageAttachmentsForDeletedNotes } from './attachmentPruning'
 
 function note(path: string, attachmentLinks: string[]): VaultEntry {
   return { path, title: path, attachmentLinks } as VaultEntry
@@ -69,5 +69,49 @@ describe('orphanedImageAttachments', () => {
         entries: [],
       }),
     ).toEqual(['attachments/x.png'])
+  })
+})
+
+describe('orphanedImageAttachmentsForDeletedNotes', () => {
+  it('returns images referenced only by the deleted note', () => {
+    const entries = [note('a.md', ['attachments/gone.png']), note('b.md', ['attachments/keep.png'])]
+    expect(
+      orphanedImageAttachmentsForDeletedNotes({ deletedPaths: ['a.md'], entries }),
+    ).toEqual(['attachments/gone.png'])
+  })
+
+  it('keeps an image still referenced by a surviving note', () => {
+    const entries = [note('a.md', ['attachments/shared.png']), note('b.md', ['attachments/shared.png'])]
+    expect(
+      orphanedImageAttachmentsForDeletedNotes({ deletedPaths: ['a.md'], entries }),
+    ).toEqual([])
+  })
+
+  it('frees an image shared by two notes when both are deleted together', () => {
+    const entries = [note('a.md', ['attachments/shared.png']), note('b.md', ['attachments/shared.png'])]
+    expect(
+      orphanedImageAttachmentsForDeletedNotes({ deletedPaths: ['a.md', 'b.md'], entries }),
+    ).toEqual(['attachments/shared.png'])
+  })
+
+  it('only deletes images, not other attachment kinds', () => {
+    const entries = [note('a.md', ['attachments/doc.pdf', 'docs/spec.pdf', 'other.md'])]
+    expect(
+      orphanedImageAttachmentsForDeletedNotes({ deletedPaths: ['a.md'], entries }),
+    ).toEqual([])
+  })
+
+  it('deduplicates the same image referenced by multiple deleted notes', () => {
+    const entries = [note('a.md', ['attachments/x.png']), note('b.md', ['attachments/x.png'])]
+    expect(
+      orphanedImageAttachmentsForDeletedNotes({ deletedPaths: ['a.md', 'b.md'], entries }),
+    ).toEqual(['attachments/x.png'])
+  })
+
+  it('returns nothing when no entries match the deleted paths', () => {
+    const entries = [note('b.md', ['attachments/keep.png'])]
+    expect(
+      orphanedImageAttachmentsForDeletedNotes({ deletedPaths: ['a.md'], entries }),
+    ).toEqual([])
   })
 })

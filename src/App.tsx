@@ -1331,6 +1331,8 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     refreshModifiedFiles: refreshGitModifiedFiles,
     reloadVault: vault.reloadVault,
     setToastMessage,
+    entries: vault.entries,
+    vaultPath: resolvedPath,
   })
 
   useAttachmentCleanup({ entries: vault.entries, vaultPath: resolvedPath })

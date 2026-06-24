@@ -1,14 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useDeleteActions } from './useDeleteActions'
+import type { VaultEntry } from '../types'
 
 vi.mock('../mock-tauri', () => ({
-  isTauri: () => false,
+  isTauri: vi.fn(() => false),
   mockInvoke: vi.fn(),
 }))
 
-const { mockInvoke } = await import('../mock-tauri')
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn(),
+}))
+
+const { mockInvoke, isTauri } = await import('../mock-tauri')
+const { invoke } = await import('@tauri-apps/api/core')
 const mockInvokeFn = mockInvoke as ReturnType<typeof vi.fn>
+const isTauriFn = isTauri as ReturnType<typeof vi.fn>
+const invokeFn = invoke as ReturnType<typeof vi.fn>
 
 describe('useDeleteActions', () => {
   let onDeselectNote: ReturnType<typeof vi.fn>
@@ -28,6 +36,9 @@ describe('useDeleteActions', () => {
     reloadVault = vi.fn().mockResolvedValue(undefined)
     setToastMessage = vi.fn()
     mockInvokeFn.mockReset()
+    invokeFn.mockReset()
+    invokeFn.mockResolvedValue(undefined)
+    isTauriFn.mockReturnValue(false)
   })
 
   function renderDeleteActions(options: { resolveVaultPathForPath?: (path: string) => string | null | undefined } = {}) {
@@ -208,6 +219,75 @@ describe('useDeleteActions', () => {
       expect(setToastMessage).toHaveBeenLastCalledWith(
         'Deleted 1 of 2 notes. The note list was reloaded to recover failed items.',
       )
+    })
+  })
+
+  // --- orphaned attachment cleanup ---
+
+  describe('orphaned attachment cleanup', () => {
+    const entries = [
+      { path: '/vault/a.md', title: 'A', attachmentLinks: ['attachments/gone.png', 'attachments/shared.png'] },
+      { path: '/vault/b.md', title: 'B', attachmentLinks: ['attachments/shared.png'] },
+    ] as VaultEntry[]
+
+    function renderWithEntries() {
+      return renderHook(() =>
+        useDeleteActions({
+          onDeselectNote,
+          removeEntry,
+          removeEntries,
+          refreshModifiedFiles,
+          reloadVault,
+          setToastMessage,
+          entries,
+          vaultPath: '/vault',
+        }),
+      )
+    }
+
+    function mockTauriDelete() {
+      isTauriFn.mockReturnValue(true)
+      invokeFn.mockImplementation(async (command: string, args: { paths?: string[] }) =>
+        command === 'batch_delete_notes_async' ? args.paths : undefined,
+      )
+    }
+
+    it('deletes an image referenced only by the deleted note', async () => {
+      mockTauriDelete()
+      const { result } = renderWithEntries()
+
+      await act(async () => {
+        await result.current.deleteNoteFromDisk('/vault/a.md')
+      })
+
+      expect(invokeFn).toHaveBeenCalledWith('delete_attachment', {
+        vaultPath: '/vault',
+        attachmentPath: 'attachments/gone.png',
+      })
+    })
+
+    it('keeps an image still referenced by a surviving note', async () => {
+      mockTauriDelete()
+      const { result } = renderWithEntries()
+
+      // b.md only references shared.png, which a.md (surviving) still uses.
+      await act(async () => {
+        await result.current.deleteNoteFromDisk('/vault/b.md')
+      })
+
+      expect(invokeFn).not.toHaveBeenCalledWith('delete_attachment', expect.anything())
+    })
+
+    it('does not prune attachments when the delete fails', async () => {
+      isTauriFn.mockReturnValue(true)
+      invokeFn.mockResolvedValue([])
+      const { result } = renderWithEntries()
+
+      await act(async () => {
+        await result.current.deleteNoteFromDisk('/vault/a.md')
+      })
+
+      expect(invokeFn).not.toHaveBeenCalledWith('delete_attachment', expect.anything())
     })
   })
 
