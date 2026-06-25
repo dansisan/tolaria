@@ -1,10 +1,12 @@
-import { ChartBar, CircleNotch as Loader2, MagnifyingGlass, Plus, SidebarSimple, X } from '@phosphor-icons/react'
+import { ChartBar, Checks, CircleNotch as Loader2, MagnifyingGlass, Plus, SidebarSimple, X } from '@phosphor-icons/react'
 import type { VaultEntry } from '../../types'
 import type { SortOption, SortDirection } from '../../utils/noteListHelpers'
 import { translate, type AppLocale, type TranslationKey } from '../../lib/i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 import { APP_COMMAND_EVENT_NAME, APP_COMMAND_IDS } from '../../hooks/appCommandDispatcher'
+import { getAppCommandShortcutDisplay } from '../../hooks/appCommandCatalog'
 import { trackEvent } from '../../lib/telemetry'
 import { useDragRegion } from '../../hooks/useDragRegion'
 import { SortDropdown } from '../SortDropdown'
@@ -50,6 +52,9 @@ interface NoteListHeaderProps {
   searchResultCount?: number | null
   searchInputRef: React.RefObject<HTMLInputElement | null>
   propertyPicker?: ListPropertiesPopoverProps | null
+  /** Whether bulk-select mode is active (drives the Select button's pressed state). */
+  bulkMode?: boolean
+  onToggleBulkMode?: () => void
   gitRepositories?: GitRepositoryOption[]
   selectedGitRepositoryPath?: string
   locale?: AppLocale
@@ -164,28 +169,65 @@ function RepositorySelectorRow({
   )
 }
 
+function BulkSelectButton({
+  bulkMode,
+  isChangesView,
+  locale,
+  onToggleBulkMode,
+}: Pick<NoteListHeaderProps, 'bulkMode' | 'isChangesView' | 'onToggleBulkMode'> & { locale: AppLocale }) {
+  if (isChangesView || !onToggleBulkMode) return null
+  const baseLabel = translate(locale, bulkMode ? 'noteList.bulkSelect.exit' : 'noteList.bulkSelect.enter')
+  const shortcut = getAppCommandShortcutDisplay(APP_COMMAND_IDS.noteBulkSelect)
+  const label = shortcut ? `${baseLabel} (${shortcut})` : baseLabel
+  const handleClick = () => {
+    trackEvent('note_bulk_select_toggled', { state: bulkMode ? 'exit' : 'enter' })
+    onToggleBulkMode()
+  }
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-xs"
+      className={cn(NOTE_LIST_ACTION_BUTTON_CLASSNAME, bulkMode && '!text-foreground')}
+      aria-pressed={Boolean(bulkMode)}
+      onClick={handleClick}
+      title={label}
+      aria-label={label}
+      data-testid="note-list-bulk-select-toggle"
+    >
+      <Checks size={16} weight={bulkMode ? 'fill' : 'regular'} />
+    </Button>
+  )
+}
+
 function HeaderActions({
   isEntityView,
+  isChangesView,
   listSort,
   listDirection,
   customProperties,
   propertyPicker,
+  bulkMode,
   locale,
   onSortChange,
   onCreateNote,
   onToggleSearch,
+  onToggleBulkMode,
   onOpenTimeline,
 }: Pick<
   NoteListHeaderProps,
   | 'isEntityView'
+  | 'isChangesView'
   | 'listSort'
   | 'listDirection'
   | 'customProperties'
   | 'propertyPicker'
+  | 'bulkMode'
   | 'locale'
   | 'onSortChange'
   | 'onCreateNote'
   | 'onToggleSearch'
+  | 'onToggleBulkMode'
   | 'onOpenTimeline'
 > & {
   locale: AppLocale
@@ -193,6 +235,7 @@ function HeaderActions({
   return (
     <div className="ml-3 flex shrink-0 items-center justify-end gap-2" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
       {!isEntityView && <SortDropdown groupLabel="__list__" current={listSort} direction={listDirection} customProperties={customProperties} locale={locale} onChange={onSortChange} />}
+      <BulkSelectButton bulkMode={bulkMode} isChangesView={isChangesView} locale={locale} onToggleBulkMode={onToggleBulkMode} />
       <Button type="button" variant="ghost" size="icon-xs" className={NOTE_LIST_ACTION_BUTTON_CLASSNAME} onClick={onOpenTimeline} title={translate(locale, 'noteList.timeline.action')} aria-label={translate(locale, 'noteList.timeline.action')}>
         <ChartBar size={16} />
       </Button>
@@ -311,6 +354,8 @@ export function NoteListHeader({
   searchResultCount = null,
   searchInputRef,
   propertyPicker,
+  bulkMode,
+  onToggleBulkMode,
   gitRepositories = [],
   selectedGitRepositoryPath = '',
   locale = 'en',
@@ -340,14 +385,17 @@ export function NoteListHeader({
         />
         <HeaderActions
           isEntityView={isEntityView}
+          isChangesView={isChangesView}
           listSort={listSort}
           listDirection={listDirection}
           customProperties={customProperties}
           propertyPicker={propertyPicker}
+          bulkMode={bulkMode}
           locale={locale}
           onSortChange={onSortChange}
           onCreateNote={onCreateNote}
           onToggleSearch={onToggleSearch}
+          onToggleBulkMode={onToggleBulkMode}
           onOpenTimeline={onOpenTimeline}
         />
       </div>

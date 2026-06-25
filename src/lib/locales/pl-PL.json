@@ -755,5 +755,14 @@
   "settings.codeFontSize.defaultOption": "Domyślne",
   "editor.codeBlock.wrapLines": "Zawijaj wiersze",
   "editor.codeBlock.dontWrapLines": "Nie zawijaj wierszy",
-  "editor.codeBlock.fenceLine": "Linia ogrodzenia kodu"
+  "editor.codeBlock.fenceLine": "Linia ogrodzenia kodu",
+  "noteList.bulkSelect.enter": "Wybierz notatki",
+  "noteList.bulkSelect.exit": "Zakończ wybieranie",
+  "noteList.bulkSelect.empty": "Kliknij notatki, aby je wybrać",
+  "noteList.bulkBar.count": "Wybrano: {count}",
+  "noteList.bulkBar.organize": "Uporządkuj wybrane notatki",
+  "noteList.bulkBar.archive": "Archiwizuj wybrane notatki",
+  "noteList.bulkBar.unarchive": "Przywróć wybrane notatki z archiwum",
+  "noteList.bulkBar.delete": "Trwale usuń wybrane notatki",
+  "noteList.bulkBar.clear": "Wyczyść zaznaczenie"
 }

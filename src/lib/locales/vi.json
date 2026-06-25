@@ -755,5 +755,14 @@
   "settings.codeFontSize.defaultOption": "Mặc định",
   "editor.codeBlock.wrapLines": "Xuống dòng tự động",
   "editor.codeBlock.dontWrapLines": "Không xuống dòng",
-  "editor.codeBlock.fenceLine": "Dòng rào mã"
+  "editor.codeBlock.fenceLine": "Dòng rào mã",
+  "noteList.bulkSelect.enter": "Chọn ghi chú",
+  "noteList.bulkSelect.exit": "Xong",
+  "noteList.bulkSelect.empty": "Nhấp vào ghi chú để chọn",
+  "noteList.bulkBar.count": "Đã chọn {count}",
+  "noteList.bulkBar.organize": "Sắp xếp ghi chú đã chọn",
+  "noteList.bulkBar.archive": "Lưu trữ ghi chú đã chọn",
+  "noteList.bulkBar.unarchive": "Bỏ lưu trữ ghi chú đã chọn",
+  "noteList.bulkBar.delete": "Xóa vĩnh viễn ghi chú đã chọn",
+  "noteList.bulkBar.clear": "Xóa lựa chọn"
 }

@@ -1,6 +1,7 @@
 import type { ComponentType, CSSProperties, MouseEvent as ReactMouseEvent, MouseEventHandler, ReactNode, SVGAttributes } from 'react'
 import type { VaultEntry, NoteStatus } from '../types'
 import { cn } from '@/lib/utils'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Wrench, Flask, Target, ArrowsClockwise,
   Users, CalendarBlank, Tag, FileText, StackSimple,
@@ -380,6 +381,8 @@ type NoteItemProps = {
   entry: VaultEntry
   isSelected: boolean
   isMultiSelected?: boolean
+  /** When true, bulk mode is active: a leading checkbox is shown on every row. */
+  isMultiSelectActive?: boolean
   isHighlighted?: boolean
   /** Whether the note list panel currently holds focus; drives the selected row's active vs. dimmed treatment. */
   isPanelActive?: boolean
@@ -483,11 +486,25 @@ function resolveNoteItemSurfaceProps({
   }
 }
 
+/** Decorative checkbox shown in bulk mode; the surrounding row handles the click/toggle. */
+function RowSelectionCheckbox({ checked }: { checked: boolean }) {
+  return (
+    <Checkbox
+      checked={checked}
+      tabIndex={-1}
+      aria-hidden
+      className="pointer-events-none mt-0.5 shrink-0"
+      data-testid="note-item-checkbox"
+    />
+  )
+}
+
 function NoteItemRow({
   surfaceProps,
   entryPath,
   isSelected,
   isMultiSelected,
+  isMultiSelectActive,
   isHighlighted,
   changeStatus,
   children,
@@ -496,6 +513,7 @@ function NoteItemRow({
   entryPath: string
   isSelected: boolean
   isMultiSelected: boolean
+  isMultiSelectActive: boolean
   isHighlighted: boolean
   changeStatus: NoteItemProps['changeStatus']
   children: ReactNode
@@ -515,7 +533,12 @@ function NoteItemRow({
       data-change-status={changeStatus}
       title={surfaceProps.title}
     >
-      {children}
+      {isMultiSelectActive ? (
+        <div className="flex items-start gap-3">
+          <RowSelectionCheckbox checked={isMultiSelected} />
+          <div className="min-w-0 flex-1">{children}</div>
+        </div>
+      ) : children}
     </div>
   )
 }
@@ -575,7 +598,7 @@ function NoteItemContent({
   )
 }
 
-export function NoteItem({ entry, isSelected, isMultiSelected = false, isHighlighted = false, isPanelActive = true, noteStatus = 'clean', changeStatus, typeEntryMap, allEntries, displayPropsOverride, sortedByModified = false, onClickNote, onPrefetch, onContextMenu }: NoteItemProps) {
+export function NoteItem({ entry, isSelected, isMultiSelected = false, isMultiSelectActive = false, isHighlighted = false, isPanelActive = true, noteStatus = 'clean', changeStatus, typeEntryMap, allEntries, displayPropsOverride, sortedByModified = false, onClickNote, onPrefetch, onContextMenu }: NoteItemProps) {
   const isBinary = entry.fileKind === 'binary'
   const previewKind = filePreviewKind(entry)
   const isPreviewableFile = previewKind !== null
@@ -602,6 +625,7 @@ export function NoteItem({ entry, isSelected, isMultiSelected = false, isHighlig
       entryPath={entry.path}
       isSelected={isSelected}
       isMultiSelected={isMultiSelected}
+      isMultiSelectActive={isMultiSelectActive}
       isHighlighted={isHighlighted}
       changeStatus={changeStatus}
     >

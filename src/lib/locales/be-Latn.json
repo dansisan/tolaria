@@ -755,5 +755,14 @@
   "settings.codeFontSize.defaultOption": "Pa zmaŭčanni",
   "editor.codeBlock.wrapLines": "Pieranosić radki",
   "editor.codeBlock.dontWrapLines": "Nie pieranosić radki",
-  "editor.codeBlock.fenceLine": "Radok aharodžy kodu"
+  "editor.codeBlock.fenceLine": "Radok aharodžy kodu",
+  "noteList.bulkSelect.enter": "Vybrać nataki",
+  "noteList.bulkSelect.exit": "Hatova",
+  "noteList.bulkSelect.empty": "Naciśnicie na nataki, kab vybrać",
+  "noteList.bulkBar.count": "Vybrana: {count}",
+  "noteList.bulkBar.organize": "Uparadkavać vybranyja nataki",
+  "noteList.bulkBar.archive": "Archivavać vybranyja nataki",
+  "noteList.bulkBar.unarchive": "Razarchivavać vybranyja nataki",
+  "noteList.bulkBar.delete": "Niezvarotna vydalić vybranyja nataki",
+  "noteList.bulkBar.clear": "Ačyścić vybar"
 }

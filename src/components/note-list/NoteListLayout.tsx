@@ -65,17 +65,19 @@ function NoteListLoadingSkeleton() {
 function MultiSelectBar({
   multiSelect,
   isArchivedView,
+  locale,
   handleBulkOrganize,
   handleBulkArchive,
   handleBulkDeletePermanently,
   handleBulkUnarchive,
-}: Pick<NoteListLayoutProps, 'multiSelect' | 'isArchivedView' | 'handleBulkOrganize' | 'handleBulkArchive' | 'handleBulkDeletePermanently' | 'handleBulkUnarchive'>) {
+}: Pick<NoteListLayoutProps, 'multiSelect' | 'isArchivedView' | 'locale' | 'handleBulkOrganize' | 'handleBulkArchive' | 'handleBulkDeletePermanently' | 'handleBulkUnarchive'>) {
   if (!multiSelect.isMultiSelecting) return null
 
   return (
     <BulkActionBar
       count={multiSelect.selectedPaths.size}
       isArchivedView={isArchivedView}
+      locale={locale}
       onOrganize={handleBulkOrganize}
       onArchive={handleBulkArchive}
       onDelete={handleBulkDeletePermanently}
@@ -287,6 +289,7 @@ function NoteListLayoutHeader({
   searchedGroups,
   searchInputRef,
   propertyPicker,
+  multiSelect,
   handleSortChange,
   handleCreateNote,
   onOpenType,
@@ -316,6 +319,7 @@ function NoteListLayoutHeader({
   | 'searchedGroups'
   | 'searchInputRef'
   | 'propertyPicker'
+  | 'multiSelect'
   | 'handleSortChange'
   | 'handleCreateNote'
   | 'onOpenType'
@@ -349,6 +353,8 @@ function NoteListLayoutHeader({
       isSearching={isSearching}
       searchInputRef={searchInputRef}
       propertyPicker={propertyPicker}
+      bulkMode={multiSelect.bulkMode}
+      onToggleBulkMode={multiSelect.toggleBulkMode}
       onSortChange={handleSortChange}
       onCreateNote={handleCreateNote}
       onOpenType={onOpenType}
@@ -370,6 +376,7 @@ function NoteListLayoutHeader({
 function NoteListFooter({
   multiSelect,
   isArchivedView,
+  locale,
   handleBulkOrganize,
   handleBulkArchive,
   handleBulkDeletePermanently,
@@ -380,6 +387,7 @@ function NoteListFooter({
   NoteListLayoutProps,
   | 'multiSelect'
   | 'isArchivedView'
+  | 'locale'
   | 'handleBulkOrganize'
   | 'handleBulkArchive'
   | 'handleBulkDeletePermanently'
@@ -392,6 +400,7 @@ function NoteListFooter({
       <MultiSelectBar
         multiSelect={multiSelect}
         isArchivedView={isArchivedView}
+        locale={locale}
         handleBulkOrganize={handleBulkOrganize}
         handleBulkArchive={handleBulkArchive}
         handleBulkDeletePermanently={handleBulkDeletePermanently}

@@ -242,6 +242,37 @@ describe('NoteList multi-select', () => {
     renderNoteList()
     expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument()
   })
+
+  it('enters bulk mode from the header, toggles notes on click, and deletes them', () => {
+    const onBulkDeletePermanently = vi.fn()
+    const { onReplaceActiveTab } = renderNoteList({ onBulkDeletePermanently })
+
+    fireEvent.click(screen.getByTestId('note-list-bulk-select-toggle'))
+    // The bar appears immediately with a hint and no selection yet.
+    expect(screen.getByTestId('bulk-action-bar')).toBeInTheDocument()
+    expect(screen.queryByTestId('bulk-delete-btn')).not.toBeInTheDocument()
+    expect(screen.getAllByTestId('note-item-checkbox').length).toBeGreaterThan(0)
+
+    // Clicking notes toggles selection instead of opening them.
+    fireEvent.click(screen.getByText('Build Laputa App'))
+    fireEvent.click(screen.getByText('Facebook Ads Strategy'))
+    expect(onReplaceActiveTab).not.toHaveBeenCalled()
+    expect(screen.getByText('2 selected')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('bulk-delete-btn'))
+    expect(onBulkDeletePermanently).toHaveBeenCalledWith([mockEntries[0].path, mockEntries[1].path])
+  })
+
+  it('exits bulk mode and hides checkboxes when toggled off', () => {
+    renderNoteList()
+    const toggle = screen.getByTestId('note-list-bulk-select-toggle')
+    fireEvent.click(toggle)
+    expect(screen.getAllByTestId('note-item-checkbox').length).toBeGreaterThan(0)
+
+    fireEvent.click(toggle)
+    expect(screen.queryByTestId('note-item-checkbox')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument()
+  })
 })
 
 describe('NoteList filter pills', () => {

@@ -3,16 +3,21 @@ import type { VaultEntry } from '../types'
 
 export interface MultiSelectState {
   selectedPaths: Set<string>
+  /** Explicit "bulk mode": checkboxes shown and clicks toggle selection, even with nothing selected yet. */
+  bulkMode: boolean
   isMultiSelecting: boolean
   toggle: (path: string) => void
   selectRange: (toPath: string) => void
   clear: () => void
+  /** Enter bulk mode if off, otherwise exit and deselect everything. */
+  toggleBulkMode: () => void
   setAnchor: (path: string) => void
   selectAll: () => void
 }
 
 export function useMultiSelect(visibleEntries: VaultEntry[], activePath: string | null = null): MultiSelectState {
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set())
+  const [bulkMode, setBulkMode] = useState(false)
   const lastClickedRef = useRef<string | null>(null)
 
   const toggle = useCallback((path: string) => {
@@ -53,7 +58,18 @@ export function useMultiSelect(visibleEntries: VaultEntry[], activePath: string 
 
   const clear = useCallback(() => {
     setSelectedPaths(new Set())
+    setBulkMode(false)
     lastClickedRef.current = null
+  }, [])
+
+  const toggleBulkMode = useCallback(() => {
+    setBulkMode((prev) => {
+      if (prev) {
+        setSelectedPaths(new Set())
+        lastClickedRef.current = null
+      }
+      return !prev
+    })
   }, [])
 
   const setAnchor = useCallback((path: string) => {
@@ -66,10 +82,12 @@ export function useMultiSelect(visibleEntries: VaultEntry[], activePath: string 
 
   return {
     selectedPaths,
-    isMultiSelecting: selectedPaths.size > 0,
+    bulkMode,
+    isMultiSelecting: bulkMode || selectedPaths.size > 0,
     toggle,
     selectRange,
     clear,
+    toggleBulkMode,
     setAnchor,
     selectAll,
   }

@@ -67,7 +67,13 @@ export interface ClickActions {
   onReplace: (entry: VaultEntry) => void
   onEnterNeighborhood?: (entry: VaultEntry) => void
   onOpenInNewWindow?: (entry: VaultEntry) => void
-  multiSelect: { selectRange: (path: string) => void; clear: () => void; setAnchor: (path: string) => void }
+  multiSelect: {
+    bulkMode: boolean
+    toggle: (path: string) => void
+    selectRange: (path: string) => void
+    clear: () => void
+    setAnchor: (path: string) => void
+  }
 }
 
 function usesCommandModifier(event: Pick<React.MouseEvent, 'metaKey' | 'ctrlKey'>): boolean {
@@ -97,6 +103,12 @@ export function routeNoteClick(entry: VaultEntry, e: React.MouseEvent, actions: 
 
   if (isRangeSelectionClick(e)) {
     actions.multiSelect.selectRange(entry.path)
+    return
+  }
+
+  // In explicit bulk mode a plain click toggles the row instead of opening it.
+  if (actions.multiSelect.bulkMode) {
+    actions.multiSelect.toggle(entry.path)
     return
   }
 

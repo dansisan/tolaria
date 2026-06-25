@@ -755,5 +755,14 @@
   "settings.codeFontSize.defaultOption": "По умолчанию",
   "editor.codeBlock.wrapLines": "Переносить строки",
   "editor.codeBlock.dontWrapLines": "Не переносить строки",
-  "editor.codeBlock.fenceLine": "Строка ограждения кода"
+  "editor.codeBlock.fenceLine": "Строка ограждения кода",
+  "noteList.bulkSelect.enter": "Выбрать заметки",
+  "noteList.bulkSelect.exit": "Готово",
+  "noteList.bulkSelect.empty": "Нажмите на заметки, чтобы выбрать",
+  "noteList.bulkBar.count": "Выбрано: {count}",
+  "noteList.bulkBar.organize": "Упорядочить выбранные заметки",
+  "noteList.bulkBar.archive": "Архивировать выбранные заметки",
+  "noteList.bulkBar.unarchive": "Разархивировать выбранные заметки",
+  "noteList.bulkBar.delete": "Безвозвратно удалить выбранные заметки",
+  "noteList.bulkBar.clear": "Очистить выбор"
 }

@@ -511,6 +511,7 @@ function useRenderItem({
         entry={entry}
         isSelected={options?.forceSelected || selectedNotePath === entry.path}
         isMultiSelected={multiSelect.selectedPaths.has(entry.path)}
+        isMultiSelectActive={multiSelect.bulkMode}
         isHighlighted={entry.path === noteListKeyboard.highlightedPath}
         isPanelActive={noteListKeyboard.isPanelActive}
         noteStatus={resolvedGetNoteStatus(entry.path)}
@@ -528,6 +529,7 @@ function useRenderItem({
         entry={entry}
         isSelected={options?.forceSelected || selectedNotePath === entry.path}
         isMultiSelected={multiSelect.selectedPaths.has(entry.path)}
+        isMultiSelectActive={multiSelect.bulkMode}
         isHighlighted={entry.path === noteListKeyboard.highlightedPath}
         isPanelActive={noteListKeyboard.isPanelActive}
         noteStatus={resolvedGetNoteStatus(entry.path)}
@@ -547,6 +549,7 @@ function useRenderItem({
     entries,
     getChangeStatus,
     handleClickNote,
+    multiSelect.bulkMode,
     multiSelect.selectedPaths,
     noteListKeyboard.highlightedPath,
     noteListKeyboard.isPanelActive,
@@ -677,6 +680,7 @@ function buildNoteListLayoutModel(params: {
     filterCounts: params.filterCounts,
     onNoteListFilterChange: params.onNoteListFilterChange,
     multiSelect: params.interaction.multiSelect,
+    highlightedNotePath: params.interaction.noteListKeyboard.highlightedPath,
     handleBulkArchive: params.interaction.handleBulkArchive,
     handleBulkDeletePermanently: params.interaction.handleBulkDeletePermanently,
     handleBulkUnarchive: params.interaction.handleBulkUnarchive,

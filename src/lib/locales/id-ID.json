@@ -755,5 +755,14 @@
   "settings.codeFontSize.defaultOption": "Default",
   "editor.codeBlock.wrapLines": "Bungkus baris",
   "editor.codeBlock.dontWrapLines": "Jangan bungkus baris",
-  "editor.codeBlock.fenceLine": "Baris pagar kode"
+  "editor.codeBlock.fenceLine": "Baris pagar kode",
+  "noteList.bulkSelect.enter": "Pilih catatan",
+  "noteList.bulkSelect.exit": "Selesai memilih",
+  "noteList.bulkSelect.empty": "Klik catatan untuk memilih",
+  "noteList.bulkBar.count": "{count} dipilih",
+  "noteList.bulkBar.organize": "Atur catatan yang dipilih",
+  "noteList.bulkBar.archive": "Arsipkan catatan yang dipilih",
+  "noteList.bulkBar.unarchive": "Batalkan arsip catatan yang dipilih",
+  "noteList.bulkBar.delete": "Hapus permanen catatan yang dipilih",
+  "noteList.bulkBar.clear": "Hapus pilihan"
 }

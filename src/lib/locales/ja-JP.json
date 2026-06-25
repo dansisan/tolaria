@@ -755,5 +755,14 @@
   "settings.codeFontSize.defaultOption": "デフォルト",
   "editor.codeBlock.wrapLines": "行を折り返す",
   "editor.codeBlock.dontWrapLines": "行を折り返さない",
-  "editor.codeBlock.fenceLine": "コードフェンス行"
+  "editor.codeBlock.fenceLine": "コードフェンス行",
+  "noteList.bulkSelect.enter": "ノートを選択",
+  "noteList.bulkSelect.exit": "選択を完了",
+  "noteList.bulkSelect.empty": "ノートをクリックして選択",
+  "noteList.bulkBar.count": "{count} 件選択中",
+  "noteList.bulkBar.organize": "選択したノートを整理",
+  "noteList.bulkBar.archive": "選択したノートをアーカイブ",
+  "noteList.bulkBar.unarchive": "選択したノートのアーカイブを解除",
+  "noteList.bulkBar.delete": "選択したノートを完全に削除",
+  "noteList.bulkBar.clear": "選択を解除"
 }

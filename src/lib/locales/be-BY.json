@@ -755,5 +755,14 @@
   "settings.codeFontSize.defaultOption": "Па змаўчанні",
   "editor.codeBlock.wrapLines": "Пераносіць радкі",
   "editor.codeBlock.dontWrapLines": "Не пераносіць радкі",
-  "editor.codeBlock.fenceLine": "Радок агароджы коду"
+  "editor.codeBlock.fenceLine": "Радок агароджы коду",
+  "noteList.bulkSelect.enter": "Выбраць нататкі",
+  "noteList.bulkSelect.exit": "Гатова",
+  "noteList.bulkSelect.empty": "Націсніце на нататкі, каб выбраць",
+  "noteList.bulkBar.count": "Выбрана: {count}",
+  "noteList.bulkBar.organize": "Упарадкаваць выбраныя нататкі",
+  "noteList.bulkBar.archive": "Архіваваць выбраныя нататкі",
+  "noteList.bulkBar.unarchive": "Разархіваваць выбраныя нататкі",
+  "noteList.bulkBar.delete": "Незваротна выдаліць выбраныя нататкі",
+  "noteList.bulkBar.clear": "Ачысціць выбар"
 }

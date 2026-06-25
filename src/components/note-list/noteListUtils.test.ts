@@ -22,6 +22,8 @@ function makeActions(): ClickActions {
     onEnterNeighborhood: vi.fn(),
     onOpenInNewWindow: vi.fn(),
     multiSelect: {
+      bulkMode: false,
+      toggle: vi.fn(),
       selectRange: vi.fn(),
       clear: vi.fn(),
       setAnchor: vi.fn(),
@@ -93,6 +95,34 @@ describe('routeNoteClick', () => {
     expect(actions.onOpenInNewWindow).toHaveBeenCalledWith(entry)
     expect(actions.onReplace).not.toHaveBeenCalled()
     expect(actions.onEnterNeighborhood).not.toHaveBeenCalled()
+  })
+
+  it('plain click toggles selection in bulk mode', () => {
+    const entry = makeEntry()
+    const actions = makeActions()
+    actions.multiSelect.bulkMode = true
+    routeNoteClick(entry, makeMouseEvent(), actions)
+    expect(actions.multiSelect.toggle).toHaveBeenCalledWith(entry.path)
+    expect(actions.onReplace).not.toHaveBeenCalled()
+    expect(actions.onEnterNeighborhood).not.toHaveBeenCalled()
+  })
+
+  it('Cmd+click toggles instead of opening Neighborhood in bulk mode', () => {
+    const entry = makeEntry()
+    const actions = makeActions()
+    actions.multiSelect.bulkMode = true
+    routeNoteClick(entry, makeMouseEvent({ metaKey: true }), actions)
+    expect(actions.multiSelect.toggle).toHaveBeenCalledWith(entry.path)
+    expect(actions.onEnterNeighborhood).not.toHaveBeenCalled()
+  })
+
+  it('Shift+click still extends the range in bulk mode', () => {
+    const entry = makeEntry()
+    const actions = makeActions()
+    actions.multiSelect.bulkMode = true
+    routeNoteClick(entry, makeMouseEvent({ shiftKey: true }), actions)
+    expect(actions.multiSelect.selectRange).toHaveBeenCalledWith(entry.path)
+    expect(actions.multiSelect.toggle).not.toHaveBeenCalled()
   })
 
   it('Cmd+Shift+click is a no-op when handler is undefined', () => {

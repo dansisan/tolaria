@@ -31,6 +31,7 @@ const NoteListInner = forwardRef<NoteListHandle, NoteListInnerProps>(
     useMultiSelectKeyboard({
       multiSelect: model.multiSelect,
       isEntityView: model.isEntityView,
+      highlightedPath: model.highlightedNotePath,
       onBulkOrganize: onBulkOrganize ? handleBulkOrganize : undefined,
       onBulkDelete: props.onBulkDeletePermanently ? model.handleBulkDeletePermanently : undefined,
       enableActionShortcuts: !multiSelectionCommandRef,
@@ -43,6 +44,7 @@ const NoteListInner = forwardRef<NoteListHandle, NoteListInnerProps>(
         selectedPaths: [...model.multiSelect.selectedPaths],
         deleteSelected: props.onBulkDeletePermanently ? model.handleBulkDeletePermanently : undefined,
         organizeSelected: onBulkOrganize ? handleBulkOrganize : undefined,
+        toggleBulkMode: model.multiSelect.toggleBulkMode,
       }
 
       return () => {
@@ -52,6 +54,7 @@ const NoteListInner = forwardRef<NoteListHandle, NoteListInnerProps>(
       handleBulkOrganize,
       model.handleBulkDeletePermanently,
       model.multiSelect.selectedPaths,
+      model.multiSelect.toggleBulkMode,
       multiSelectionCommandRef,
       onBulkOrganize,
       props.onBulkDeletePermanently,

@@ -26,6 +26,14 @@ describe('BulkActionBar', () => {
     expect(screen.getByText('5 selected')).toBeInTheDocument()
   })
 
+  it('shows a hint and hides actions when nothing is selected', () => {
+    render(<BulkActionBar {...defaultProps} count={0} />)
+    expect(screen.getByText('Click notes to select')).toBeInTheDocument()
+    expect(screen.queryByTestId('bulk-delete-btn')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('bulk-organize-btn')).not.toBeInTheDocument()
+    expect(screen.getByTestId('bulk-clear-btn')).toBeInTheDocument()
+  })
+
   it('shows organize, unarchive, and delete buttons in archived view', () => {
     render(<BulkActionBar {...defaultProps} isArchivedView={true} />)
     expect(screen.getByTestId('bulk-organize-btn')).toBeInTheDocument()

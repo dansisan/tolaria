@@ -38,6 +38,26 @@ describe('NoteItem', () => {
     expect(onClickNote).not.toHaveBeenCalled()
   })
 
+  it('shows a checkbox per row only when bulk mode is active', () => {
+    const entry = makeEntry({ path: '/vault/note.md', filename: 'note.md', title: 'Note' })
+
+    const { rerender } = render(
+      <NoteItem entry={entry} isSelected={false} typeEntryMap={{}} onClickNote={vi.fn()} />,
+    )
+    expect(screen.queryByTestId('note-item-checkbox')).toBeNull()
+
+    rerender(
+      <NoteItem entry={entry} isSelected={false} isMultiSelectActive typeEntryMap={{}} onClickNote={vi.fn()} />,
+    )
+    const checkbox = screen.getByTestId('note-item-checkbox')
+    expect(checkbox).toHaveAttribute('aria-checked', 'false')
+
+    rerender(
+      <NoteItem entry={entry} isSelected={false} isMultiSelectActive isMultiSelected typeEntryMap={{}} onClickNote={vi.fn()} />,
+    )
+    expect(screen.getByTestId('note-item-checkbox')).toHaveAttribute('aria-checked', 'true')
+  })
+
   it('renders image files as clickable rows with an image file indicator', () => {
     const imageEntry = makeEntry({
       path: '/vault/photo.png',

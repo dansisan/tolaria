@@ -4,6 +4,8 @@ import type { MultiSelectState } from '../../hooks/useMultiSelect'
 interface UseMultiSelectKeyboardOptions {
   multiSelect: MultiSelectState
   isEntityView: boolean
+  /** Path of the arrow-key-highlighted row, used by the Space/x toggle. */
+  highlightedPath?: string | null
   onBulkOrganize?: () => void
   onBulkDelete?: () => void
   enableActionShortcuts?: boolean
@@ -32,6 +34,22 @@ function selectVisibleNotes(event: KeyboardEvent, multiSelect: MultiSelectState,
   if (event.key !== 'a' || !(event.metaKey || event.ctrlKey) || isEntityView || isInputHtmlElementFocused()) return
   event.preventDefault()
   multiSelect.selectAll()
+}
+
+function isToggleHighlightedKey(event: KeyboardEvent): boolean {
+  if (event.metaKey || event.ctrlKey || event.altKey) return false
+  return event.key === ' ' || event.key === 'Spacebar' || event.key === 'x'
+}
+
+/** While in bulk mode, Space or "x" toggles the highlighted row so it can be driven with the arrow keys. */
+function toggleHighlightedNote(
+  event: KeyboardEvent,
+  options: Pick<UseMultiSelectKeyboardOptions, 'multiSelect' | 'highlightedPath'>,
+) {
+  if (!options.multiSelect.bulkMode || !options.highlightedPath) return
+  if (!isToggleHighlightedKey(event) || isInputHtmlElementFocused()) return
+  event.preventDefault()
+  options.multiSelect.toggle(options.highlightedPath)
 }
 
 function canRunBulkShortcut(
@@ -77,6 +95,7 @@ export function useMultiSelectKeyboard(options: UseMultiSelectKeyboardOptions) {
     const handleKeyDown = (event: KeyboardEvent) => {
       clearSelectionOnEscape(event, options.multiSelect)
       selectVisibleNotes(event, options.multiSelect, options.isEntityView)
+      toggleHighlightedNote(event, options)
       runBulkShortcut(event, options)
     }
 

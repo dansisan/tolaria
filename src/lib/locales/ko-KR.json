@@ -755,5 +755,14 @@
   "settings.codeFontSize.defaultOption": "기본값",
   "editor.codeBlock.wrapLines": "줄 바꿈",
   "editor.codeBlock.dontWrapLines": "줄 바꿈 안 함",
-  "editor.codeBlock.fenceLine": "코드 펜스 줄"
+  "editor.codeBlock.fenceLine": "코드 펜스 줄",
+  "noteList.bulkSelect.enter": "노트 선택",
+  "noteList.bulkSelect.exit": "선택 완료",
+  "noteList.bulkSelect.empty": "노트를 클릭하여 선택",
+  "noteList.bulkBar.count": "{count}개 선택됨",
+  "noteList.bulkBar.organize": "선택한 노트 정리",
+  "noteList.bulkBar.archive": "선택한 노트 보관",
+  "noteList.bulkBar.unarchive": "선택한 노트 보관 취소",
+  "noteList.bulkBar.delete": "선택한 노트 영구 삭제",
+  "noteList.bulkBar.clear": "선택 해제"
 }

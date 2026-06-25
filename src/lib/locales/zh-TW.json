@@ -755,5 +755,14 @@
   "settings.codeFontSize.defaultOption": "預設",
   "editor.codeBlock.wrapLines": "自動換行",
   "editor.codeBlock.dontWrapLines": "不自動換行",
-  "editor.codeBlock.fenceLine": "程式碼圍欄行"
+  "editor.codeBlock.fenceLine": "程式碼圍欄行",
+  "noteList.bulkSelect.enter": "選擇筆記",
+  "noteList.bulkSelect.exit": "完成選擇",
+  "noteList.bulkSelect.empty": "點選筆記以選取",
+  "noteList.bulkBar.count": "已選擇 {count} 則",
+  "noteList.bulkBar.organize": "整理所選筆記",
+  "noteList.bulkBar.archive": "封存所選筆記",
+  "noteList.bulkBar.unarchive": "取消封存所選筆記",
+  "noteList.bulkBar.delete": "永久刪除所選筆記",
+  "noteList.bulkBar.clear": "清除選取"
 }

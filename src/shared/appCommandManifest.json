@@ -378,6 +378,18 @@
       "route": { "kind": "active-tab-handler", "handler": "onArchiveNote" },
       "menuOwned": true
     },
+    "noteBulkSelect": {
+      "id": "note-bulk-select",
+      "route": { "kind": "handler", "handler": "onToggleBulkSelect" },
+      "menuOwned": false,
+      "shortcut": {
+        "combo": "command-or-ctrl-shift",
+        "key": "s",
+        "code": "KeyS",
+        "display": "⌘⇧S",
+        "accelerator": "CmdOrCtrl+Shift+S"
+      }
+    },
     "noteDelete": {
       "id": "note-delete",
       "route": { "kind": "active-tab-handler", "handler": "onDeleteNote" },

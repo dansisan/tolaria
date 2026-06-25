@@ -755,5 +755,14 @@
   "settings.codeFontSize.defaultOption": "默认",
   "editor.codeBlock.wrapLines": "自动换行",
   "editor.codeBlock.dontWrapLines": "不自动换行",
-  "editor.codeBlock.fenceLine": "代码围栏行"
+  "editor.codeBlock.fenceLine": "代码围栏行",
+  "noteList.bulkSelect.enter": "选择笔记",
+  "noteList.bulkSelect.exit": "完成选择",
+  "noteList.bulkSelect.empty": "点击笔记进行选择",
+  "noteList.bulkBar.count": "已选择 {count} 条",
+  "noteList.bulkBar.organize": "整理所选笔记",
+  "noteList.bulkBar.archive": "归档所选笔记",
+  "noteList.bulkBar.unarchive": "取消归档所选笔记",
+  "noteList.bulkBar.delete": "永久删除所选笔记",
+  "noteList.bulkBar.clear": "清除选择"
 }

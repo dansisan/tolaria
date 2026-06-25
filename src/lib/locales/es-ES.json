@@ -755,5 +755,14 @@
   "settings.codeFontSize.defaultOption": "Predeterminado",
   "editor.codeBlock.wrapLines": "Ajustar líneas",
   "editor.codeBlock.dontWrapLines": "No ajustar líneas",
-  "editor.codeBlock.fenceLine": "Línea de cerca de código"
+  "editor.codeBlock.fenceLine": "Línea de cerca de código",
+  "noteList.bulkSelect.enter": "Seleccionar notas",
+  "noteList.bulkSelect.exit": "Listo",
+  "noteList.bulkSelect.empty": "Haz clic en las notas para seleccionarlas",
+  "noteList.bulkBar.count": "{count} seleccionadas",
+  "noteList.bulkBar.organize": "Organizar las notas seleccionadas",
+  "noteList.bulkBar.archive": "Archivar las notas seleccionadas",
+  "noteList.bulkBar.unarchive": "Desarchivar las notas seleccionadas",
+  "noteList.bulkBar.delete": "Eliminar permanentemente las notas seleccionadas",
+  "noteList.bulkBar.clear": "Borrar selección"
 }

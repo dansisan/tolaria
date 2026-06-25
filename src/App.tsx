@@ -1982,6 +1982,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     onOpenActiveFileExternal: fileActions.openExternalFile,
     onToggleFavorite: entryActions.handleToggleFavorite,
     onToggleOrganized: toggleOrganizedCommand,
+    onToggleBulkSelect: () => multiSelectionCommandRef.current?.toggleBulkMode?.(),
     onCustomizeNoteListColumns: handleCustomizeNoteListColumns,
     canCustomizeNoteListColumns,
     noteListColumnsLabel,

@@ -144,6 +144,14 @@ describe('appCommandDispatcher', () => {
     expect(findShortcutCommandId('command-or-ctrl-shift', 'v', 'KeyV')).toBe(APP_COMMAND_IDS.editPastePlainText)
   })
 
+  it('maps Cmd+Shift+S to the bulk-select toggle and dispatches the handler', () => {
+    expect(findShortcutCommandId('command-or-ctrl-shift', 's', 'KeyS')).toBe(APP_COMMAND_IDS.noteBulkSelect)
+
+    const onToggleBulkSelect = vi.fn()
+    dispatchAppCommand(APP_COMMAND_IDS.noteBulkSelect, { ...makeHandlers(), onToggleBulkSelect })
+    expect(onToggleBulkSelect).toHaveBeenCalledTimes(1)
+  })
+
   it('maps Cmd+[ / Cmd+] to history navigation alongside the arrow shortcuts', () => {
     expect(findShortcutCommandId('command-or-ctrl', 'ArrowLeft', 'ArrowLeft')).toBe(APP_COMMAND_IDS.viewGoBack)
     expect(findShortcutCommandId('command-or-ctrl', 'ArrowRight', 'ArrowRight')).toBe(APP_COMMAND_IDS.viewGoForward)

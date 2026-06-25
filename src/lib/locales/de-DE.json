@@ -755,5 +755,14 @@
   "settings.codeFontSize.defaultOption": "Standard",
   "editor.codeBlock.wrapLines": "Zeilen umbrechen",
   "editor.codeBlock.dontWrapLines": "Zeilen nicht umbrechen",
-  "editor.codeBlock.fenceLine": "Code-Zaunzeile"
+  "editor.codeBlock.fenceLine": "Code-Zaunzeile",
+  "noteList.bulkSelect.enter": "Notizen auswählen",
+  "noteList.bulkSelect.exit": "Auswahl beenden",
+  "noteList.bulkSelect.empty": "Notizen zum Auswählen anklicken",
+  "noteList.bulkBar.count": "{count} ausgewählt",
+  "noteList.bulkBar.organize": "Ausgewählte Notizen organisieren",
+  "noteList.bulkBar.archive": "Ausgewählte Notizen archivieren",
+  "noteList.bulkBar.unarchive": "Archivierung ausgewählter Notizen aufheben",
+  "noteList.bulkBar.delete": "Ausgewählte Notizen endgültig löschen",
+  "noteList.bulkBar.clear": "Auswahl aufheben"
 }
