@@ -150,17 +150,25 @@ mod macos_impl {
         run_osascript(EXPORT_SCRIPT)
     }
 
-    /// Exports every note in a SINGLE osascript process, reading each property in
-    /// BULK (`name of notes`, `body of notes`, …) instead of per-note. The old
-    /// approach indexed `note i` inside a loop and fetched five properties one at a
-    /// time; because indexing an Apple Events collection re-traverses it, that was
-    /// ~O(n²) Apple Event round-trips (≈90 min for ~1800 notes). Five bulk reads
-    /// return whole columns in a handful of events; the loop then zips the
-    /// in-memory lists, which is fast. All reads happen in one `tell` block so the
-    /// columns stay aligned (separate processes let Notes reorder, duplicating or
-    /// dropping notes). Dates are formatted with a plain `&` chain (text-first so
-    /// the result stays text) and zero-padded later in Rust, avoiding `«class isot»`
-    /// (fails with `-1700` on recent macOS).
+    /// Exports every note in a SINGLE osascript process. The small properties
+    /// (name/dates/id) are read in BULK — `name of notes` returns the whole column
+    /// in one Apple Event, so the app enumerates the collection once internally.
+    /// The original code instead indexed `note i` in a loop, and indexing an Apple
+    /// Events collection re-traverses it from the start, making the export ~O(n²)
+    /// round-trips (≈90 min for ~1800 notes).
+    ///
+    /// Bodies are NOT bulk-read: `body of notes` builds one reply holding every
+    /// note's HTML (with inline image data), which overflowed and failed the whole
+    /// export with `-1741`. Instead each body is fetched individually by id
+    /// (`body of note id theId`) — a keyed lookup, so it's O(1) (no positional
+    /// re-traversal), the reply stays small, and a single unreadable note is
+    /// skipped by its `try` instead of poisoning the run.
+    ///
+    /// All bulk reads share one `tell` block so the columns stay aligned (separate
+    /// processes let Notes reorder, duplicating or dropping notes). Dates are
+    /// formatted with a plain `&` chain (text-first so the result stays text) and
+    /// zero-padded later in Rust, avoiding `«class isot»` (fails with `-1700` on
+    /// recent macOS).
     #[cfg(target_os = "macos")]
     const EXPORT_SCRIPT: &str = concat!(
         "with timeout of 600 seconds\n",
@@ -171,19 +179,20 @@ mod macos_impl {
         "    set theCreated to creation date of notes\n",
         "    set theModified to modification date of notes\n",
         "    set theIds to id of notes\n",
-        "    set theBodies to body of notes\n",
+        "    set noteRows to {}\n",
+        "    set noteCount to count of theIds\n",
+        "    repeat with i from 1 to noteCount\n",
+        "      set theId to item i of theIds\n",
+        "      try\n",
+        "        set cd to item i of theCreated\n",
+        "        set md to item i of theModified\n",
+        "        set createdIso to ((year of cd) as text) & \"-\" & ((month of cd) as integer) & \"-\" & (day of cd) & \"T\" & (hours of cd) & \":\" & (minutes of cd) & \":\" & (seconds of cd)\n",
+        "        set modIso to ((year of md) as text) & \"-\" & ((month of md) as integer) & \"-\" & (day of md) & \"T\" & (hours of md) & \":\" & (minutes of md) & \":\" & (seconds of md)\n",
+        "        set theBody to body of note id theId\n",
+        "        set end of noteRows to ((item i of theNames) & fieldSep & createdIso & fieldSep & modIso & fieldSep & theId & fieldSep & theBody)\n",
+        "      end try\n",
+        "    end repeat\n",
         "  end tell\n",
-        "  set noteRows to {}\n",
-        "  set noteCount to count of theNames\n",
-        "  repeat with i from 1 to noteCount\n",
-        "    try\n",
-        "      set cd to item i of theCreated\n",
-        "      set md to item i of theModified\n",
-        "      set createdIso to ((year of cd) as text) & \"-\" & ((month of cd) as integer) & \"-\" & (day of cd) & \"T\" & (hours of cd) & \":\" & (minutes of cd) & \":\" & (seconds of cd)\n",
-        "      set modIso to ((year of md) as text) & \"-\" & ((month of md) as integer) & \"-\" & (day of md) & \"T\" & (hours of md) & \":\" & (minutes of md) & \":\" & (seconds of md)\n",
-        "      set end of noteRows to ((item i of theNames) & fieldSep & createdIso & fieldSep & modIso & fieldSep & (item i of theIds) & fieldSep & (item i of theBodies))\n",
-        "    end try\n",
-        "  end repeat\n",
         "  set AppleScript's text item delimiters to recordSep\n",
         "  set out to noteRows as text\n",
         "  set AppleScript's text item delimiters to \"\"\n",

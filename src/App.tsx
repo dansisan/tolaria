@@ -28,7 +28,7 @@ import { useAiAgentsStatus } from './hooks/useAiAgentsStatus'
 import { useVaultAiGuidanceStatus } from './hooks/useVaultAiGuidanceStatus'
 import { useAutoGit } from './hooks/useAutoGit'
 import { useVaultLoader } from './hooks/useVaultLoader'
-import { useRecentVaultWrites, useVaultWatcher } from './hooks/useVaultWatcher'
+import { useRecentVaultWrites, useVaultWatcher, VAULT_WATCHER_DEBOUNCE_MS } from './hooks/useVaultWatcher'
 import { useSettings } from './hooks/useSettings'
 import { useNoteWidthMode } from './hooks/useNoteWidthMode'
 import { useNoteBodyFontSize } from './hooks/useNoteBodyFontSize'
@@ -738,6 +738,9 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     setToastMessage,
     tabs: notes.tabs,
   })
+  // While true, watcher-driven vault refreshes are ignored so a bulk backend
+  // operation (Apple Notes import) doesn't trigger a reload per written file.
+  const suppressVaultWatcherRef = useRef(false)
   const handleVaultUpdate = useCallback(async (
     updatedFiles: string[],
     options: { preserveFocusedEditor?: boolean; vaultPath?: string } = {},
@@ -779,7 +782,14 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     [handleVaultUpdate],
   )
   const handleFocusedVaultUpdate = useCallback(
-    (updatedFiles: string[]) => handleVaultUpdate(updatedFiles, { preserveFocusedEditor: true }),
+    (updatedFiles: string[]) => {
+      // A bulk operation (e.g. Apple Notes import) writes hundreds of files via
+      // the backend. Those land as external watcher events, and reacting to each
+      // batch with a full reload would storm the UI. The bulk operation does its
+      // own single reload when it finishes, so ignore watcher events meanwhile.
+      if (suppressVaultWatcherRef.current) return
+      return handleVaultUpdate(updatedFiles, { preserveFocusedEditor: true })
+    },
     [handleVaultUpdate],
   )
   useEffect(() => {
@@ -1591,6 +1601,9 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
 
   const handleRecomputeMetadata = useCallback(async () => {
     if (!resolvedPath) return
+    // Rewrites derived frontmatter across the whole vault via the backend; suppress
+    // the watcher so its writes don't storm the UI (see handleImportAppleNotes).
+    suppressVaultWatcherRef.current = true
     try {
       const tauriInvoke = isTauri() ? invoke : mockInvoke
       const changed = await tauriInvoke<number>('backfill_derived_frontmatter', { path: resolvedPath })
@@ -1601,6 +1614,8 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
       trackEvent('note_metadata_recomputed', { changed })
     } catch (err) {
       setToastMessage(translate(appLocale, 'command.recomputeMetadata.toast.failed', { error: String(err) }))
+    } finally {
+      window.setTimeout(() => { suppressVaultWatcherRef.current = false }, VAULT_WATCHER_DEBOUNCE_MS + 250)
     }
   }, [appLocale, resolvedPath, vault])
 
@@ -1620,6 +1635,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
         },
       )
       setToastMessage(translate(appLocale, 'command.importAppleNotes.toast.start'))
+      suppressVaultWatcherRef.current = true
       const result = await tauriInvoke<{
         created: number
         updated: number
@@ -1647,6 +1663,9 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     } catch (err) {
       setToastMessage(translate(appLocale, 'command.importAppleNotes.toast.failed', { error: String(err) }))
     } finally {
+      // Keep suppression past the watcher's debounce so the trailing flush of the
+      // import's writes is swallowed instead of forcing a second mass reload.
+      window.setTimeout(() => { suppressVaultWatcherRef.current = false }, VAULT_WATCHER_DEBOUNCE_MS + 250)
       unlisten?.()
     }
   }, [appLocale, resolvedPath, settings.frontmatter_created_key, vault])
