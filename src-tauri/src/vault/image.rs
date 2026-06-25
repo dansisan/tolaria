@@ -48,8 +48,24 @@ fn with_webp_extension(filename: &str) -> String {
 }
 
 /// Decode raw image bytes and re-encode them as lossy WebP at [`WEBP_QUALITY`].
+/// EXIF orientation is baked into the pixels before encoding — WebP output
+/// carries no EXIF, so an unrotated portrait would otherwise display sideways.
 fn encode_webp(bytes: &[u8]) -> Result<Vec<u8>, String> {
-    let img = image::load_from_memory(bytes).map_err(|e| format!("Failed to decode image: {}", e))?;
+    use image::ImageDecoder;
+
+    let reader = image::ImageReader::new(std::io::Cursor::new(bytes))
+        .with_guessed_format()
+        .map_err(|e| format!("Failed to read image: {}", e))?;
+    let mut decoder = reader
+        .into_decoder()
+        .map_err(|e| format!("Failed to decode image: {}", e))?;
+    let orientation = decoder
+        .orientation()
+        .map_err(|e| format!("Failed to read orientation: {}", e))?;
+    let mut img = image::DynamicImage::from_decoder(decoder)
+        .map_err(|e| format!("Failed to decode image: {}", e))?;
+    img.apply_orientation(orientation);
+
     let encoder = webp::Encoder::from_image(&img).map_err(|e| format!("Failed to prepare WebP encoder: {}", e))?;
     Ok(encoder.encode(WEBP_QUALITY).to_vec())
 }
@@ -353,6 +369,29 @@ mod tests {
         let content = fs::read(&saved_path).unwrap();
         assert_eq!(&content[0..4], b"RIFF");
         assert_eq!(&content[8..12], b"WEBP");
+    }
+
+    /// An 8×4 (landscape) red JPEG tagged with EXIF Orientation=6 ("Rotate 90
+    /// CW"), so its intended display is 4×8 (portrait). Used to prove the
+    /// encoder honours orientation instead of dropping it.
+    const ORIENTED_JPEG_BASE64: &str = "/9j/4AAQSkZJRgABAQAAAQABAAD/4QBiRXhpZgAATU0AKgAAAAgABQESAAMAAAABAAYAAAEaAAUAAAABAAAASgEbAAUAAAABAAAAUgEoAAMAAAABAAEAAAITAAMAAAABAAEAAAAAAAAAAAABAAAAAQAAAAEAAAAB/9sAQwADAgICAgIDAgICAwMDAwQGBAQEBAQIBgYFBgkICgoJCAkJCgwPDAoLDgsJCQ0RDQ4PEBAREAoMEhMSEBMPEBAQ/9sAQwEDAwMEAwQIBAQIEAsJCxAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ/8AAEQgABAAIAwERAAIRAQMRAf/EABQAAQAAAAAAAAAAAAAAAAAAAAj/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAABwn/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA6AxVN/9k=";
+
+    #[test]
+    fn test_save_image_applies_exif_orientation() {
+        let dir = TempDir::new().unwrap();
+        let vault_path = dir.path().to_str().unwrap();
+
+        let saved_path = save_image(vault_path, "portrait.jpg", ORIENTED_JPEG_BASE64).unwrap();
+
+        assert!(saved_path.ends_with(".webp"), "expected webp output, got {}", saved_path);
+        let bytes = fs::read(&saved_path).unwrap();
+        let decoded = webp::Decoder::new(&bytes).decode().expect("valid webp output");
+        // The stored pixels are 8×4; honouring Orientation=6 rotates them to 4×8.
+        assert_eq!(
+            (decoded.width(), decoded.height()),
+            (4, 8),
+            "orientation was not applied before encoding"
+        );
     }
 
     #[test]
