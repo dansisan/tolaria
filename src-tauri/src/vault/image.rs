@@ -66,7 +66,11 @@ fn encode_webp(bytes: &[u8]) -> Result<Vec<u8>, String> {
         .map_err(|e| format!("Failed to decode image: {}", e))?;
     img.apply_orientation(orientation);
 
-    let encoder = webp::Encoder::from_image(&img).map_err(|e| format!("Failed to prepare WebP encoder: {}", e))?;
+    // Normalise to RGBA8: webp's `from_image` only accepts RGB8/RGBA8 and
+    // rejects grayscale, 16-bit, and other variants. `to_rgba8` converts any
+    // decoded PNG/JPEG so every image transcodes instead of passing through.
+    let rgba = img.to_rgba8();
+    let encoder = webp::Encoder::from_rgba(&rgba, rgba.width(), rgba.height());
     Ok(encoder.encode(WEBP_QUALITY).to_vec())
 }
 
@@ -363,6 +367,33 @@ mod tests {
         let vault_path = dir.path().to_str().unwrap();
 
         let saved_path = save_image(vault_path, "screenshot.png", &sample_png_base64()).unwrap();
+
+        assert!(saved_path.ends_with(".webp"), "expected webp output, got {}", saved_path);
+        assert!(!saved_path.contains(".png"));
+        let content = fs::read(&saved_path).unwrap();
+        assert_eq!(&content[0..4], b"RIFF");
+        assert_eq!(&content[8..12], b"WEBP");
+    }
+
+    /// A grayscale PNG decodes to `ImageLuma8`, which the webp crate's
+    /// `from_image` rejects. The encoder must normalise it to RGBA8 so even
+    /// non-RGB PNGs transcode instead of silently passing through as PNG.
+    fn grayscale_png_base64() -> String {
+        use base64::Engine;
+        let img = image::GrayImage::from_pixel(4, 4, image::Luma([128]));
+        let mut bytes: Vec<u8> = Vec::new();
+        image::DynamicImage::ImageLuma8(img)
+            .write_to(&mut std::io::Cursor::new(&mut bytes), image::ImageFormat::Png)
+            .unwrap();
+        base64::engine::general_purpose::STANDARD.encode(&bytes)
+    }
+
+    #[test]
+    fn test_save_image_converts_grayscale_png_to_webp() {
+        let dir = TempDir::new().unwrap();
+        let vault_path = dir.path().to_str().unwrap();
+
+        let saved_path = save_image(vault_path, "scan.png", &grayscale_png_base64()).unwrap();
 
         assert!(saved_path.ends_with(".webp"), "expected webp output, got {}", saved_path);
         assert!(!saved_path.contains(".png"));
