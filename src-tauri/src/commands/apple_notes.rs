@@ -150,33 +150,40 @@ mod macos_impl {
         run_osascript(EXPORT_SCRIPT)
     }
 
-    /// Exports every note in a SINGLE osascript process. Positional `note i` is only
-    /// stable within one process — spreading it across separate processes let Notes
-    /// reorder between calls, which read some notes twice (duplicate ids) and skipped
-    /// others. Records are accumulated into a list and joined once (not `&`-appended
-    /// in a loop, which is O(n²) and previously hung), and each note is wrapped in
-    /// `try` so one bad note can't abort the export. Dates are emitted as a plain `&`
-    /// chain (text-first so the result stays text) and zero-padded later in Rust,
-    /// avoiding `«class isot»` (fails with `-1700` on recent macOS).
+    /// Exports every note in a SINGLE osascript process, reading each property in
+    /// BULK (`name of notes`, `body of notes`, …) instead of per-note. The old
+    /// approach indexed `note i` inside a loop and fetched five properties one at a
+    /// time; because indexing an Apple Events collection re-traverses it, that was
+    /// ~O(n²) Apple Event round-trips (≈90 min for ~1800 notes). Five bulk reads
+    /// return whole columns in a handful of events; the loop then zips the
+    /// in-memory lists, which is fast. All reads happen in one `tell` block so the
+    /// columns stay aligned (separate processes let Notes reorder, duplicating or
+    /// dropping notes). Dates are formatted with a plain `&` chain (text-first so
+    /// the result stays text) and zero-padded later in Rust, avoiding `«class isot»`
+    /// (fails with `-1700` on recent macOS).
     #[cfg(target_os = "macos")]
     const EXPORT_SCRIPT: &str = concat!(
         "with timeout of 600 seconds\n",
         "  set recordSep to (character id 29)\n",
         "  set fieldSep to (character id 30)\n",
-        "  set noteRows to {}\n",
         "  tell application \"Notes\"\n",
-        "    set noteCount to count of notes\n",
-        "    repeat with i from 1 to noteCount\n",
-        "      try\n",
-        "        set n to note i\n",
-        "        set cd to creation date of n\n",
-        "        set md to modification date of n\n",
-        "        set createdIso to ((year of cd) as text) & \"-\" & ((month of cd) as integer) & \"-\" & (day of cd) & \"T\" & (hours of cd) & \":\" & (minutes of cd) & \":\" & (seconds of cd)\n",
-        "        set modIso to ((year of md) as text) & \"-\" & ((month of md) as integer) & \"-\" & (day of md) & \"T\" & (hours of md) & \":\" & (minutes of md) & \":\" & (seconds of md)\n",
-        "        set end of noteRows to ((name of n) & fieldSep & createdIso & fieldSep & modIso & fieldSep & (id of n) & fieldSep & (body of n))\n",
-        "      end try\n",
-        "    end repeat\n",
+        "    set theNames to name of notes\n",
+        "    set theCreated to creation date of notes\n",
+        "    set theModified to modification date of notes\n",
+        "    set theIds to id of notes\n",
+        "    set theBodies to body of notes\n",
         "  end tell\n",
+        "  set noteRows to {}\n",
+        "  set noteCount to count of theNames\n",
+        "  repeat with i from 1 to noteCount\n",
+        "    try\n",
+        "      set cd to item i of theCreated\n",
+        "      set md to item i of theModified\n",
+        "      set createdIso to ((year of cd) as text) & \"-\" & ((month of cd) as integer) & \"-\" & (day of cd) & \"T\" & (hours of cd) & \":\" & (minutes of cd) & \":\" & (seconds of cd)\n",
+        "      set modIso to ((year of md) as text) & \"-\" & ((month of md) as integer) & \"-\" & (day of md) & \"T\" & (hours of md) & \":\" & (minutes of md) & \":\" & (seconds of md)\n",
+        "      set end of noteRows to ((item i of theNames) & fieldSep & createdIso & fieldSep & modIso & fieldSep & (item i of theIds) & fieldSep & (item i of theBodies))\n",
+        "    end try\n",
+        "  end repeat\n",
         "  set AppleScript's text item delimiters to recordSep\n",
         "  set out to noteRows as text\n",
         "  set AppleScript's text item delimiters to \"\"\n",
@@ -323,12 +330,15 @@ mod macos_impl {
     }
 
     /// Renders the full note file: frontmatter plus the body, with inline images
-    /// extracted to the vault's `attachments/` directory.
+    /// extracted to the vault's `attachments/` directory. The content-derived
+    /// frontmatter (`images`, `codeBlocks`, `bottomLines`) is stamped through the
+    /// same pipeline a normal save uses, so imported notes match edited ones.
     fn render_content(boundary: &VaultBoundary, created_key: &str, note: &RawNote) -> String {
         let attachments_dir = boundary.requested_root().join("attachments");
         let body = render_body(&note.body, &attachments_dir);
         let body = strip_leading_title(&body, &note.title);
-        build_note_markdown(created_key, note, &body)
+        let markdown = build_note_markdown(created_key, note, &body);
+        crate::frontmatter::apply_content_frontmatter(&markdown)
     }
 
     /// Apple Notes repeats the note title as the first line of the body. Drop that
@@ -445,7 +455,14 @@ mod macos_impl {
 
     /// Extracts the value of the tag's `src="…"` (or `src='…'`) attribute.
     fn tag_src(tag: &str) -> Option<&str> {
-        let after_key = &tag[find_case_insensitive(tag, "src=")? + 4..];
+        tag_attr(tag, "src")
+    }
+
+    /// Extracts the value of the tag's `<name>="…"` (or `'…'`) attribute, matching
+    /// the attribute name case-insensitively.
+    fn tag_attr<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
+        let key = format!("{name}=");
+        let after_key = &tag[find_case_insensitive(tag, &key)? + key.len()..];
         let quote = after_key.chars().next()?;
         if quote != '"' && quote != '\'' {
             return None;
@@ -618,6 +635,7 @@ mod macos_impl {
     fn html_to_markdown_lines(html: &str) -> String {
         let mut out = String::with_capacity(html.len());
         let mut stack: Vec<ListContext> = Vec::new();
+        let mut link: Option<Link> = None;
         let mut chars = html.chars();
         while let Some(c) = chars.next() {
             if c != '<' {
@@ -631,12 +649,19 @@ mod macos_impl {
                 }
                 tag.push(t);
             }
-            apply_tag(&tag, &mut out, &mut stack);
+            apply_tag(&tag, &mut out, &mut stack, &mut link);
         }
         out
     }
 
-    fn apply_tag(tag: &str, out: &mut String, stack: &mut Vec<ListContext>) {
+    /// A hyperlink being accumulated: its destination and the offset in `out`
+    /// where its visible text began.
+    struct Link {
+        href: String,
+        start: usize,
+    }
+
+    fn apply_tag(tag: &str, out: &mut String, stack: &mut Vec<ListContext>, link: &mut Option<Link>) {
         let (is_close, rest) = match tag.trim().strip_prefix('/') {
             Some(rest) => (true, rest),
             None => (false, tag.trim()),
@@ -660,6 +685,7 @@ mod macos_impl {
             }
             "li" if !is_close => push_list_marker(out, stack),
             "br" => out.push('\n'),
+            "a" => apply_anchor(rest, is_close, out, link),
             // A block element starts a new line. Only the opening tag breaks the
             // line, and only when not already at one, so consecutive lines stay
             // adjacent instead of gaining a blank line from the matching close
@@ -671,6 +697,34 @@ mod macos_impl {
                 ensure_newline(out)
             }
             _ => {}
+        }
+    }
+
+    /// Converts `<a href>` … `</a>` into a Markdown link `[text](href)`. A bare
+    /// auto-linked URL (text already equal to the href) collapses to the URL alone,
+    /// and an anchor without an href just passes its text through.
+    fn apply_anchor(rest: &str, is_close: bool, out: &mut String, link: &mut Option<Link>) {
+        if !is_close {
+            *link = tag_attr(rest, "href").map(|href| Link {
+                href: href.to_string(),
+                start: out.len(),
+            });
+            return;
+        }
+        let Some(Link { href, start }) = link.take() else {
+            return;
+        };
+        if start > out.len() {
+            return;
+        }
+        let text = out.split_off(start);
+        let trimmed = text.trim();
+        if trimmed.is_empty() {
+            out.push_str(&href);
+        } else if trimmed == href {
+            out.push_str(&text);
+        } else {
+            out.push_str(&format!("[{text}]({href})"));
         }
     }
 
@@ -887,6 +941,31 @@ mod macos_impl {
         }
 
         #[test]
+        fn converts_inline_links_to_markdown() {
+            assert_eq!(
+                html_to_plain_text(
+                    "<div>see <a href=\"https://example.com\">the site</a> now</div>"
+                ),
+                "see [the site](https://example.com) now"
+            );
+        }
+
+        #[test]
+        fn collapses_bare_autolinked_url() {
+            assert_eq!(
+                html_to_plain_text(
+                    "<div><a href=\"https://example.com\">https://example.com</a></div>"
+                ),
+                "https://example.com"
+            );
+        }
+
+        #[test]
+        fn anchor_without_href_keeps_its_text() {
+            assert_eq!(html_to_plain_text("<div><a name=\"x\">label</a></div>"), "label");
+        }
+
+        #[test]
         fn decodes_named_and_numeric_entities() {
             let html = "<div>a &amp; b &lt;c&gt; &#39;q&#39; &#x41; &nbsp;end</div>";
             assert_eq!(html_to_plain_text(html), "a & b <c> 'q' A  end");
@@ -1049,6 +1128,26 @@ mod macos_impl {
             assert!(trip.contains("apple_notes_modified: \"2026-09-09T09:09:09\""));
             // No duplicate file was created.
             assert!(!vault.path().join("Trip 2.md").exists());
+        }
+
+        #[test]
+        fn stamps_image_count_frontmatter_on_imported_notes() {
+            use base64::Engine;
+            let vault = tempfile::TempDir::new().unwrap();
+            let data = base64::engine::general_purpose::STANDARD.encode(b"\xff\xd8\xff jpeg");
+            let body = format!("<div>see</div><div><img src=\"data:image/jpeg;base64,{data}\"></div>");
+            let notes = parse_records(&records(&[(
+                "Shot",
+                "2026-01-01T00:00:00",
+                "2026-01-01T00:00:00",
+                "x://1",
+                body.as_str(),
+            )]));
+
+            sync_to_temp(vault.path(), &notes);
+
+            let md = std::fs::read_to_string(vault.path().join("Shot.md")).unwrap();
+            assert!(md.contains("images: 1"), "expected images frontmatter, got:\n{md}");
         }
 
         #[test]
