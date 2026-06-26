@@ -14,6 +14,9 @@ interface AttachmentsUnlinkedDetail {
 interface UseAttachmentCleanupOptions {
   entries: VaultEntry[]
   vaultPath: string | undefined
+  /** Records a path the app is about to write/delete so the vault watcher ignores
+   *  the resulting filesystem event instead of reacting to our own change. */
+  onInternalVaultWrite?: (path: string) => void
 }
 
 /**
@@ -21,9 +24,12 @@ interface UseAttachmentCleanupOptions {
  * Listens for the save-time `attachments-unlinked` event, keeps any image still
  * referenced by another note, and removes the rest from disk (best effort).
  */
-export function useAttachmentCleanup({ entries, vaultPath }: UseAttachmentCleanupOptions): void {
+export function useAttachmentCleanup({ entries, vaultPath, onInternalVaultWrite }: UseAttachmentCleanupOptions): void {
   const entriesRef = useRef(entries)
   useEffect(() => { entriesRef.current = entries }, [entries])
+
+  const onInternalVaultWriteRef = useRef(onInternalVaultWrite)
+  useEffect(() => { onInternalVaultWriteRef.current = onInternalVaultWrite }, [onInternalVaultWrite])
 
   useEffect(() => {
     if (!isTauri() || !vaultPath) return
@@ -39,6 +45,11 @@ export function useAttachmentCleanup({ entries, vaultPath }: UseAttachmentCleanu
       if (orphans.length === 0) return
       trackEvent('attachment_pruned', { count: orphans.length })
       for (const attachmentPath of orphans) {
+        // Mark the deletion as our own write *before* invoking it so the watcher's
+        // suppression window already covers the filesystem event. Otherwise the
+        // app reloads the vault — remounting the open editor — in reaction to a
+        // change it caused itself.
+        onInternalVaultWriteRef.current?.(`${vaultPath}/${attachmentPath}`)
         void invoke('delete_attachment', { vaultPath, attachmentPath }).catch(() => {
           // Best-effort cleanup: a failed delete just leaves an unused file behind.
         })

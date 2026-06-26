@@ -40,6 +40,44 @@ describe('useAttachmentCleanup', () => {
     })
   })
 
+  it('marks the deleted attachment as an internal write so the watcher ignores it', () => {
+    const onInternalVaultWrite = vi.fn()
+    renderHook(() => useAttachmentCleanup({
+      entries: [note('a.md', [])],
+      vaultPath: '/vault',
+      onInternalVaultWrite,
+    }))
+
+    emitUnlinked('a.md', ['attachments/gone.webp'])
+
+    expect(onInternalVaultWrite).toHaveBeenCalledWith('/vault/attachments/gone.webp')
+  })
+
+  it('marks the internal write before invoking the delete so the suppression window covers the event', () => {
+    const calls: string[] = []
+    const onInternalVaultWrite = vi.fn(() => { calls.push('mark') })
+    invokeFn.mockImplementation(() => { calls.push('delete'); return Promise.resolve(undefined) })
+    renderHook(() => useAttachmentCleanup({
+      entries: [note('a.md', [])],
+      vaultPath: '/vault',
+      onInternalVaultWrite,
+    }))
+
+    emitUnlinked('a.md', ['attachments/gone.webp'])
+
+    expect(calls).toEqual(['mark', 'delete'])
+  })
+
+  it('does not mark anything when no attachment is orphaned', () => {
+    const onInternalVaultWrite = vi.fn()
+    const entries = [note('a.md', []), note('b.md', ['attachments/shared.png'])]
+    renderHook(() => useAttachmentCleanup({ entries, vaultPath: '/vault', onInternalVaultWrite }))
+
+    emitUnlinked('a.md', ['attachments/shared.png'])
+
+    expect(onInternalVaultWrite).not.toHaveBeenCalled()
+  })
+
   it('keeps images still referenced by another note', () => {
     const entries = [note('a.md', []), note('b.md', ['attachments/shared.png'])]
     renderHook(() => useAttachmentCleanup({ entries, vaultPath: '/vault' }))

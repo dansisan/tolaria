@@ -1345,7 +1345,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     vaultPath: resolvedPath,
   })
 
-  useAttachmentCleanup({ entries: vault.entries, vaultPath: resolvedPath })
+  useAttachmentCleanup({ entries: vault.entries, vaultPath: resolvedPath, onInternalVaultWrite: markRecentVaultWrite })
 
   const handleDeleteType = useCallback((typeName: string) => {
     const typeEntry = visibleEntries.find((entry) => entry.isA === 'Type' && entry.title === typeName)
