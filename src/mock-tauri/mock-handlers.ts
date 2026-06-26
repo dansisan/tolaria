@@ -427,6 +427,15 @@ function handleMoveNoteToWorkspace(args: {
 export const mockHandlers: Record<string, (args: any) => any> = {
   list_vault: () => MOCK_ENTRIES,
   list_vault_folders: () => [],
+  list_apple_notes_folders: () => [
+    { account: 'iCloud', name: 'Notes', count: 81 },
+    { account: 'iCloud', name: 'journ', count: 2 },
+    { account: 'iCloud', name: 'Imported Notes', count: 1721 },
+  ],
+  import_apple_notes: (args: { folders?: { account: string; name: string }[] }) => {
+    const created = (args?.folders ?? []).length
+    return { created, updated: 0, unchanged: 0, failed: 0 }
+  },
   list_views: () => [],
   save_view_cmd: () => {},
   delete_view_cmd: () => {},

@@ -1,16 +1,34 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// Result of importing/syncing Apple Notes into the active vault.
 #[derive(Debug, Default, Serialize, PartialEq, Eq)]
 pub struct AppleNotesImportResult {
     /// Notes written as new files.
     pub created: usize,
-    /// Existing notes (matched by `apple_notes_id`) rewritten because they changed.
+    /// Existing notes (matched by `appleNotesId`) rewritten because they changed.
     pub updated: usize,
     /// Existing notes left untouched because their modification date was unchanged.
     pub unchanged: usize,
     /// Notes Notes couldn't export or that failed to write.
     pub failed: usize,
+}
+
+/// A folder in the macOS Notes app, with how many notes it holds. Returned by
+/// `list_apple_notes_folders` so the UI can offer a per-folder import (account +
+/// name disambiguate folders that share a name across accounts).
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct AppleNotesFolder {
+    pub account: String,
+    pub name: String,
+    pub count: usize,
+}
+
+/// One folder the user chose to import, identified by account + name (the same
+/// pair `list_apple_notes_folders` returns).
+#[derive(Debug, Clone, Deserialize)]
+pub struct FolderSelection {
+    pub account: String,
+    pub name: String,
 }
 
 /// Progress payload emitted as `apple-notes-import-progress` after each batch.
@@ -24,25 +42,55 @@ struct ImportProgress {
 /// Event name the frontend listens on for incremental import progress.
 pub const IMPORT_PROGRESS_EVENT: &str = "apple-notes-import-progress";
 
-/// Import notes from the macOS Notes app into the active vault. Re-runnable: notes
-/// are matched to existing files by the `apple_notes_id` stored in frontmatter, so
-/// changed notes are updated in place and unchanged ones are skipped — no
-/// duplicates. New notes are written with their original creation date under
-/// `created_key` (the vault's configured created key, default `created`).
+/// List the folders in the macOS Notes app (account + name + note count) so the
+/// UI can let the user pick which folders to import. Metadata-only: reads no note
+/// bodies, so it returns quickly even for large libraries — the slow part of an
+/// import is fetching bodies, which this skips entirely.
+#[tauri::command]
+pub async fn list_apple_notes_folders() -> Result<Vec<AppleNotesFolder>, String> {
+    log::info!("[apple-notes] listing folders");
+    tokio::task::spawn_blocking(list_folders)
+        .await
+        .map_err(|e| format!("Apple Notes folder query panicked: {e}"))?
+}
+
+#[cfg(target_os = "macos")]
+fn list_folders() -> Result<Vec<AppleNotesFolder>, String> {
+    macos_impl::list_folders()
+}
+
+#[cfg(not(target_os = "macos"))]
+fn list_folders() -> Result<Vec<AppleNotesFolder>, String> {
+    Err("Apple Notes import is only available on macOS".to_string())
+}
+
+/// Import notes from the selected macOS Notes folders into the active vault.
+/// Re-runnable: notes are matched to existing files by the `appleNotesId` stored
+/// in frontmatter, so changed notes are updated in place and unchanged ones are
+/// skipped — no duplicates. New notes are written with their original creation
+/// date under `created_key` (the vault's configured created key, default
+/// `created`) and tagged with their source folder under `appleNotesFolder`.
 ///
-/// Runs off the async runtime via `spawn_blocking`, fetches in small batches (each
-/// a fast, bounded Apple Event), and writes incrementally so the vault watcher
-/// surfaces progress.
+/// Only the chosen `folders` are read, so leaving a large folder unselected skips
+/// fetching its note bodies (the slow part) altogether. Runs off the async runtime
+/// via `spawn_blocking` and writes incrementally so the vault watcher surfaces
+/// progress.
 #[tauri::command]
 pub async fn import_apple_notes(
     app_handle: tauri::AppHandle,
     vault_path: String,
     created_key: String,
+    folders: Vec<FolderSelection>,
 ) -> Result<AppleNotesImportResult, String> {
-    log::info!("[apple-notes] import requested for {vault_path}");
-    tokio::task::spawn_blocking(move || run_import(&app_handle, &vault_path, &created_key))
-        .await
-        .map_err(|e| format!("Apple Notes import task panicked: {e}"))?
+    log::info!(
+        "[apple-notes] import requested for {vault_path} ({} folder(s))",
+        folders.len()
+    );
+    tokio::task::spawn_blocking(move || {
+        run_import(&app_handle, &vault_path, &created_key, &folders)
+    })
+    .await
+    .map_err(|e| format!("Apple Notes import task panicked: {e}"))?
 }
 
 #[cfg(target_os = "macos")]
@@ -50,13 +98,14 @@ fn run_import(
     app_handle: &tauri::AppHandle,
     vault_path: &str,
     created_key: &str,
+    folders: &[FolderSelection],
 ) -> Result<AppleNotesImportResult, String> {
     use tauri::Emitter;
     let app = app_handle.clone();
     let on_progress = move |processed: usize, total: usize| {
         let _ = app.emit(IMPORT_PROGRESS_EVENT, ImportProgress { processed, total });
     };
-    macos_impl::run_import(vault_path, created_key, &on_progress)
+    macos_impl::run_import(vault_path, created_key, folders, &on_progress)
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -64,13 +113,14 @@ fn run_import(
     _app_handle: &tauri::AppHandle,
     _vault_path: &str,
     _created_key: &str,
+    _folders: &[FolderSelection],
 ) -> Result<AppleNotesImportResult, String> {
     Err("Apple Notes import is only available on macOS".to_string())
 }
 
 #[cfg(any(target_os = "macos", test))]
 mod macos_impl {
-    use super::AppleNotesImportResult;
+    use super::{AppleNotesFolder, AppleNotesImportResult, FolderSelection};
     use crate::commands::vault::boundary::{with_boundary, VaultBoundary};
     use std::collections::hash_map::DefaultHasher;
     use std::collections::HashMap;
@@ -83,15 +133,18 @@ mod macos_impl {
     const FIELD_SEP: char = '\u{1e}';
     const RECORD_SEP: char = '\u{1d}';
 
-    /// Frontmatter folder tag applied to every imported note.
-    const IMPORT_FOLDER: &str = "applenotes";
+    /// Frontmatter key recording the source Apple Notes folder name, so imported
+    /// notes are distinguishable by origin (`appleNotesFolder: …`) without
+    /// colliding with the vault's own `folder` field.
+    const FOLDER_KEY: &str = "appleNotesFolder";
     /// Frontmatter key holding the stable Apple Notes identifier (a Core Data URI).
-    const ID_KEY: &str = "apple_notes_id";
+    const ID_KEY: &str = "appleNotesId";
     /// Frontmatter key holding Apple's last-modified timestamp, used to detect change.
-    const MODIFIED_KEY: &str = "apple_notes_modified";
+    const MODIFIED_KEY: &str = "appleNotesModified";
 
     struct RawNote {
         title: String,
+        folder: String,
         created: String,
         modified: String,
         id: String,
@@ -114,18 +167,18 @@ mod macos_impl {
     pub(super) fn run_import(
         vault_path: &str,
         created_key: &str,
+        folders: &[FolderSelection],
         on_progress: &dyn Fn(usize, usize),
     ) -> Result<AppleNotesImportResult, String> {
-        log::info!("[apple-notes] reading all notes from the Notes app (this can take a while for large libraries)…");
         let started = std::time::Instant::now();
-        let raw = run_export().map_err(|e| {
+        let notes = export_selected_folders(folders).map_err(|e| {
             log::error!("[apple-notes] export failed: {e}");
             e
         })?;
-        let notes = parse_records(&raw);
         log::info!(
-            "[apple-notes] fetched {} note(s) in {:.1}s; syncing into {vault_path}",
+            "[apple-notes] fetched {} note(s) from {} folder(s) in {:.1}s; syncing into {vault_path}",
             notes.len(),
+            folders.len(),
             started.elapsed().as_secs_f64()
         );
         let key = effective_created_key(created_key);
@@ -145,17 +198,63 @@ mod macos_impl {
         Ok(result)
     }
 
+    /// Reads every selected folder, one osascript process per folder, tagging each
+    /// note with its source folder name. Reading folders independently keeps a
+    /// folder the user didn't pick from ever having its (slow-to-fetch) bodies
+    /// read, and isolates a folder that fails to export from the rest.
     #[cfg(target_os = "macos")]
-    fn run_export() -> Result<String, String> {
-        run_osascript(EXPORT_SCRIPT)
+    fn export_selected_folders(folders: &[FolderSelection]) -> Result<Vec<RawNote>, String> {
+        let mut notes = Vec::new();
+        for selection in folders {
+            log::info!(
+                "[apple-notes] reading folder {:?} of account {:?}…",
+                selection.name,
+                selection.account
+            );
+            let raw = run_osascript(&build_export_script(&selection.account, &selection.name))?;
+            notes.extend(parse_records(&raw, &selection.name));
+        }
+        Ok(notes)
     }
 
-    /// Exports every note in a SINGLE osascript process. The small properties
-    /// (name/dates/id) are read in BULK — `name of notes` returns the whole column
-    /// in one Apple Event, so the app enumerates the collection once internally.
-    /// The original code instead indexed `note i` in a loop, and indexing an Apple
-    /// Events collection re-traverses it from the start, making the export ~O(n²)
-    /// round-trips (≈90 min for ~1800 notes).
+    #[cfg(target_os = "macos")]
+    pub(super) fn list_folders() -> Result<Vec<AppleNotesFolder>, String> {
+        Ok(parse_folders(&run_osascript(FOLDER_ENUM_SCRIPT)?))
+    }
+
+    /// Builds the per-folder export script. The folder is targeted by name within
+    /// its account, so `notes of theFolder` reads only that folder (account + name
+    /// disambiguate folders that share a name across accounts). See [`EXPORT_BODY`]
+    /// for why bodies are fetched one id at a time rather than in bulk.
+    fn build_export_script(account: &str, folder: &str) -> String {
+        let target = format!(
+            "    set theFolder to folder \"{}\" of account \"{}\"\n",
+            escape_applescript(folder),
+            escape_applescript(account),
+        );
+        [EXPORT_HEAD, &target, EXPORT_BODY].concat()
+    }
+
+    /// Escapes a string for embedding inside an AppleScript double-quoted literal:
+    /// backslashes first (so the quote escape isn't doubled), then quotes.
+    fn escape_applescript(value: &str) -> String {
+        value.replace('\\', "\\\\").replace('"', "\\\"")
+    }
+
+    /// Opens the timeout + `tell` block; [`build_export_script`] injects the folder
+    /// target line, then [`EXPORT_BODY`] reads that folder's notes.
+    const EXPORT_HEAD: &str = concat!(
+        "with timeout of 600 seconds\n",
+        "  set recordSep to (character id 29)\n",
+        "  set fieldSep to (character id 30)\n",
+        "  tell application \"Notes\"\n",
+    );
+
+    /// Reads one folder's notes. The small properties (name/dates/id) are read in
+    /// BULK — `name of notes of theFolder` returns the whole column in one Apple
+    /// Event, so the app enumerates the collection once internally. Indexing
+    /// `note i` in a loop instead re-traverses the Apple Events collection from the
+    /// start, making the export ~O(n²) round-trips.
     ///
     /// Bodies are NOT bulk-read: `body of notes` builds one reply holding every
     /// note's HTML (with inline image data), which overflowed and failed the whole
@@ -169,16 +268,11 @@ mod macos_impl {
     /// formatted with a plain `&` chain (text-first so the result stays text) and
     /// zero-padded later in Rust, avoiding `«class isot»` (fails with `-1700` on
     /// recent macOS).
-    #[cfg(target_os = "macos")]
-    const EXPORT_SCRIPT: &str = concat!(
-        "with timeout of 600 seconds\n",
-        "  set recordSep to (character id 29)\n",
-        "  set fieldSep to (character id 30)\n",
-        "  tell application \"Notes\"\n",
-        "    set theNames to name of notes\n",
-        "    set theCreated to creation date of notes\n",
-        "    set theModified to modification date of notes\n",
-        "    set theIds to id of notes\n",
+    const EXPORT_BODY: &str = concat!(
+        "    set theNames to name of notes of theFolder\n",
+        "    set theCreated to creation date of notes of theFolder\n",
+        "    set theModified to modification date of notes of theFolder\n",
+        "    set theIds to id of notes of theFolder\n",
         "    set noteRows to {}\n",
         "    set noteCount to count of theIds\n",
         "    repeat with i from 1 to noteCount\n",
@@ -198,6 +292,28 @@ mod macos_impl {
         "  set AppleScript's text item delimiters to \"\"\n",
         "  return out\n",
         "end timeout",
+    );
+
+    /// Lists every folder across every account as `account⟨FS⟩name⟨FS⟩count`
+    /// records. Metadata-only — `count of notes` reads no bodies, so this stays
+    /// fast even for large libraries.
+    #[cfg(target_os = "macos")]
+    const FOLDER_ENUM_SCRIPT: &str = concat!(
+        "set recordSep to (character id 29)\n",
+        "set fieldSep to (character id 30)\n",
+        "tell application \"Notes\"\n",
+        "  set folderRows to {}\n",
+        "  repeat with acct in accounts\n",
+        "    set acctName to name of acct\n",
+        "    repeat with f in folders of acct\n",
+        "      set end of folderRows to (acctName & fieldSep & (name of f) & fieldSep & (count of notes of f))\n",
+        "    end repeat\n",
+        "  end repeat\n",
+        "end tell\n",
+        "set AppleScript's text item delimiters to recordSep\n",
+        "set out to folderRows as text\n",
+        "set AppleScript's text item delimiters to \"\"\n",
+        "return out",
     );
 
     #[cfg(target_os = "macos")]
@@ -221,15 +337,15 @@ mod macos_impl {
         Err(format!("Apple Notes export failed: {message}"))
     }
 
-    fn parse_records(output: &str) -> Vec<RawNote> {
+    fn parse_records(output: &str, folder: &str) -> Vec<RawNote> {
         output
             .split(RECORD_SEP)
             .filter(|record| !record.trim().is_empty())
-            .filter_map(parse_record)
+            .filter_map(|record| parse_record(record, folder))
             .collect()
     }
 
-    fn parse_record(record: &str) -> Option<RawNote> {
+    fn parse_record(record: &str, folder: &str) -> Option<RawNote> {
         let mut fields = record.splitn(5, FIELD_SEP);
         let title = fields.next()?.to_string();
         let created = normalize_created_date(fields.next()?);
@@ -238,10 +354,34 @@ mod macos_impl {
         let body = fields.next().unwrap_or("").to_string();
         Some(RawNote {
             title,
+            folder: folder.to_string(),
             created,
             modified,
             id,
             body,
+        })
+    }
+
+    /// Parses the folder-enumeration output (`account⟨FS⟩name⟨FS⟩count` records)
+    /// into [`AppleNotesFolder`]s. Records missing fields or with an unparsable
+    /// count are skipped rather than failing the whole listing.
+    fn parse_folders(output: &str) -> Vec<AppleNotesFolder> {
+        output
+            .split(RECORD_SEP)
+            .filter(|record| !record.trim().is_empty())
+            .filter_map(parse_folder_record)
+            .collect()
+    }
+
+    fn parse_folder_record(record: &str) -> Option<AppleNotesFolder> {
+        let mut fields = record.splitn(3, FIELD_SEP);
+        let account = fields.next()?.to_string();
+        let name = fields.next()?.to_string();
+        let count = fields.next()?.trim().parse().ok()?;
+        Some(AppleNotesFolder {
+            account,
+            name,
+            count,
         })
     }
 
@@ -410,11 +550,18 @@ mod macos_impl {
 
     fn build_note_markdown(created_key: &str, note: &RawNote, body: &str) -> String {
         format!(
-            "---\n{created_key}: \"{created}\"\nfolder: {IMPORT_FOLDER}\n{ID_KEY}: \"{id}\"\n{MODIFIED_KEY}: \"{modified}\"\n---\n\n{body}\n",
+            "---\n{created_key}: \"{created}\"\n{FOLDER_KEY}: \"{folder}\"\n{ID_KEY}: \"{id}\"\n{MODIFIED_KEY}: \"{modified}\"\n---\n\n{body}\n",
             created = note.created,
+            folder = escape_yaml(&note.folder),
             id = note.id,
             modified = note.modified,
         )
+    }
+
+    /// Escapes a value for a double-quoted YAML scalar: backslashes first, then
+    /// quotes, so an arbitrary folder name can't break the frontmatter block.
+    fn escape_yaml(value: &str) -> String {
+        value.replace('\\', "\\\\").replace('"', "\\\"")
     }
 
     // --- Inline image extraction ----------------------------------------------
@@ -866,13 +1013,43 @@ mod macos_impl {
         #[test]
         fn parses_all_five_fields_and_normalizes_dates() {
             let output = records(&[("First", "2026-1-2T3:4:5", "2026-1-2T3:4:5", "x://1", "<div>Hi</div>")]);
-            let notes = parse_records(&output);
+            let notes = parse_records(&output, "journ");
             assert_eq!(notes.len(), 1);
             assert_eq!(notes[0].title, "First");
+            assert_eq!(notes[0].folder, "journ");
             assert_eq!(notes[0].created, "2026-01-02T03:04:05");
             assert_eq!(notes[0].modified, "2026-01-02T03:04:05");
             assert_eq!(notes[0].id, "x://1");
             assert_eq!(notes[0].body, "<div>Hi</div>");
+        }
+
+        #[test]
+        fn parses_folder_records_skipping_malformed() {
+            let output = format!(
+                "iCloud{FIELD_SEP}journ{FIELD_SEP}2{RECORD_SEP}\
+                 iCloud{FIELD_SEP}Notes{FIELD_SEP}81{RECORD_SEP}\
+                 iCloud{FIELD_SEP}Broken{FIELD_SEP}notanumber"
+            );
+            let folders = parse_folders(&output);
+            assert_eq!(folders.len(), 2);
+            assert_eq!(folders[0], AppleNotesFolder { account: "iCloud".into(), name: "journ".into(), count: 2 });
+            assert_eq!(folders[1], AppleNotesFolder { account: "iCloud".into(), name: "Notes".into(), count: 81 });
+        }
+
+        #[test]
+        fn export_script_targets_folder_and_escapes_quotes() {
+            let script = build_export_script("iCloud", "My \"Quoted\" Folder");
+            assert!(script.contains("set theFolder to folder \"My \\\"Quoted\\\" Folder\" of account \"iCloud\""));
+            // Reads are scoped to the targeted folder, not the whole library.
+            assert!(script.contains("name of notes of theFolder"));
+            assert!(!script.contains("name of notes\n"));
+            // Bodies are still fetched one id at a time.
+            assert!(script.contains("body of note id theId"));
+        }
+
+        #[test]
+        fn escapes_applescript_backslashes_before_quotes() {
+            assert_eq!(escape_applescript(r#"a\b"c"#), r#"a\\b\"c"#);
         }
 
         #[test]
@@ -884,9 +1061,9 @@ mod macos_impl {
 
         #[test]
         fn skips_blank_and_empty_records() {
-            assert!(parse_records("").is_empty());
+            assert!(parse_records("", "journ").is_empty());
             let output = format!("{}{RECORD_SEP}", records(&[("Only", "d", "d", "id", "x")]));
-            assert_eq!(parse_records(&output).len(), 1);
+            assert_eq!(parse_records(&output, "journ").len(), 1);
         }
 
         #[test]
@@ -991,6 +1168,7 @@ mod macos_impl {
         fn builds_frontmatter_with_identity_fields() {
             let note = RawNote {
                 title: "T".into(),
+                folder: "journ".into(),
                 created: "2026-01-02T03:04:05".into(),
                 modified: "2026-02-03T04:05:06".into(),
                 id: "x://1".into(),
@@ -999,8 +1177,22 @@ mod macos_impl {
             let md = build_note_markdown("date", &note, "body");
             assert_eq!(
                 md,
-                "---\ndate: \"2026-01-02T03:04:05\"\nfolder: applenotes\napple_notes_id: \"x://1\"\napple_notes_modified: \"2026-02-03T04:05:06\"\n---\n\nbody\n"
+                "---\ndate: \"2026-01-02T03:04:05\"\nappleNotesFolder: \"journ\"\nappleNotesId: \"x://1\"\nappleNotesModified: \"2026-02-03T04:05:06\"\n---\n\nbody\n"
             );
+        }
+
+        #[test]
+        fn escapes_folder_name_with_quotes_in_frontmatter() {
+            let note = RawNote {
+                title: "T".into(),
+                folder: "Quote\"Folder".into(),
+                created: "c".into(),
+                modified: "m".into(),
+                id: "x://1".into(),
+                body: "body".into(),
+            };
+            let md = build_note_markdown("date", &note, "body");
+            assert!(md.contains("appleNotesFolder: \"Quote\\\"Folder\""));
         }
 
         #[test]
@@ -1099,9 +1291,9 @@ mod macos_impl {
 
         #[test]
         fn reads_frontmatter_values() {
-            let content = "---\ncreated: \"2026-01-02T03:04:05\"\napple_notes_id: \"x://7\"\n---\n\nbody\n";
+            let content = "---\ncreated: \"2026-01-02T03:04:05\"\nappleNotesId: \"x://7\"\n---\n\nbody\n";
             let block = frontmatter_block(content).unwrap();
-            assert_eq!(read_frontmatter_value(block, "apple_notes_id").as_deref(), Some("x://7"));
+            assert_eq!(read_frontmatter_value(block, "appleNotesId").as_deref(), Some("x://7"));
             assert_eq!(read_frontmatter_value(block, "missing"), None);
             assert_eq!(frontmatter_block("no frontmatter"), None);
         }
@@ -1114,11 +1306,12 @@ mod macos_impl {
             let first = parse_records(&records(&[
                 ("Trip", "2026-01-02T03:04:05", "2026-01-02T03:04:05", "x://a", "<div>Pack &amp; go</div>"),
                 ("Plan", "2026-03-04T05:06:07", "2026-03-04T05:06:07", "x://b", "first"),
-            ]));
+            ]), "journ");
             let r1 = sync_to_temp(vault.path(), &first);
             assert_eq!((r1.created, r1.updated, r1.unchanged), (2, 0, 0));
             let trip = std::fs::read_to_string(vault.path().join("Trip.md")).unwrap();
-            assert!(trip.contains("apple_notes_id: \"x://a\""));
+            assert!(trip.contains("appleNotesId: \"x://a\""));
+            assert!(trip.contains("appleNotesFolder: \"journ\""));
             assert!(trip.contains("Pack & go"));
 
             // Re-running with identical data updates nothing.
@@ -1129,12 +1322,12 @@ mod macos_impl {
             let second = parse_records(&records(&[
                 ("Trip", "2026-01-02T03:04:05", "2026-09-09T09:09:09", "x://a", "<div>Changed</div>"),
                 ("Plan", "2026-03-04T05:06:07", "2026-03-04T05:06:07", "x://b", "first"),
-            ]));
+            ]), "journ");
             let r3 = sync_to_temp(vault.path(), &second);
             assert_eq!((r3.created, r3.updated, r3.unchanged), (0, 1, 1));
             let trip = std::fs::read_to_string(vault.path().join("Trip.md")).unwrap();
             assert!(trip.contains("Changed"));
-            assert!(trip.contains("apple_notes_modified: \"2026-09-09T09:09:09\""));
+            assert!(trip.contains("appleNotesModified: \"2026-09-09T09:09:09\""));
             // No duplicate file was created.
             assert!(!vault.path().join("Trip 2.md").exists());
         }
@@ -1151,7 +1344,7 @@ mod macos_impl {
                 "2026-01-01T00:00:00",
                 "x://1",
                 body.as_str(),
-            )]));
+            )]), "journ");
 
             sync_to_temp(vault.path(), &notes);
 
@@ -1165,7 +1358,7 @@ mod macos_impl {
             let notes = parse_records(&records(&[
                 ("Note", "2026-01-01T00:00:00", "2026-01-01T00:00:00", "x://1", "one"),
                 ("Note", "2026-01-01T00:00:00", "2026-01-01T00:00:00", "x://2", "two"),
-            ]));
+            ]), "journ");
             let result = sync_to_temp(vault.path(), &notes);
             assert_eq!(result.created, 2);
             assert!(vault.path().join("Note.md").exists());

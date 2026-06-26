@@ -4,6 +4,7 @@ import { NoteList, type NoteListHandle } from './components/NoteList'
 import { Editor } from './components/Editor'
 import { ResizeHandle } from './components/ResizeHandle'
 import { CreateTypeDialog } from './components/CreateTypeDialog'
+import { ImportAppleNotesDialog, type AppleNotesFolder } from './components/apple-notes/ImportAppleNotesDialog'
 import { CreateNoteForDateDialog } from './components/CreateNoteForDateDialog'
 import { CreateViewDialog } from './components/CreateViewDialog'
 import { QuickOpenPalette } from './components/QuickOpenPalette'
@@ -323,6 +324,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
   const { closeAIChat, openAIChat, showAIChat } = dialogs
   const [showFeedback, setShowFeedback] = useState(false)
   const [showMcpSetupDialog, setShowMcpSetupDialog] = useState(false)
+  const [appleNotesDialogOpen, setAppleNotesDialogOpen] = useState(false)
   const [mcpDialogAction, setMcpDialogAction] = useState<'connect' | 'disconnect' | null>(null)
   const openFeedback = useCallback(() => setShowFeedback(true), [])
   const closeFeedback = useCallback(() => setShowFeedback(false), [])
@@ -1619,8 +1621,21 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     }
   }, [appLocale, resolvedPath, vault])
 
-  const handleImportAppleNotes = useCallback(async () => {
+  // Opens the folder picker; the actual import runs once the user confirms a
+  // selection (see runAppleNotesImport), so large folders can be left unchecked.
+  const handleImportAppleNotes = useCallback(() => {
     if (!resolvedPath) return
+    setAppleNotesDialogOpen(true)
+  }, [resolvedPath])
+
+  const fetchAppleNotesFolders = useCallback(() => {
+    const tauriInvoke = isTauri() ? invoke : mockInvoke
+    return tauriInvoke<AppleNotesFolder[]>('list_apple_notes_folders')
+  }, [])
+
+  const runAppleNotesImport = useCallback(async (folders: AppleNotesFolder[]) => {
+    setAppleNotesDialogOpen(false)
+    if (!resolvedPath || folders.length === 0) return
     const tauriInvoke = isTauri() ? invoke : mockInvoke
     let unlisten: (() => void) | undefined
     try {
@@ -1644,6 +1659,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
       }>('import_apple_notes', {
         vaultPath: resolvedPath,
         createdKey: settings.frontmatter_created_key ?? 'created',
+        folders: folders.map((folder) => ({ account: folder.account, name: folder.name })),
       })
       await vault.reloadVault()
       const touched = result.created + result.updated + result.unchanged
@@ -1659,6 +1675,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
         updated: result.updated,
         unchanged: result.unchanged,
         failed: result.failed,
+        folders: folders.length,
       })
     } catch (err) {
       setToastMessage(translate(appLocale, 'command.importAppleNotes.toast.failed', { error: String(err) }))
@@ -2236,6 +2253,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
         />
         <SearchPanel open={dialogs.showSearch} vaultPath={resolvedPath} entries={visibleEntries} onSelectNote={notes.handleSelectNote} onClose={dialogs.closeSearch} />
         <CreateTypeDialog open={dialogs.showCreateTypeDialog} onClose={dialogs.closeCreateType} onCreate={handleCreateType} />
+        <ImportAppleNotesDialog open={appleNotesDialogOpen} locale={appLocale} fetchFolders={fetchAppleNotesFolders} onImport={runAppleNotesImport} onClose={() => setAppleNotesDialogOpen(false)} />
         <CreateNoteForDateDialog open={dialogs.showCreateNoteForDate} onClose={dialogs.closeCreateNoteForDate} onCreate={handleCreateNoteForDate} locale={appLocale} />
         <NoteRetargetingDialogs
           dialogState={noteRetargetingUi.dialogState}
