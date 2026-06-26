@@ -467,6 +467,7 @@
   "noteList.sort.created": "생성됨",
   "noteList.sort.title": "제목",
   "noteList.sort.status": "상태",
+  "noteList.sort.size": "크기",
   "noteList.sort.by": "{label} 기준으로 정렬",
   "noteList.sort.menu": "{label} 정렬",
   "noteList.sort.ascending": "오름차순",

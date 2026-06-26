@@ -468,6 +468,7 @@
   "noteList.sort.created": "Stvorana",
   "noteList.sort.title": "Zahalovak",
   "noteList.sort.status": "Status",
+  "noteList.sort.size": "Pamier",
   "noteList.sort.by": "Sartavać pa {label}",
   "noteList.sort.menu": "Sartavannie {label}",
   "noteList.sort.ascending": "Pa ŭzrastanni",

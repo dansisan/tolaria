@@ -38,6 +38,42 @@ describe('NoteItem', () => {
     expect(onClickNote).not.toHaveBeenCalled()
   })
 
+  it('shows the human-readable file size for binary attachment rows', () => {
+    const imageEntry = makeEntry({
+      path: '/vault/attachments/photo.png',
+      filename: 'photo.png',
+      title: 'photo.png',
+      fileKind: 'binary',
+      fileSize: 1536,
+    })
+
+    render(<NoteItem entry={imageEntry} isSelected={false} typeEntryMap={{}} onClickNote={vi.fn()} />)
+
+    expect(screen.getByTestId('note-file-size')).toHaveTextContent('1.5 KB')
+  })
+
+  it('shows the file size for unsupported binary rows too', () => {
+    const zipEntry = makeEntry({
+      path: '/vault/attachments/archive.zip',
+      filename: 'archive.zip',
+      title: 'archive.zip',
+      fileKind: 'binary',
+      fileSize: 2048,
+    })
+
+    render(<NoteItem entry={zipEntry} isSelected={false} typeEntryMap={{}} onClickNote={vi.fn()} />)
+
+    expect(screen.getByTestId('note-file-size')).toHaveTextContent('2 KB')
+  })
+
+  it('does not show a file size row for markdown notes', () => {
+    const entry = makeEntry({ title: 'A note', fileSize: 4096 })
+
+    render(<NoteItem entry={entry} isSelected={false} typeEntryMap={{}} onClickNote={vi.fn()} />)
+
+    expect(screen.queryByTestId('note-file-size')).not.toBeInTheDocument()
+  })
+
   it('shows a checkbox per row only when bulk mode is active', () => {
     const entry = makeEntry({ path: '/vault/note.md', filename: 'note.md', title: 'Note' })
 

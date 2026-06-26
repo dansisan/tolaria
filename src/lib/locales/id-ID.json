@@ -467,6 +467,7 @@
   "noteList.sort.created": "Dibuat",
   "noteList.sort.title": "Judul",
   "noteList.sort.status": "Status",
+  "noteList.sort.size": "Ukuran",
   "noteList.sort.by": "Urutkan berdasarkan {label}",
   "noteList.sort.menu": "Urutkan {label}",
   "noteList.sort.ascending": "Naik",

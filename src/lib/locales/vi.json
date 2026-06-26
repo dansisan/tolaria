@@ -467,6 +467,7 @@
   "noteList.sort.created": "Đã tạo",
   "noteList.sort.title": "Tiêu đề",
   "noteList.sort.status": "Trạng thái",
+  "noteList.sort.size": "Kích thước",
   "noteList.sort.by": "Sắp xếp theo {label}",
   "noteList.sort.menu": "Sắp xếp {label}",
   "noteList.sort.ascending": "Tăng dần",

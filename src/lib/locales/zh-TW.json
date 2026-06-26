@@ -467,6 +467,7 @@
   "noteList.sort.created": "已建立",
   "noteList.sort.title": "標題",
   "noteList.sort.status": "狀態",
+  "noteList.sort.size": "大小",
   "noteList.sort.by": "按{label}排序",
   "noteList.sort.menu": "排序{label}",
   "noteList.sort.ascending": "升序",

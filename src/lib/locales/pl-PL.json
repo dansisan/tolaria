@@ -467,6 +467,7 @@
   "noteList.sort.created": "Utworzono",
   "noteList.sort.title": "Tytuł",
   "noteList.sort.status": "Status",
+  "noteList.sort.size": "Rozmiar",
   "noteList.sort.by": "Sortuj według {label}",
   "noteList.sort.menu": "Sortuj {label}",
   "noteList.sort.ascending": "Rosnąco",

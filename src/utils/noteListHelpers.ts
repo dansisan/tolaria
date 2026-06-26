@@ -122,7 +122,7 @@ export function sortByModified(a: VaultEntry, b: VaultEntry): number {
   return (getDisplayDate(b) ?? 0) - (getDisplayDate(a) ?? 0)
 }
 
-export type SortOption = 'modified' | 'created' | 'title' | 'status' | `property:${string}`
+export type SortOption = 'modified' | 'created' | 'title' | 'status' | 'size' | `property:${string}`
 export type SortDirection = 'asc' | 'desc'
 
 export interface SortConfig {
@@ -130,11 +130,11 @@ export interface SortConfig {
   direction: SortDirection
 }
 
-export const DEFAULT_SORT_OPTIONS: SortOption[] = ['modified', 'created', 'title', 'status']
+export const DEFAULT_SORT_OPTIONS: SortOption[] = ['modified', 'created', 'title', 'status', 'size']
 const BUILT_IN_SORT_OPTIONS = new Set<string>(DEFAULT_SORT_OPTIONS)
 
 export function getDefaultDirection(option: SortOption): SortDirection {
-  if (option === 'modified' || option === 'created') return 'desc'
+  if (option === 'modified' || option === 'created' || option === 'size') return 'desc'
   return 'asc'
 }
 
@@ -143,6 +143,7 @@ export const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'created', label: 'Created' },
   { value: 'title', label: 'Title' },
   { value: 'status', label: 'Status' },
+  { value: 'size', label: 'Size' },
 ]
 
 export function getSortOptionLabel(option: SortOption): string {
@@ -202,6 +203,7 @@ function makePropertyComparator(key: string, flip: number): (a: VaultEntry, b: V
 
 function makeBuiltinComparator(option: string, flip: number): (a: VaultEntry, b: VaultEntry) => number {
   if (option === 'title') return (a, b) => flip * stringField(a.title).localeCompare(stringField(b.title))
+  if (option === 'size') return (a, b) => flip * ((a.fileSize ?? 0) - (b.fileSize ?? 0))
   if (option === 'created') return (a, b) => flip * ((a.createdAt ?? a.modifiedAt ?? 0) - (b.createdAt ?? b.modifiedAt ?? 0))
   if (option === 'status') return (a, b) => {
     const sa = STATUS_ORDER_LOOKUP.get(a.status ?? '') ?? 999

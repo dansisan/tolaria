@@ -16,6 +16,7 @@ const SORT_LABEL_KEYS = {
   created: 'noteList.sort.created',
   title: 'noteList.sort.title',
   status: 'noteList.sort.status',
+  size: 'noteList.sort.size',
 } satisfies Record<string, TranslationKey>
 const SORT_LABEL_KEYS_BY_OPTION = new Map<string, TranslationKey>(Object.entries(SORT_LABEL_KEYS))
 const SORT_MENU_WIDTH = 170

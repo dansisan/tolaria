@@ -467,6 +467,7 @@
   "noteList.sort.created": "Creato",
   "noteList.sort.title": "Titolo",
   "noteList.sort.status": "Stato",
+  "noteList.sort.size": "Dimensione",
   "noteList.sort.by": "Ordina per {label}",
   "noteList.sort.menu": "Ordina per {label}",
   "noteList.sort.ascending": "Crescente",

@@ -467,6 +467,7 @@
   "noteList.sort.created": "作成日時",
   "noteList.sort.title": "タイトル",
   "noteList.sort.status": "ステータス",
+  "noteList.sort.size": "サイズ",
   "noteList.sort.by": "{label}で並べ替え",
   "noteList.sort.menu": "{label}で並べ替え",
   "noteList.sort.ascending": "昇順",

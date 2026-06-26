@@ -467,6 +467,7 @@
   "noteList.sort.created": "Создано",
   "noteList.sort.title": "Название",
   "noteList.sort.status": "Статус",
+  "noteList.sort.size": "Размер",
   "noteList.sort.by": "Сортировать по {label}",
   "noteList.sort.menu": "Сортировать по {label}",
   "noteList.sort.ascending": "По возрастанию",

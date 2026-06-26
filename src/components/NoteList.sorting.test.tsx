@@ -37,6 +37,26 @@ describe('getSortComparator', () => {
     expect(entries.sort(getSortComparator('created')).map((entry) => entry.title)).toEqual(['A', 'B'])
   })
 
+  it('sorts by file size descending by default', () => {
+    const entries = [
+      makeEntry({ title: 'Small', fileSize: 200 }),
+      makeEntry({ title: 'Large', fileSize: 5000 }),
+      makeEntry({ title: 'Medium', fileSize: 1200 }),
+    ]
+
+    expect(entries.sort(getSortComparator('size')).map((entry) => entry.title)).toEqual(['Large', 'Medium', 'Small'])
+  })
+
+  it('supports ascending file size sorting', () => {
+    const entries = [
+      makeEntry({ title: 'Small', fileSize: 200 }),
+      makeEntry({ title: 'Large', fileSize: 5000 }),
+      makeEntry({ title: 'Medium', fileSize: 1200 }),
+    ]
+
+    expect(entries.sort(getSortComparator('size', 'asc')).map((entry) => entry.title)).toEqual(['Small', 'Medium', 'Large'])
+  })
+
   it('sorts by title alphabetically', () => {
     const entries = [
       makeEntry({ title: 'Zebra' }),
@@ -192,6 +212,7 @@ describe('NoteList sort controls', () => {
     expect(screen.getByTestId('sort-option-created')).toBeInTheDocument()
     expect(screen.getByTestId('sort-option-title')).toBeInTheDocument()
     expect(screen.getByTestId('sort-option-status')).toBeInTheDocument()
+    expect(screen.getByTestId('sort-option-size')).toBeInTheDocument()
   })
 
   it('keeps the sort menu in a viewport-clamped fixed layer', () => {

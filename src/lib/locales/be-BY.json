@@ -467,6 +467,7 @@
   "noteList.sort.created": "Створана",
   "noteList.sort.title": "Загаловак",
   "noteList.sort.status": "Статус",
+  "noteList.sort.size": "Памер",
   "noteList.sort.by": "Сартаваць па {label}",
   "noteList.sort.menu": "Сартаванне {label}",
   "noteList.sort.ascending": "Па ўзрастанні",

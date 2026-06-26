@@ -10,6 +10,7 @@ import {
 import { getTypeColor } from '../utils/typeColors'
 import { resolveIcon } from '../utils/iconRegistry'
 import { getDisplayDate } from '../utils/noteListHelpers'
+import { formatFileSize } from '../utils/fileSize'
 import { formatRelativeTime, formatTimestampForDateDisplay } from '../utils/dateDisplay'
 import { filePreviewKind, type FilePreviewKind } from '../utils/filePreview'
 import { NoteTitleIcon } from './NoteTitleIcon'
@@ -141,6 +142,16 @@ function NoteTypeIndicator({
   )
 }
 
+function BinaryFileSize({ fileSize }: { fileSize: number }) {
+  if (!fileSize) return null
+
+  return (
+    <div className="text-[10px] text-muted-foreground" data-testid="note-file-size">
+      {formatFileSize(fileSize)}
+    </div>
+  )
+}
+
 function NoteSnippet({ snippet }: { snippet?: string | null }) {
   if (!snippet) return null
 
@@ -265,12 +276,15 @@ function StandardNoteContent({
       <NoteTypeIndicator TypeIcon={TypeIcon} typeColor={typeColor} filePreviewKind={previewKind} />
       <div className="space-y-2" data-testid="note-content-stack">
         {isBinary ? (
-          <NoteTitleRow
-            entry={entry}
-            isBinary={isUnavailableBinary}
-            isSelected={isSelected}
-            noteStatus={noteStatus}
-          />
+          <>
+            <NoteTitleRow
+              entry={entry}
+              isBinary={isUnavailableBinary}
+              isSelected={isSelected}
+              noteStatus={noteStatus}
+            />
+            <BinaryFileSize fileSize={entry.fileSize} />
+          </>
         ) : (
           <InteractiveNoteDetails
             entry={entry}

@@ -512,6 +512,7 @@
   "noteList.sort.created": "Created",
   "noteList.sort.title": "Title",
   "noteList.sort.status": "Status",
+  "noteList.sort.size": "Size",
   "noteList.sort.by": "Sort by {label}",
   "noteList.sort.menu": "Sort {label}",
   "noteList.sort.ascending": "Ascending",
