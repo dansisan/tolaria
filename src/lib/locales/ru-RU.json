@@ -765,5 +765,21 @@
   "noteList.bulkBar.archive": "Архивировать выбранные заметки",
   "noteList.bulkBar.unarchive": "Разархивировать выбранные заметки",
   "noteList.bulkBar.delete": "Безвозвратно удалить выбранные заметки",
-  "noteList.bulkBar.clear": "Очистить выбор"
+  "noteList.bulkBar.clear": "Очистить выбор",
+  "command.importAppleNotes": "Импортировать из Apple Notes",
+  "command.importAppleNotes.toast.start": "Импорт из Apple Notes…",
+  "command.importAppleNotes.toast.progress": "Импорт из Apple Notes… {processed} из {total}",
+  "command.importAppleNotes.toast.done": "Apple Notes синхронизировано: {created} новых, {updated} обновлено, {unchanged} без изменений",
+  "command.importAppleNotes.toast.none": "Из Apple Notes не импортировано ни одной заметки",
+  "command.importAppleNotes.toast.failed": "Не удалось импортировать из Apple Notes: {error}",
+  "command.importAppleNotes.dialog.title": "Импортировать из Apple Notes",
+  "command.importAppleNotes.dialog.description": "Выберите, какие папки Apple Notes импортировать. Невыбранные папки полностью пропускаются.",
+  "command.importAppleNotes.dialog.loading": "Чтение папок Apple Notes…",
+  "command.importAppleNotes.dialog.empty": "Папки Apple Notes не найдены.",
+  "command.importAppleNotes.dialog.error": "Не удалось прочитать папки Apple Notes: {error}",
+  "command.importAppleNotes.dialog.folderNotes": "{count} заметок",
+  "command.importAppleNotes.dialog.quickNotesHint": "Быстрые заметки здесь не отображаются. Переместите их в папку в Apple Notes, чтобы импортировать.",
+  "command.importAppleNotes.dialog.retry": "Повторить попытку",
+  "command.importAppleNotes.dialog.cancel": "Отмена",
+  "command.importAppleNotes.dialog.confirm": "Импортировать {count} заметок"
 }

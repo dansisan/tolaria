@@ -765,5 +765,21 @@
   "noteList.bulkBar.archive": "Архіваваць выбраныя нататкі",
   "noteList.bulkBar.unarchive": "Разархіваваць выбраныя нататкі",
   "noteList.bulkBar.delete": "Незваротна выдаліць выбраныя нататкі",
-  "noteList.bulkBar.clear": "Ачысціць выбар"
+  "noteList.bulkBar.clear": "Ачысціць выбар",
+  "command.importAppleNotes": "Імпартаваць з Apple Notes",
+  "command.importAppleNotes.toast.start": "Імпартаванне з Apple Notes…",
+  "command.importAppleNotes.toast.progress": "Імпартаванне з Apple Notes… {processed} з {total}",
+  "command.importAppleNotes.toast.done": "Apple Notes сінхранізавана: {created} новых, {updated} абноўлена, {unchanged} без зменаў",
+  "command.importAppleNotes.toast.none": "З Apple Notes не імпартавана ніводнай нататкі",
+  "command.importAppleNotes.toast.failed": "Не ўдалося імпартаваць з Apple Notes: {error}",
+  "command.importAppleNotes.dialog.title": "Імпартаваць з Apple Notes",
+  "command.importAppleNotes.dialog.description": "Выберыце, якія папкі Apple Notes імпартаваць. Нявыбраныя папкі цалкам прапускаюцца.",
+  "command.importAppleNotes.dialog.loading": "Чытанне папак Apple Notes…",
+  "command.importAppleNotes.dialog.empty": "Папкі Apple Notes не знойдзены.",
+  "command.importAppleNotes.dialog.error": "Не ўдалося прачытаць папкі Apple Notes: {error}",
+  "command.importAppleNotes.dialog.folderNotes": "{count} нататак",
+  "command.importAppleNotes.dialog.quickNotesHint": "Хуткія нататкі тут не паказваюцца. Перамясціце іх у папку ў Apple Notes, каб імпартаваць.",
+  "command.importAppleNotes.dialog.retry": "Паўтарыць",
+  "command.importAppleNotes.dialog.cancel": "Скасаваць",
+  "command.importAppleNotes.dialog.confirm": "Імпартаваць {count} нататак"
 }

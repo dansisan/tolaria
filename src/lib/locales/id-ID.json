@@ -765,5 +765,21 @@
   "noteList.bulkBar.archive": "Arsipkan catatan yang dipilih",
   "noteList.bulkBar.unarchive": "Batalkan arsip catatan yang dipilih",
   "noteList.bulkBar.delete": "Hapus permanen catatan yang dipilih",
-  "noteList.bulkBar.clear": "Hapus pilihan"
+  "noteList.bulkBar.clear": "Hapus pilihan",
+  "command.importAppleNotes": "Impor dari Apple Notes",
+  "command.importAppleNotes.toast.start": "Mengimpor dari Apple Notes…",
+  "command.importAppleNotes.toast.progress": "Mengimpor dari Apple Notes… {processed} dari {total}",
+  "command.importAppleNotes.toast.done": "Apple Notes disinkronkan: {created} baru, {updated} diperbarui, {unchanged} tidak berubah",
+  "command.importAppleNotes.toast.none": "Tidak ada catatan yang diimpor dari Apple Notes",
+  "command.importAppleNotes.toast.failed": "Gagal mengimpor dari Apple Notes: {error}",
+  "command.importAppleNotes.dialog.title": "Impor dari Apple Notes",
+  "command.importAppleNotes.dialog.description": "Pilih folder Apple Notes yang akan diimpor. Folder yang tidak dicentang akan dilewati sepenuhnya.",
+  "command.importAppleNotes.dialog.loading": "Membaca folder Apple Notes Anda…",
+  "command.importAppleNotes.dialog.empty": "Tidak ada folder Apple Notes yang ditemukan.",
+  "command.importAppleNotes.dialog.error": "Tidak dapat membaca folder Apple Notes: {error}",
+  "command.importAppleNotes.dialog.folderNotes": "{count} catatan",
+  "command.importAppleNotes.dialog.quickNotesHint": "Catatan Cepat tidak muncul di sini. Pindahkan ke folder di Apple Notes untuk mengimpornya.",
+  "command.importAppleNotes.dialog.retry": "Coba lagi",
+  "command.importAppleNotes.dialog.cancel": "Batal",
+  "command.importAppleNotes.dialog.confirm": "Impor {count} catatan"
 }

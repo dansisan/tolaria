@@ -765,5 +765,21 @@
   "noteList.bulkBar.archive": "Lưu trữ ghi chú đã chọn",
   "noteList.bulkBar.unarchive": "Bỏ lưu trữ ghi chú đã chọn",
   "noteList.bulkBar.delete": "Xóa vĩnh viễn ghi chú đã chọn",
-  "noteList.bulkBar.clear": "Xóa lựa chọn"
+  "noteList.bulkBar.clear": "Xóa lựa chọn",
+  "command.importAppleNotes": "Nhập từ Apple Notes",
+  "command.importAppleNotes.toast.start": "Đang nhập từ Apple Notes…",
+  "command.importAppleNotes.toast.progress": "Đang nhập từ Apple Notes… {processed}/{total}",
+  "command.importAppleNotes.toast.done": "Đã đồng bộ Apple Notes: {created} mới, {updated} đã cập nhật, {unchanged} không đổi",
+  "command.importAppleNotes.toast.none": "Không có ghi chú nào được nhập từ Apple Notes",
+  "command.importAppleNotes.toast.failed": "Không thể nhập từ Apple Notes: {error}",
+  "command.importAppleNotes.dialog.title": "Nhập từ Apple Notes",
+  "command.importAppleNotes.dialog.description": "Chọn các thư mục Apple Notes cần nhập. Các thư mục không được chọn sẽ bị bỏ qua hoàn toàn.",
+  "command.importAppleNotes.dialog.loading": "Đang đọc các thư mục Apple Notes của bạn…",
+  "command.importAppleNotes.dialog.empty": "Không tìm thấy thư mục Apple Notes nào.",
+  "command.importAppleNotes.dialog.error": "Không thể đọc các thư mục Apple Notes: {error}",
+  "command.importAppleNotes.dialog.folderNotes": "{count} ghi chú",
+  "command.importAppleNotes.dialog.quickNotesHint": "Ghi chú nhanh không xuất hiện ở đây. Hãy chuyển chúng vào một thư mục trong Apple Notes để nhập.",
+  "command.importAppleNotes.dialog.retry": "Thử lại",
+  "command.importAppleNotes.dialog.cancel": "Hủy",
+  "command.importAppleNotes.dialog.confirm": "Nhập {count} ghi chú"
 }

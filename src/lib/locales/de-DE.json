@@ -765,5 +765,21 @@
   "noteList.bulkBar.archive": "Ausgewählte Notizen archivieren",
   "noteList.bulkBar.unarchive": "Archivierung ausgewählter Notizen aufheben",
   "noteList.bulkBar.delete": "Ausgewählte Notizen endgültig löschen",
-  "noteList.bulkBar.clear": "Auswahl aufheben"
+  "noteList.bulkBar.clear": "Auswahl aufheben",
+  "command.importAppleNotes": "Aus Apple Notes importieren",
+  "command.importAppleNotes.toast.start": "Importiere aus Apple Notes…",
+  "command.importAppleNotes.toast.progress": "Importiere aus Apple Notes… {processed} von {total}",
+  "command.importAppleNotes.toast.done": "Apple Notes synchronisiert: {created} neu, {updated} aktualisiert, {unchanged} unverändert",
+  "command.importAppleNotes.toast.none": "Es wurden keine Notizen aus Apple Notes importiert",
+  "command.importAppleNotes.toast.failed": "Import aus Apple Notes fehlgeschlagen: {error}",
+  "command.importAppleNotes.dialog.title": "Aus Apple Notes importieren",
+  "command.importAppleNotes.dialog.description": "Wähle aus, welche Apple Notes-Ordner importiert werden sollen. Nicht ausgewählte Ordner werden vollständig übersprungen.",
+  "command.importAppleNotes.dialog.loading": "Apple Notes-Ordner werden gelesen…",
+  "command.importAppleNotes.dialog.empty": "Keine Apple Notes-Ordner gefunden.",
+  "command.importAppleNotes.dialog.error": "Apple Notes-Ordner konnten nicht gelesen werden: {error}",
+  "command.importAppleNotes.dialog.folderNotes": "{count} Notizen",
+  "command.importAppleNotes.dialog.quickNotesHint": "Notizen aus „Quick Notes“ erscheinen hier nicht. Verschiebe sie in Apple Notes in einen Ordner, um sie zu importieren.",
+  "command.importAppleNotes.dialog.retry": "Erneut versuchen",
+  "command.importAppleNotes.dialog.cancel": "Abbrechen",
+  "command.importAppleNotes.dialog.confirm": "{count} Notizen importieren"
 }

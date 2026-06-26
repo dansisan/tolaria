@@ -765,5 +765,21 @@
   "noteList.bulkBar.archive": "選択したノートをアーカイブ",
   "noteList.bulkBar.unarchive": "選択したノートのアーカイブを解除",
   "noteList.bulkBar.delete": "選択したノートを完全に削除",
-  "noteList.bulkBar.clear": "選択を解除"
+  "noteList.bulkBar.clear": "選択を解除",
+  "command.importAppleNotes": "Apple Notes からインポート",
+  "command.importAppleNotes.toast.start": "Apple Notes からインポート中…",
+  "command.importAppleNotes.toast.progress": "Apple Notes からインポート中… {processed}/{total}",
+  "command.importAppleNotes.toast.done": "Apple Notes を同期しました：新規 {created} 件、更新 {updated} 件、変更なし {unchanged} 件",
+  "command.importAppleNotes.toast.none": "Apple Notes からインポートされたメモはありません",
+  "command.importAppleNotes.toast.failed": "Apple Notes からのインポートに失敗しました：{error}",
+  "command.importAppleNotes.dialog.title": "Apple Notes からインポート",
+  "command.importAppleNotes.dialog.description": "インポートする Apple Notes のフォルダを選択してください。選択していないフォルダは完全にスキップされます。",
+  "command.importAppleNotes.dialog.loading": "Apple Notes のフォルダを読み込んでいます…",
+  "command.importAppleNotes.dialog.empty": "Apple Notes のフォルダが見つかりません。",
+  "command.importAppleNotes.dialog.error": "Apple Notes のフォルダを読み込めませんでした：{error}",
+  "command.importAppleNotes.dialog.folderNotes": "{count} 件のメモ",
+  "command.importAppleNotes.dialog.quickNotesHint": "クイックメモはここには表示されません。インポートするには Apple Notes でフォルダに移動してください。",
+  "command.importAppleNotes.dialog.retry": "再試行",
+  "command.importAppleNotes.dialog.cancel": "キャンセル",
+  "command.importAppleNotes.dialog.confirm": "{count} 件のメモをインポート"
 }

@@ -765,5 +765,21 @@
   "noteList.bulkBar.archive": "归档所选笔记",
   "noteList.bulkBar.unarchive": "取消归档所选笔记",
   "noteList.bulkBar.delete": "永久删除所选笔记",
-  "noteList.bulkBar.clear": "清除选择"
+  "noteList.bulkBar.clear": "清除选择",
+  "command.importAppleNotes": "从 Apple Notes 导入",
+  "command.importAppleNotes.toast.start": "正在从 Apple Notes 导入…",
+  "command.importAppleNotes.toast.progress": "正在从 Apple Notes 导入… {processed}/{total}",
+  "command.importAppleNotes.toast.done": "Apple Notes 已同步：新增 {created} 条，更新 {updated} 条，未更改 {unchanged} 条",
+  "command.importAppleNotes.toast.none": "没有从 Apple Notes 导入任何备忘录",
+  "command.importAppleNotes.toast.failed": "从 Apple Notes 导入失败：{error}",
+  "command.importAppleNotes.dialog.title": "从 Apple Notes 导入",
+  "command.importAppleNotes.dialog.description": "选择要导入的 Apple Notes 文件夹。未勾选的文件夹将被完全跳过。",
+  "command.importAppleNotes.dialog.loading": "正在读取你的 Apple Notes 文件夹…",
+  "command.importAppleNotes.dialog.empty": "未找到 Apple Notes 文件夹。",
+  "command.importAppleNotes.dialog.error": "无法读取 Apple Notes 文件夹：{error}",
+  "command.importAppleNotes.dialog.folderNotes": "{count} 条备忘录",
+  "command.importAppleNotes.dialog.quickNotesHint": "快速备忘录不会显示在此处。请在 Apple Notes 中将其移动到文件夹后再导入。",
+  "command.importAppleNotes.dialog.retry": "重试",
+  "command.importAppleNotes.dialog.cancel": "取消",
+  "command.importAppleNotes.dialog.confirm": "导入 {count} 条备忘录"
 }

@@ -765,5 +765,21 @@
   "noteList.bulkBar.archive": "Archivar las notas seleccionadas",
   "noteList.bulkBar.unarchive": "Desarchivar las notas seleccionadas",
   "noteList.bulkBar.delete": "Eliminar permanentemente las notas seleccionadas",
-  "noteList.bulkBar.clear": "Borrar selección"
+  "noteList.bulkBar.clear": "Borrar selección",
+  "command.importAppleNotes": "Importar desde Apple Notes",
+  "command.importAppleNotes.toast.start": "Importando desde Apple Notes…",
+  "command.importAppleNotes.toast.progress": "Importando desde Apple Notes… {processed} de {total}",
+  "command.importAppleNotes.toast.done": "Apple Notes sincronizado: {created} nuevas, {updated} actualizadas, {unchanged} sin cambios",
+  "command.importAppleNotes.toast.none": "No se importó ninguna nota desde Apple Notes",
+  "command.importAppleNotes.toast.failed": "No se pudo importar desde Apple Notes: {error}",
+  "command.importAppleNotes.dialog.title": "Importar desde Apple Notes",
+  "command.importAppleNotes.dialog.description": "Elige qué carpetas de Apple Notes importar. Las carpetas no seleccionadas se omiten por completo.",
+  "command.importAppleNotes.dialog.loading": "Leyendo tus carpetas de Apple Notes…",
+  "command.importAppleNotes.dialog.empty": "No se encontraron carpetas de Apple Notes.",
+  "command.importAppleNotes.dialog.error": "No se pudieron leer las carpetas de Apple Notes: {error}",
+  "command.importAppleNotes.dialog.folderNotes": "{count} notas",
+  "command.importAppleNotes.dialog.quickNotesHint": "Las notas rápidas no aparecen aquí. Muévelas a una carpeta en Apple Notes para importarlas.",
+  "command.importAppleNotes.dialog.retry": "Intentar de nuevo",
+  "command.importAppleNotes.dialog.cancel": "Cancelar",
+  "command.importAppleNotes.dialog.confirm": "Importar {count} notas"
 }

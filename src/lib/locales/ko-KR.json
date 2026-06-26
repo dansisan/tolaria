@@ -765,5 +765,21 @@
   "noteList.bulkBar.archive": "선택한 노트 보관",
   "noteList.bulkBar.unarchive": "선택한 노트 보관 취소",
   "noteList.bulkBar.delete": "선택한 노트 영구 삭제",
-  "noteList.bulkBar.clear": "선택 해제"
+  "noteList.bulkBar.clear": "선택 해제",
+  "command.importAppleNotes": "Apple Notes에서 가져오기",
+  "command.importAppleNotes.toast.start": "Apple Notes에서 가져오는 중…",
+  "command.importAppleNotes.toast.progress": "Apple Notes에서 가져오는 중… {total}개 중 {processed}개",
+  "command.importAppleNotes.toast.done": "Apple Notes 동기화됨: 새 항목 {created}개, 업데이트 {updated}개, 변경 없음 {unchanged}개",
+  "command.importAppleNotes.toast.none": "Apple Notes에서 가져온 메모가 없습니다",
+  "command.importAppleNotes.toast.failed": "Apple Notes에서 가져오지 못했습니다: {error}",
+  "command.importAppleNotes.dialog.title": "Apple Notes에서 가져오기",
+  "command.importAppleNotes.dialog.description": "가져올 Apple Notes 폴더를 선택하세요. 선택하지 않은 폴더는 완전히 건너뜁니다.",
+  "command.importAppleNotes.dialog.loading": "Apple Notes 폴더를 읽는 중…",
+  "command.importAppleNotes.dialog.empty": "Apple Notes 폴더를 찾을 수 없습니다.",
+  "command.importAppleNotes.dialog.error": "Apple Notes 폴더를 읽을 수 없습니다: {error}",
+  "command.importAppleNotes.dialog.folderNotes": "메모 {count}개",
+  "command.importAppleNotes.dialog.quickNotesHint": "빠른 메모는 여기에 표시되지 않습니다. 가져오려면 Apple Notes에서 폴더로 이동하세요.",
+  "command.importAppleNotes.dialog.retry": "다시 시도",
+  "command.importAppleNotes.dialog.cancel": "취소",
+  "command.importAppleNotes.dialog.confirm": "메모 {count}개 가져오기"
 }

@@ -765,5 +765,21 @@
   "noteList.bulkBar.archive": "Archiwizuj wybrane notatki",
   "noteList.bulkBar.unarchive": "Przywróć wybrane notatki z archiwum",
   "noteList.bulkBar.delete": "Trwale usuń wybrane notatki",
-  "noteList.bulkBar.clear": "Wyczyść zaznaczenie"
+  "noteList.bulkBar.clear": "Wyczyść zaznaczenie",
+  "command.importAppleNotes": "Importuj z Apple Notes",
+  "command.importAppleNotes.toast.start": "Importowanie z Apple Notes…",
+  "command.importAppleNotes.toast.progress": "Importowanie z Apple Notes… {processed} z {total}",
+  "command.importAppleNotes.toast.done": "Zsynchronizowano Apple Notes: {created} nowych, {updated} zaktualizowanych, {unchanged} bez zmian",
+  "command.importAppleNotes.toast.none": "Nie zaimportowano żadnych notatek z Apple Notes",
+  "command.importAppleNotes.toast.failed": "Nie udało się zaimportować z Apple Notes: {error}",
+  "command.importAppleNotes.dialog.title": "Importuj z Apple Notes",
+  "command.importAppleNotes.dialog.description": "Wybierz, które foldery Apple Notes zaimportować. Niezaznaczone foldery są całkowicie pomijane.",
+  "command.importAppleNotes.dialog.loading": "Odczytywanie folderów Apple Notes…",
+  "command.importAppleNotes.dialog.empty": "Nie znaleziono folderów Apple Notes.",
+  "command.importAppleNotes.dialog.error": "Nie można odczytać folderów Apple Notes: {error}",
+  "command.importAppleNotes.dialog.folderNotes": "{count} notatek",
+  "command.importAppleNotes.dialog.quickNotesHint": "Szybkie notatki nie są tutaj wyświetlane. Przenieś je do folderu w Apple Notes, aby je zaimportować.",
+  "command.importAppleNotes.dialog.retry": "Spróbuj ponownie",
+  "command.importAppleNotes.dialog.cancel": "Anuluj",
+  "command.importAppleNotes.dialog.confirm": "Importuj {count} notatek"
 }

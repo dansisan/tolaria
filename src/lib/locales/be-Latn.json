@@ -765,5 +765,21 @@
   "noteList.bulkBar.archive": "Archivavać vybranyja nataki",
   "noteList.bulkBar.unarchive": "Razarchivavać vybranyja nataki",
   "noteList.bulkBar.delete": "Niezvarotna vydalić vybranyja nataki",
-  "noteList.bulkBar.clear": "Ačyścić vybar"
+  "noteList.bulkBar.clear": "Ačyścić vybar",
+  "command.importAppleNotes": "Impartavać z Apple Notes",
+  "command.importAppleNotes.toast.start": "Impartavannie z Apple Notes…",
+  "command.importAppleNotes.toast.progress": "Impartavannie z Apple Notes… {processed} z {total}",
+  "command.importAppleNotes.toast.done": "Apple Notes synchranizavana: {created} novych, {updated} abnoŭlena, {unchanged} biez zmienaŭ",
+  "command.importAppleNotes.toast.none": "Z Apple Notes nie impartavana nivodnaj natatki",
+  "command.importAppleNotes.toast.failed": "Nie ŭdałosia impartavać z Apple Notes: {error}",
+  "command.importAppleNotes.dialog.title": "Impartavać z Apple Notes",
+  "command.importAppleNotes.dialog.description": "Abiarycie, jakija papki Apple Notes impartavać. Niabranyja papki całkam prapuskajucca.",
+  "command.importAppleNotes.dialog.loading": "Čytannie papak Apple Notes…",
+  "command.importAppleNotes.dialog.empty": "Papki Apple Notes nie znojdzieny.",
+  "command.importAppleNotes.dialog.error": "Nie ŭdałosia pračytać papki Apple Notes: {error}",
+  "command.importAppleNotes.dialog.folderNotes": "{count} natatak",
+  "command.importAppleNotes.dialog.quickNotesHint": "Chutkija natatki tut nie pakazvajucca. Pieramiascicie ich u papku ŭ Apple Notes, kab impartavać.",
+  "command.importAppleNotes.dialog.retry": "Paŭtaryć",
+  "command.importAppleNotes.dialog.cancel": "Skasavać",
+  "command.importAppleNotes.dialog.confirm": "Impartavać {count} natatak"
 }
