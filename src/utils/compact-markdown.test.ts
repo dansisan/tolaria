@@ -62,6 +62,28 @@ describe('compactMarkdown', () => {
     expect(compactMarkdown(input)).toBe('just text\n\\\\\nafter\n')
   })
 
+  it('softens a single-backslash hard break before a content line to a plain newline', () => {
+    // BlockNote serializes an in-paragraph break as `D\` + newline; left as-is it
+    // re-parses to two breaks and the gap grows on every save.
+    const input = 'D\\\nA\n'
+    expect(compactMarkdown(input)).toBe('D\nA\n')
+  })
+
+  it('keeps an escaped literal backslash (\\\\) at line end', () => {
+    const input = 'path\\\\\nA\n'
+    expect(compactMarkdown(input)).toBe('path\\\\\nA\n')
+  })
+
+  it('leaves a trailing backslash hard break when no content line follows', () => {
+    const input = 'D\\\n\nA\n'
+    expect(compactMarkdown(input)).toBe('D\\\n\nA\n')
+  })
+
+  it('does not soften a backslash hard break inside a code block', () => {
+    const input = '```sh\necho a\\\nb\n```\n'
+    expect(compactMarkdown(input)).toBe('```sh\necho a\\\nb\n```\n')
+  })
+
   it('does not add trailing blank lines', () => {
     const input = '## Title\n\nText.\n\n\n'
     expect(compactMarkdown(input)).toBe('## Title\n\nText.\n')

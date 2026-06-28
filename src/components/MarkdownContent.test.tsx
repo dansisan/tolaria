@@ -16,6 +16,15 @@ describe('MarkdownContent', () => {
     expect(code.tagName).toBe('CODE')
   })
 
+  it('renders a single newline as a line break (matches the editor)', () => {
+    const { container } = render(<MarkdownContent content={'first\nsecond'} />)
+    // remark-breaks: one paragraph containing a <br> (a visible line break),
+    // rather than strict CommonMark's single joined line or two paragraphs.
+    const paragraphs = container.querySelectorAll('p')
+    expect(paragraphs).toHaveLength(1)
+    expect(paragraphs[0].querySelector('br')).toBeTruthy()
+  })
+
   it('renders fenced code blocks', () => {
     const { container } = render(<MarkdownContent content={'```js\nconst x = 1\n```'} />)
     const pre = container.querySelector('pre')

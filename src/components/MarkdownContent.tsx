@@ -1,11 +1,16 @@
 import { memo, useMemo } from 'react'
 import Markdown, { defaultUrlTransform } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
 import { preprocessWikilinks, WIKILINK_SCHEME } from '../utils/chatWikilinks'
 import { supportsModernRegexFeatures } from '../utils/regexCapabilities'
 
-const REMARK_PLUGINS = [remarkGfm]
+// `remarkBreaks` renders a single newline as a line break (a `<br>`), matching
+// the BlockNote editor and Obsidian's default. Without it, strict CommonMark
+// would join single-newline lines into one, so the reading view would disagree
+// with the editor. See docs/adr for the line-break convention.
+const REMARK_PLUGINS = [remarkGfm, remarkBreaks]
 const REHYPE_PLUGINS = supportsModernRegexFeatures() ? [rehypeHighlight] : []
 
 function wikilinkUrlTransform(url: string): string {

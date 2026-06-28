@@ -968,13 +968,18 @@ mod macos_impl {
         }
     }
 
+    /// Caps runs of blank lines. Consecutive Apple Notes lines are separated by a
+    /// single newline (a tight in-paragraph line break in the editor); an empty
+    /// Apple Notes paragraph (`<div><br></div>`) yields a longer run, which we keep
+    /// as two blank lines (three newlines) so the editor's blank-line-separator
+    /// logic renders a real empty paragraph instead of collapsing the gap away.
     fn collapse_blank_lines(input: &str) -> String {
         let mut out = String::with_capacity(input.len());
         let mut newline_run = 0usize;
         for c in input.chars() {
             if c == '\n' {
                 newline_run += 1;
-                if newline_run <= 2 {
+                if newline_run <= 3 {
                     out.push('\n');
                 }
             } else {
@@ -1072,6 +1077,27 @@ mod macos_impl {
                 html_to_plain_text("<div>Hello</div><div><br></div><div>World</div>"),
                 "Hello\n\nWorld"
             );
+        }
+
+        #[test]
+        fn keeps_consecutive_lines_as_single_newlines() {
+            // Consecutive Apple Notes lines (no empty paragraph between them) become
+            // single newlines, which the editor keeps as tight in-paragraph line
+            // breaks rather than separate paragraphs.
+            let html = "<div>1\u{fe0f}\u{20e3} one</div>\n<div>2\u{fe0f}\u{20e3} two</div>\n<div>3\u{fe0f}\u{20e3} three</div>";
+            assert_eq!(
+                html_to_plain_text(html),
+                "1\u{fe0f}\u{20e3} one\n2\u{fe0f}\u{20e3} two\n3\u{fe0f}\u{20e3} three"
+            );
+        }
+
+        #[test]
+        fn empty_paragraph_becomes_durable_blank_separator() {
+            // An empty Apple Notes paragraph (`<div><br></div>`) between two content
+            // lines must survive as two blank lines so the editor renders a real
+            // empty paragraph, while the content lines around it stay adjacent.
+            let html = "<div>D</div>\n<div><br></div>\n<div>D</div>\n<div>A</div>";
+            assert_eq!(html_to_plain_text(html), "D\n\n\nD\nA");
         }
 
         #[test]

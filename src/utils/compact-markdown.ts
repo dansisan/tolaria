@@ -67,12 +67,31 @@ function processMarkdownLine(
     return { inCodeBlock, line: rawLine }
   }
 
-  const line = normalizeMarkdownLine({ line: rawLine })
+  const line = softenInlineHardBreak({ doc, idx, line: normalizeMarkdownLine({ line: rawLine }) })
   if (shouldSkipLine({ doc, idx, line })) {
     return { inCodeBlock, line: null }
   }
 
   return { inCodeBlock, line }
+}
+
+const INLINE_HARD_BREAK_RE = /(?<!\\)\\$/
+
+/**
+ * BlockNote serializes an in-paragraph line break as a trailing backslash, but
+ * its parser reads that backslash back as *two* breaks — so every save would
+ * widen the gap by one blank line. Demote the break to a plain newline (soft
+ * break) whenever a content line follows: that renders identically in the editor
+ * and round-trips losslessly. A line ending in `\\` is an escaped literal
+ * backslash and is left untouched. Runs only outside fenced code blocks, where a
+ * trailing backslash can be meaningful (caller skips code-block lines).
+ */
+function softenInlineHardBreak({ doc, idx, line }: NormalizedLinePosition): string {
+  const trimmed = line.trimEnd()
+  if (!INLINE_HARD_BREAK_RE.test(trimmed)) return line
+  const next = doc.lines.at(idx + 1)
+  if (next === undefined || next.trim() === '') return line
+  return trimmed.slice(0, -1)
 }
 
 function isFenceDelimiter({ line }: MarkdownLineValue): boolean {
