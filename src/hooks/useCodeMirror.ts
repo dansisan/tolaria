@@ -46,6 +46,11 @@ export interface CodeMirrorCallbacks {
   onFindNext: () => boolean
   /** Move to the previous find match (Cmd/Ctrl+Shift+G). Returns true if it navigated. */
   onFindPrevious: () => boolean
+  /**
+   * Unmodified Up-arrow pressed with a collapsed caret on the first visual line.
+   * Returns true to consume the key (e.g. jump focus into the note title).
+   */
+  onArrowUpAtTop: () => boolean
 }
 
 function readMarkdownFence(line: string): MarkdownFence | null {
@@ -182,6 +187,42 @@ function buildSaveKeymap(callbacks: { current: CodeMirrorCallbacks }) {
   }]))
 }
 
+/**
+ * True when a collapsed caret sits on the document's first visual line, so an
+ * Up-arrow press would leave the body upward. Falls back to logical line one
+ * when layout geometry is unavailable (e.g. jsdom under tests).
+ */
+function isCaretOnFirstVisualLine(view: EditorView): boolean {
+  const head = view.state.selection.main.head
+  if (view.state.doc.lineAt(head).number !== 1) return false
+
+  // coordsAtPos needs real layout; without it (no measurement yet, or jsdom in
+  // tests) it returns null or throws, so being on logical line one is enough.
+  let headCoords, topCoords
+  try {
+    headCoords = view.coordsAtPos(head)
+    topCoords = view.coordsAtPos(0)
+  } catch {
+    return true
+  }
+  if (!headCoords || !topCoords) return true
+
+  const lineHeight = topCoords.bottom - topCoords.top
+  if (lineHeight <= 0) return true
+  return headCoords.top - topCoords.top < lineHeight / 2
+}
+
+function buildTitleNavKeymap(callbacks: { current: CodeMirrorCallbacks }) {
+  return Prec.highest(keymap.of([{
+    key: 'ArrowUp',
+    run: (view) => {
+      if (!view.state.selection.main.empty) return false
+      if (!isCaretOnFirstVisualLine(view)) return false
+      return callbacks.current.onArrowUpAtTop()
+    },
+  }]))
+}
+
 function buildArrowLigaturesExtension() {
   let literalAsciiCursor: number | null = null
 
@@ -263,6 +304,7 @@ export function useCodeMirror(
         buildArrowLigaturesExtension(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
         buildSaveKeymap(callbacksRef),
+        buildTitleNavKeymap(callbacksRef),
         buildBaseTheme(),
         EditorView.cspNonce.of(RUNTIME_STYLE_NONCE),
         EditorView.contentAttributes.of(nativeTextAssistanceDisabledAttributes),

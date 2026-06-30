@@ -12,6 +12,7 @@ const noopCallbacks: CodeMirrorCallbacks = {
   onEscape: () => false,
   onFindNext: () => false,
   onFindPrevious: () => false,
+  onArrowUpAtTop: () => false,
 }
 
 describe('useCodeMirror', () => {
@@ -172,6 +173,70 @@ describe('useCodeMirror', () => {
 
     dispatchKey({ key: 'G', code: 'KeyG', keyCode: 71, ...platformMod, shiftKey: true })
     expect(onFindPrevious).toHaveBeenCalledOnce()
+  })
+
+  it('routes ArrowUp at the top of the document to onArrowUpAtTop', () => {
+    const ref = { current: container }
+    const onArrowUpAtTop = vi.fn(() => true)
+    const { result } = renderHook(() =>
+      useCodeMirror(ref, 'first line\nsecond line', { ...noopCallbacks, onArrowUpAtTop }),
+    )
+    const view = result.current.current!
+
+    act(() => {
+      view.dispatch({ selection: { anchor: 0 } })
+      view.focus()
+      view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', {
+        bubbles: true,
+        cancelable: true,
+        key: 'ArrowUp',
+      }))
+    })
+
+    expect(onArrowUpAtTop).toHaveBeenCalledOnce()
+  })
+
+  it('does not route ArrowUp to onArrowUpAtTop when the caret is below line one', () => {
+    const ref = { current: container }
+    const onArrowUpAtTop = vi.fn(() => true)
+    const { result } = renderHook(() =>
+      useCodeMirror(ref, 'first line\nsecond line', { ...noopCallbacks, onArrowUpAtTop }),
+    )
+    const view = result.current.current!
+
+    act(() => {
+      // Place the caret on the second line.
+      view.dispatch({ selection: { anchor: view.state.doc.line(2).from } })
+      view.focus()
+      view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', {
+        bubbles: true,
+        cancelable: true,
+        key: 'ArrowUp',
+      }))
+    })
+
+    expect(onArrowUpAtTop).not.toHaveBeenCalled()
+  })
+
+  it('does not route ArrowUp to onArrowUpAtTop when the selection is a range', () => {
+    const ref = { current: container }
+    const onArrowUpAtTop = vi.fn(() => true)
+    const { result } = renderHook(() =>
+      useCodeMirror(ref, 'first line\nsecond line', { ...noopCallbacks, onArrowUpAtTop }),
+    )
+    const view = result.current.current!
+
+    act(() => {
+      view.dispatch({ selection: { anchor: 0, head: 4 } })
+      view.focus()
+      view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', {
+        bubbles: true,
+        cancelable: true,
+        key: 'ArrowUp',
+      }))
+    })
+
+    expect(onArrowUpAtTop).not.toHaveBeenCalled()
   })
 
   it('does not sync when content matches current editor state', () => {

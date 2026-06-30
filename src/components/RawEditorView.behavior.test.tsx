@@ -398,6 +398,71 @@ describe('RawEditorView behavior coverage', () => {
     expect(onExitRaw).toHaveBeenCalledTimes(1)
   })
 
+  it('requests title editing when ArrowUp fires at the top with no dropdown open', () => {
+    render(
+      <RawEditorView
+        content="plain body text"
+        path="/vault/a.md"
+        entries={[entry('Alpha')]}
+        onContentChange={vi.fn()}
+        onSave={vi.fn()}
+      />,
+    )
+
+    const callbacks = useCodeMirrorMock.mock.calls.at(-1)![2] as { onArrowUpAtTop: () => boolean }
+    const listener = vi.fn()
+    window.addEventListener('laputa:edit-note-title', listener)
+
+    let consumed = false
+    act(() => {
+      consumed = callbacks.onArrowUpAtTop()
+    })
+
+    expect(consumed).toBe(true)
+    expect(listener).toHaveBeenCalledTimes(1)
+    window.removeEventListener('laputa:edit-note-title', listener)
+  })
+
+  it('lets ArrowUp navigate the wikilink dropdown instead of editing the title while it is open', () => {
+    extractWikilinkQueryMock.mockReturnValue('alp')
+    buildRawEditorAutocompleteStateMock.mockImplementation(({ onInsertTarget }: { onInsertTarget: (target: string) => void }) => ({
+      items: [{ title: 'Alpha', path: '/vault/alpha.md', onItemClick: () => onInsertTarget('Alpha') }],
+      selectedIndex: 0,
+    }))
+    const mockView = createMockView('[[alp')
+    viewRefState.current = mockView
+
+    render(
+      <RawEditorView
+        content="[[alp"
+        path="/vault/a.md"
+        entries={[entry('Alpha')]}
+        onContentChange={vi.fn()}
+        onSave={vi.fn()}
+        vaultPath="/vault"
+      />,
+    )
+
+    act(() => {
+      const cursorCallbacks = useCodeMirrorMock.mock.calls.at(-1)![2] as { onCursorActivity: (view: unknown) => void }
+      cursorCallbacks.onCursorActivity(mockView)
+    })
+    expect(screen.getByTestId('raw-editor-wikilink-dropdown')).toBeInTheDocument()
+
+    const callbacks = useCodeMirrorMock.mock.calls.at(-1)![2] as { onArrowUpAtTop: () => boolean }
+    const listener = vi.fn()
+    window.addEventListener('laputa:edit-note-title', listener)
+
+    let consumed = true
+    act(() => {
+      consumed = callbacks.onArrowUpAtTop()
+    })
+
+    expect(consumed).toBe(false)
+    expect(listener).not.toHaveBeenCalled()
+    window.removeEventListener('laputa:edit-note-title', listener)
+  })
+
   it('hands focus back to the note list when Escape is pressed with nothing to close', () => {
     const noteList = document.createElement('div')
     noteList.setAttribute('data-testid', 'note-list-container')

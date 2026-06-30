@@ -23,6 +23,7 @@ import {
   type PlainTextPasteTarget,
 } from '../utils/plainTextPaste'
 import { focusNoteListContainer } from '../utils/neighborhoodHistory'
+import { requestEditNoteTitle } from '../utils/editNoteTitleEvent'
 
 export interface RawEditorViewProps {
   content: string
@@ -452,6 +453,12 @@ export function RawEditorView({ content, path, entries, sourceEntry, onContentCh
     findMatchNavRef.current.previous()
     return true
   }, [])
+  const handleArrowUpAtTop = useCallback(() => {
+    // While the wikilink dropdown is open, Up navigates its items instead.
+    if (autocomplete) return false
+    requestEditNoteTitle()
+    return true
+  }, [autocomplete])
   const viewRef = useCodeMirror(containerRef, content, {
     onDocChange: handleDocChange,
     onCursorActivity: handleCursorActivity,
@@ -459,6 +466,7 @@ export function RawEditorView({ content, path, entries, sourceEntry, onContentCh
     onEscape: handleEscape,
     onFindNext: handleFindNext,
     onFindPrevious: handleFindPrevious,
+    onArrowUpAtTop: handleArrowUpAtTop,
   })
   const activatePlainTextPaste = useRawEditorPlainTextPasteTarget({
     containerRef,
