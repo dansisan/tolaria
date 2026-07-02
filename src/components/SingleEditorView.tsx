@@ -1,5 +1,5 @@
 import { ArrowSquareOut as ExternalLink, Hash } from '@phosphor-icons/react'
-import { Component, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { Component, memo, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import {
   GridSuggestionMenuController,
   BlockNoteViewRaw,
@@ -1073,13 +1073,16 @@ function useSuggestionMenuItems(options: {
     }
   }, [editor, runEditorAction, t])
 
-  return {
+  // Memoize the bundle so its identity is stable while its (useCallback) fields
+  // are — this lets the memoized EditorSurface below skip re-rendering the whole
+  // BlockNote document when the app re-renders for unrelated reasons.
+  return useMemo(() => ({
     getWikilinkItems,
     getEmojiItems,
     getPersonMentionItems,
     getSlashMenuItems,
     getTagItems,
-  }
+  }), [getWikilinkItems, getEmojiItems, getPersonMentionItems, getSlashMenuItems, getTagItems])
 }
 
 type EditorInteractionControllersProps = ReturnType<typeof useSuggestionMenuItems> & {
@@ -1148,6 +1151,59 @@ function EditorInteractionControllers({
     </>
   )
 }
+
+type EditorSurfaceProps = {
+  editor: ReturnType<typeof useCreateBlockNote>
+  theme: ReturnType<typeof useDocumentThemeMode>
+  editable: boolean
+  onChange: () => void
+  recoveryKey: number
+  suggestionMenuItems: ReturnType<typeof useSuggestionMenuItems>
+  runEditorAction: (action: SuggestionAction) => void
+  vaultPath?: string
+}
+
+/**
+ * The BlockNote view and its interaction controllers, memoized so React does not
+ * reconcile the whole document (potentially hundreds of blocks) every time the
+ * surrounding app re-renders. All inputs are referentially stable while typing —
+ * the editor instance, the useCallback handlers, and the memoized suggestion
+ * bundle — so this only re-renders when the editor genuinely depends on a change
+ * (theme, editability, vault entries feeding suggestions, or a recovery remount).
+ * Without this, unrelated app-level re-renders (which happen many times per
+ * keystroke) drag every block through React and stall typing.
+ */
+const EditorSurface = memo(function EditorSurface({
+  editor,
+  theme,
+  editable,
+  onChange,
+  recoveryKey,
+  suggestionMenuItems,
+  runEditorAction,
+  vaultPath,
+}: EditorSurfaceProps) {
+  return (
+    <SharedContextBlockNoteView
+      key={recoveryKey}
+      editor={editor}
+      theme={theme}
+      onChange={onChange}
+      editable={editable}
+      emojiPicker={false}
+      formattingToolbar={false}
+      linkToolbar={false}
+      slashMenu={false}
+      sideMenu={false}
+    >
+      <EditorInteractionControllers
+        {...suggestionMenuItems}
+        runEditorAction={runEditorAction}
+        vaultPath={vaultPath}
+      />
+    </SharedContextBlockNoteView>
+  )
+})
 
 /** Insert an image block after the current cursor position. */
 function useInsertImageCallback(editor: ReturnType<typeof useCreateBlockNote>) {
@@ -1331,24 +1387,16 @@ export function SingleEditorView({ editor, entries, onNavigateWikilink, onChange
       )}
       <BlockNoteRenderRecoveryBoundary onRecover={() => repairEditorDocumentForRenderRecovery(editor)}>
         {(recoveryKey) => (
-          <SharedContextBlockNoteView
-            key={recoveryKey}
+          <EditorSurface
+            recoveryKey={recoveryKey}
             editor={editor}
             theme={themeMode}
             onChange={handleEditorChange}
             editable={editable}
-            emojiPicker={false}
-            formattingToolbar={false}
-            linkToolbar={false}
-            slashMenu={false}
-            sideMenu={false}
-          >
-            <EditorInteractionControllers
-              {...suggestionMenuItems}
-              runEditorAction={runEditorAction}
-              vaultPath={vaultPath}
-            />
-          </SharedContextBlockNoteView>
+            suggestionMenuItems={suggestionMenuItems}
+            runEditorAction={runEditorAction}
+            vaultPath={vaultPath}
+          />
         )}
       </BlockNoteRenderRecoveryBoundary>
       {chromeTarget && <CodeBlockChrome target={chromeTarget} editor={editor} editable={editable} locale={locale} />}
