@@ -40,12 +40,20 @@ export function applyBlocksToEditor(options: ApplyBlocksToEditorOptions): boolea
   suppressChangeRef.current = true
   try {
     resetTextSelectionBeforeContentSwap(editor)
-    const current = editor.document
-    if (current.length > 0 && safeBlocks.length > 0) {
-      editor.replaceBlocks(current, safeBlocks)
-    } else if (safeBlocks.length > 0) {
-      editor.insertBlocks(safeBlocks, current[0], 'before')
-    }
+    // Load the note's content without recording it in the undo history. The
+    // BlockNote editor instance is reused across notes, so a recordable swap
+    // would let Cmd+Z undo the content load itself — emptying the note (or
+    // reverting to a previously open note's content). Marking the transaction
+    // `addToHistory: false` keeps undo scoped to the user's edits since open.
+    editor.transact((tr) => {
+      tr.setMeta('addToHistory', false)
+      const current = editor.document
+      if (current.length > 0 && safeBlocks.length > 0) {
+        editor.replaceBlocks(current, safeBlocks)
+      } else if (safeBlocks.length > 0) {
+        editor.insertBlocks(safeBlocks, current[0], 'before')
+      }
+    })
   } catch (err) {
     console.error('applyBlocks failed, trying fallback:', err)
     try {
