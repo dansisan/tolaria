@@ -95,6 +95,25 @@ describe('useCodeMirror arrow ligatures', () => {
     expect(view.state.doc.toString()).toBe('→')
   })
 
+  it('resumes converting arrows after a closed fenced code block', () => {
+    const content = [
+      '```',
+      'code -- stays literal',
+      '```',
+      'after ',
+    ].join('\n')
+    const view = createView(container, content)
+
+    act(() => {
+      view.dispatch({ selection: { anchor: content.length } })
+    })
+    typeSequence(view, ['-', '>'])
+
+    const result = view.state.doc.toString()
+    expect(result).toContain('code -- stays literal')
+    expect(result.endsWith('after →')).toBe(true)
+  })
+
   it('keeps Mermaid arrows literal while typing inside fenced code', () => {
     const content = [
       '```mermaid',

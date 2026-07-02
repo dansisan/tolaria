@@ -11,6 +11,7 @@ import {
 } from '@codemirror/view'
 import { EditorState, Prec } from '@codemirror/state'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
+import { ensureSyntaxTree } from '@codemirror/language'
 import { frontmatterHighlightPlugin, frontmatterHighlightTheme } from '../extensions/frontmatterHighlight'
 import { findMatchHighlightField, findMatchHighlightTheme } from '../extensions/findMatchHighlight'
 import { markdownLanguage } from '../extensions/markdownHighlight'
@@ -223,11 +224,35 @@ function buildTitleNavKeymap(callbacks: { current: CodeMirrorCallbacks }) {
   }]))
 }
 
+/**
+ * True when `pos` sits inside a fenced code block (``` / ~~~).
+ *
+ * Uses the markdown language's incrementally-maintained Lezer syntax tree, which
+ * already tracks code-block boundaries, so this is a cheap tree descent rather
+ * than an O(cursor) rescan of the document on every keystroke. `ensureSyntaxTree`
+ * parses up to `pos` within a small time budget; on the rare occasion the tree
+ * is not yet available (e.g. a huge document whose tail has not parsed), we fall
+ * back to the exact scan the tree replaces so behavior is unchanged.
+ *
+ * Only `FencedCode` counts — indented (4-space) code blocks were never treated
+ * as fences by the previous scan, and that is intentionally preserved.
+ */
+function isInFencedCode(view: EditorView, pos: number): boolean {
+  const tree = ensureSyntaxTree(view.state, pos, 50)
+  if (!tree) return isInsideMarkdownFence(view.state.doc.sliceString(0, pos))
+
+  const cursor = tree.resolveInner(pos, -1).cursor()
+  do {
+    if (cursor.name === 'FencedCode') return true
+  } while (cursor.parent())
+  return false
+}
+
 function buildArrowLigaturesExtension() {
   let literalAsciiCursor: number | null = null
 
   return EditorView.inputHandler.of((view, from, _to, text) => {
-    if (isInsideMarkdownFence(view.state.doc.sliceString(0, from))) {
+    if (isInFencedCode(view, from)) {
       literalAsciiCursor = null
       return false
     }
