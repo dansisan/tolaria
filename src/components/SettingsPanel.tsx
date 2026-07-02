@@ -123,6 +123,7 @@ interface SettingsDraft {
   noteBodyFontSize: number
   codeFontSize: number | null
   codeLineNumbers: boolean
+  writingSuggestionsEnabled: boolean
   imageRenameMode: ImageRenameMode
   imageRenameCommand: string
   sidebarTypePluralizationEnabled: boolean
@@ -177,6 +178,8 @@ interface SettingsBodyProps {
   setCodeFontSize: (value: number | null) => void
   codeLineNumbers: boolean
   setCodeLineNumbers: (value: boolean) => void
+  writingSuggestionsEnabled: boolean
+  setWritingSuggestionsEnabled: (value: boolean) => void
   imageRenameMode: ImageRenameMode
   setImageRenameMode: (value: ImageRenameMode) => void
   imageRenameCommand: string
@@ -244,6 +247,7 @@ function createSettingsDraft(
     noteBodyFontSize: resolveNoteFontSize(settings.note_body_font_size, null),
     codeFontSize: normalizeCodeFontSize(settings.code_font_size),
     codeLineNumbers: settings.code_line_numbers === true,
+    writingSuggestionsEnabled: settings.writing_suggestions_enabled === true,
     imageRenameMode: normalizeImageRenameMode(settings.image_rename_mode),
     imageRenameCommand: settings.image_rename_command ?? DEFAULT_IMAGE_RENAME_COMMAND,
     sidebarTypePluralizationEnabled: settings.sidebar_type_pluralization_enabled ?? true,
@@ -297,6 +301,7 @@ function buildSettingsFromDraft(settings: Settings, draft: SettingsDraft): Setti
     note_body_font_size: draft.noteBodyFontSize,
     code_font_size: draft.codeFontSize,
     code_line_numbers: draft.codeLineNumbers,
+    writing_suggestions_enabled: draft.writingSuggestionsEnabled,
     image_rename_mode: draft.imageRenameMode,
     image_rename_command: draft.imageRenameCommand,
     sidebar_type_pluralization_enabled: draft.sidebarTypePluralizationEnabled,
@@ -613,6 +618,8 @@ function SettingsBodyFromDraft({
       setCodeFontSize={(value) => updateDraft('codeFontSize', value)}
       codeLineNumbers={draft.codeLineNumbers}
       setCodeLineNumbers={(value) => updateDraft('codeLineNumbers', value)}
+      writingSuggestionsEnabled={draft.writingSuggestionsEnabled}
+      setWritingSuggestionsEnabled={(value) => updateDraft('writingSuggestionsEnabled', value)}
       imageRenameMode={draft.imageRenameMode}
       setImageRenameMode={(value) => updateDraft('imageRenameMode', value)}
       imageRenameCommand={draft.imageRenameCommand}
@@ -755,6 +762,8 @@ function SettingsContentSections({
   setCodeFontSize,
   codeLineNumbers,
   setCodeLineNumbers,
+  writingSuggestionsEnabled,
+  setWritingSuggestionsEnabled,
   imageRenameMode,
   setImageRenameMode,
   imageRenameCommand,
@@ -784,6 +793,8 @@ function SettingsContentSections({
         setCodeFontSize={setCodeFontSize}
         codeLineNumbers={codeLineNumbers}
         setCodeLineNumbers={setCodeLineNumbers}
+        writingSuggestionsEnabled={writingSuggestionsEnabled}
+        setWritingSuggestionsEnabled={setWritingSuggestionsEnabled}
         imageRenameMode={imageRenameMode}
         setImageRenameMode={setImageRenameMode}
         imageRenameCommand={imageRenameCommand}

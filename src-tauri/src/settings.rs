@@ -97,6 +97,7 @@ pub struct Settings {
     pub note_body_font_size: Option<u32>,
     pub code_font_size: Option<u32>,
     pub code_line_numbers: Option<bool>,
+    pub writing_suggestions_enabled: Option<bool>,
     pub image_rename_mode: Option<String>,
     pub image_rename_command: Option<String>,
     pub sidebar_type_pluralization_enabled: Option<bool>,
@@ -255,6 +256,7 @@ fn normalize_settings(settings: Settings) -> Settings {
         note_body_font_size: normalize_note_body_font_size(settings.note_body_font_size),
         code_font_size: normalize_code_font_size(settings.code_font_size),
         code_line_numbers: settings.code_line_numbers,
+        writing_suggestions_enabled: settings.writing_suggestions_enabled,
         image_rename_mode: normalize_image_rename_mode(settings.image_rename_mode.as_deref()),
         image_rename_command: normalize_optional_string(settings.image_rename_command),
         sidebar_type_pluralization_enabled: settings.sidebar_type_pluralization_enabled,
@@ -497,6 +499,7 @@ mod tests {
             note_body_font_size: Some(18),
             code_font_size: Some(13),
             code_line_numbers: Some(true),
+            writing_suggestions_enabled: Some(true),
             image_rename_mode: Some("command".to_string()),
             image_rename_command: Some("name-image.sh".to_string()),
             sidebar_type_pluralization_enabled: Some(false),
@@ -543,6 +546,7 @@ mod tests {
             note_body_font_size: Some(18),
             code_font_size: Some(13),
             code_line_numbers: Some(true),
+            writing_suggestions_enabled: Some(true),
             image_rename_mode: Some("command".to_string()),
             image_rename_command: Some("name-image.sh".to_string()),
             sidebar_type_pluralization_enabled: Some(false),
@@ -570,6 +574,7 @@ mod tests {
         assert_eq!(loaded.note_body_font_size, Some(18));
         assert_eq!(loaded.code_font_size, Some(13));
         assert_eq!(loaded.code_line_numbers, Some(true));
+        assert_eq!(loaded.writing_suggestions_enabled, Some(true));
         assert_eq!(loaded.image_rename_mode.as_deref(), Some("command"));
         assert_eq!(loaded.image_rename_command.as_deref(), Some("name-image.sh"));
         assert_eq!(loaded.sidebar_type_pluralization_enabled, Some(false));

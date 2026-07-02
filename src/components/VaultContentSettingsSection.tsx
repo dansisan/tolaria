@@ -29,6 +29,8 @@ interface VaultContentSettingsSectionProps {
   setCodeFontSize: (value: number | null) => void
   codeLineNumbers: boolean
   setCodeLineNumbers: (value: boolean) => void
+  writingSuggestionsEnabled: boolean
+  setWritingSuggestionsEnabled: (value: boolean) => void
   imageRenameMode: ImageRenameMode
   setImageRenameMode: (value: ImageRenameMode) => void
   imageRenameCommand: string
@@ -109,6 +111,8 @@ export function VaultContentSettingsSection({
   setCodeFontSize,
   codeLineNumbers,
   setCodeLineNumbers,
+  writingSuggestionsEnabled,
+  setWritingSuggestionsEnabled,
   imageRenameMode,
   setImageRenameMode,
   imageRenameCommand,
@@ -194,6 +198,14 @@ export function VaultContentSettingsSection({
           checked={codeLineNumbers}
           onChange={setCodeLineNumbers}
           testId="settings-code-line-numbers"
+        />
+
+        <SettingsSwitchRow
+          label={t('settings.writingSuggestions.label')}
+          description={t('settings.writingSuggestions.description')}
+          checked={writingSuggestionsEnabled}
+          onChange={setWritingSuggestionsEnabled}
+          testId="settings-writing-suggestions"
         />
 
         <SettingsRow
