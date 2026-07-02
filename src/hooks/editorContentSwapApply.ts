@@ -1,4 +1,5 @@
 import type { MutableRefObject } from 'react'
+import type { Transaction } from 'prosemirror-state'
 import type { useCreateBlockNote } from '@blocknote/react'
 import { blankParagraphBlocks } from './editorTabContent'
 import { EDITOR_CONTAINER_SELECTOR } from './editorDomSelection'
@@ -45,7 +46,7 @@ export function applyBlocksToEditor(options: ApplyBlocksToEditorOptions): boolea
     // would let Cmd+Z undo the content load itself — emptying the note (or
     // reverting to a previously open note's content). Marking the transaction
     // `addToHistory: false` keeps undo scoped to the user's edits since open.
-    editor.transact((tr) => {
+    editor.transact((tr: Transaction) => {
       tr.setMeta('addToHistory', false)
       const current = editor.document
       if (current.length > 0 && safeBlocks.length > 0) {
