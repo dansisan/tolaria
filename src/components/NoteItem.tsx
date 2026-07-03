@@ -284,6 +284,7 @@ function StandardNoteContent({
               noteStatus={noteStatus}
             />
             <BinaryFileSize fileSize={entry.fileSize} />
+            <NoteDateRow entry={entry} allEntries={allEntries} sortedByModified={sortedByModified} />
           </>
         ) : (
           <InteractiveNoteDetails

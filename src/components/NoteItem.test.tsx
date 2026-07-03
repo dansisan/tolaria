@@ -52,6 +52,26 @@ describe('NoteItem', () => {
     expect(screen.getByTestId('note-file-size')).toHaveTextContent('1.5 KB')
   })
 
+  it('shows the date row for binary attachment rows', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(NOW_SECONDS * 1000))
+    const imageEntry = makeEntry({
+      path: '/vault/attachments/photo.png',
+      filename: 'photo.png',
+      title: 'photo.png',
+      fileKind: 'binary',
+      fileSize: 1536,
+      createdAt: NOW_SECONDS - 86400 * 5,
+      modifiedAt: NOW_SECONDS - 86400 * 2,
+    })
+
+    render(<NoteItem entry={imageEntry} isSelected={false} typeEntryMap={{}} onClickNote={vi.fn()} />)
+
+    const dateRow = screen.getByTestId('note-date-row')
+    expect(dateRow).toHaveTextContent('Sat, Apr 5, 2025') // created date, right side
+    expect(dateRow).toHaveTextContent('2 days ago') // relative modified, left side
+  })
+
   it('shows the file size for unsupported binary rows too', () => {
     const zipEntry = makeEntry({
       path: '/vault/attachments/archive.zip',

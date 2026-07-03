@@ -526,20 +526,3 @@ body.mac-chrome .app:not(:has(.app__sidebar)):not(:has(.app__note-list)) .breadc
     padding: 12px 0;
   }
 }
-
-/*
- * Skip layout of off-screen top-level blocks. On large notes every keystroke
- * forces a synchronous reflow (ProseMirror resets the DOM selection after
- * each transaction); letting the engine ignore blocks outside the viewport
- * halved measured per-keystroke latency on a 300KB note. The 28px fallback is
- * one text line; `auto` keeps the last rendered size so scrollbars stay stable.
- */
-.editor__blocknote-container .bn-editor > .bn-block-group > .bn-block-outer {
-  content-visibility: auto;
-  contain-intrinsic-block-size: auto 28px;
-}
-
-/* PDF export must lay out and paint every block, on- or off-screen. */
-body.tolaria-note-pdf-exporting .bn-block-outer {
-  content-visibility: visible;
-}
