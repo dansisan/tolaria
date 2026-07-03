@@ -971,6 +971,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      'prosemirror-model': path.resolve(__dirname, 'node_modules/.pnpm/prosemirror-model@1.25.4/node_modules/prosemirror-model'),
       'prosemirror-state': path.resolve(__dirname, 'node_modules/.pnpm/prosemirror-state@1.4.4/node_modules/prosemirror-state'),
       'prosemirror-view': path.resolve(__dirname, 'node_modules/.pnpm/prosemirror-view@1.41.6/node_modules/prosemirror-view'),
     },
