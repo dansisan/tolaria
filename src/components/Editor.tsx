@@ -39,7 +39,6 @@ import { createCodeBlockFenceDecorationExtension } from './codeBlockFenceDecorat
 import { createCodeBlockLineNumberExtension } from './codeBlockLineNumberExtension'
 import { createEditTitleOnArrowUpExtension } from './editTitleOnArrowUpExtension'
 import { createRichEditorTransformErrorRecoveryExtension } from './richEditorTransformErrorRecoveryExtension'
-import { useFilenameAutolinkGuard } from './useFilenameAutolinkGuard'
 import { useEditorPdfExport } from './useEditorPdfExport'
 import type { NotePdfExportSource } from '../utils/notePdfExport'
 import './Editor.css'
@@ -244,7 +243,6 @@ function useEditorSetup({
       createCodeBlockLineNumberExtension(),
     ],
   })
-  useFilenameAutolinkGuard(editor)
   const activeTab = tabs.find((t) => t.entry.path === activeTabPath) ?? null
   const {
     rawMode,
