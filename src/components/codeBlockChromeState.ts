@@ -22,6 +22,11 @@ export interface CodeBlockChromeEditor {
   focus?: () => void
   getPrevBlock?: (blockId: string) => { id: string } | undefined
   getTextCursorPosition?: () => { block: { id: string; type: string; props?: Record<string, unknown> } }
+  insertBlocks?: (
+    blocks: Array<{ type: string }>,
+    referenceBlockId: string,
+    placement: 'before' | 'after',
+  ) => Array<{ id: string }>
   onChange?: (callback: () => void) => (() => void) | undefined
   onSelectionChange?: (callback: () => void) => (() => void) | undefined
   setTextCursorPosition?: (blockId: string, placement: 'start' | 'end') => void

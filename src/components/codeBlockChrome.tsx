@@ -3,6 +3,7 @@ import { ArrowsInLineHorizontal, ArrowsOutLineHorizontal, Copy } from '@phosphor
 import { createTranslator, type AppLocale } from '../lib/i18n'
 import { trackEvent } from '../lib/telemetry'
 import { writeClipboardText } from '../utils/clipboardText'
+import { requestEditNoteTitle } from '../utils/editNoteTitleEvent'
 import { ActionTooltip } from './ui/action-tooltip'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -202,9 +203,23 @@ export function CodeBlockFenceLine({
 
   const moveCursorToPreviousBlock = useCallback(() => {
     const previousBlock = editor.getPrevBlock?.(target.blockId)
-    if (previousBlock) editor.setTextCursorPosition?.(previousBlock.id, 'end')
-    else editor.setTextCursorPosition?.(target.blockId, 'start')
+    if (previousBlock) {
+      editor.setTextCursorPosition?.(previousBlock.id, 'end')
+      editor.focus?.()
+      return
+    }
+    // The code block is the note's first block — continue up into the title,
+    // mirroring ArrowUp from the first line of an ordinary first block.
+    requestEditNoteTitle()
+  }, [editor, target.blockId])
+
+  const insertParagraphAboveCode = useCallback(() => {
+    const inserted = editor.insertBlocks?.([{ type: 'paragraph' }], target.blockId, 'before')
+    const newBlockId = inserted?.[0]?.id
+    if (!newBlockId) return false
+    editor.setTextCursorPosition?.(newBlockId, 'start')
     editor.focus?.()
+    return true
   }, [editor, target.blockId])
 
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -213,6 +228,12 @@ export function CodeBlockFenceLine({
     if (event.key === 'Enter' || event.key === 'ArrowDown') {
       event.preventDefault()
       commit()
+      // Enter with the caret at the very start of the fence opens a new line
+      // above the code block, like Enter at the start of any other block.
+      const caretAtFenceStart = event.key === 'Enter'
+        && event.currentTarget.selectionStart === 0
+        && event.currentTarget.selectionEnd === 0
+      if (caretAtFenceStart && insertParagraphAboveCode()) return
       moveCursorIntoCode()
       return
     }
@@ -227,7 +248,7 @@ export function CodeBlockFenceLine({
       setDraft({ syncKey, text: syncedText })
       editor.focus?.()
     }
-  }, [commit, editor, moveCursorIntoCode, moveCursorToPreviousBlock, syncKey, syncedText])
+  }, [commit, editor, insertParagraphAboveCode, moveCursorIntoCode, moveCursorToPreviousBlock, syncKey, syncedText])
 
   const handleBlur = useCallback(() => {
     commit()

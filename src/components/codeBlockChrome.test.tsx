@@ -12,6 +12,7 @@ import {
   type CodeBlockFenceTarget,
 } from './codeBlockChromeState'
 import { fenceDecorationRange } from './codeBlockFenceDecorationExtension'
+import { EDIT_NOTE_TITLE_EVENT } from '../utils/editNoteTitleEvent'
 
 const { trackEventMock } = vi.hoisted(() => ({ trackEventMock: vi.fn() }))
 
@@ -246,13 +247,16 @@ describe('CodeBlockFenceLine', () => {
     expect(focus).toHaveBeenCalled()
   })
 
-  it('falls back to the code when no previous block exists on ArrowUp', () => {
+  it('moves focus to the note title on ArrowUp when no previous block exists', () => {
     const setTextCursorPosition = vi.fn()
+    const insertBlocks = vi.fn(() => [{ id: 'new-paragraph' }])
+    const editTitleListener = vi.fn()
+    window.addEventListener(EDIT_NOTE_TITLE_EVENT, editTitleListener)
 
     render(
       <CodeBlockFenceLine
         target={fenceTargetFor()}
-        editor={{ setTextCursorPosition, getPrevBlock: () => undefined }}
+        editor={{ setTextCursorPosition, insertBlocks, getPrevBlock: () => undefined }}
         locale="en"
         onBeginEditing={vi.fn()}
         onEndEditing={vi.fn()}
@@ -261,7 +265,60 @@ describe('CodeBlockFenceLine', () => {
 
     fireEvent.keyDown(screen.getByLabelText('Code fence line'), { key: 'ArrowUp' })
 
+    expect(editTitleListener).toHaveBeenCalled()
+    expect(insertBlocks).not.toHaveBeenCalled()
+    expect(setTextCursorPosition).not.toHaveBeenCalled()
+    window.removeEventListener(EDIT_NOTE_TITLE_EVENT, editTitleListener)
+  })
+
+  it('inserts a paragraph above the code block on Enter at the fence start', () => {
+    const setTextCursorPosition = vi.fn()
+    const insertBlocks = vi.fn(() => [{ id: 'new-paragraph' }])
+    const focus = vi.fn()
+
+    render(
+      <CodeBlockFenceLine
+        target={fenceTargetFor()}
+        editor={{ setTextCursorPosition, insertBlocks, focus }}
+        locale="en"
+        onBeginEditing={vi.fn()}
+        onEndEditing={vi.fn()}
+      />,
+    )
+
+    const input = screen.getByLabelText('Code fence line') as HTMLInputElement
+    input.focus()
+    input.setSelectionRange(0, 0)
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(insertBlocks).toHaveBeenCalledWith([{ type: 'paragraph' }], 'block-1', 'before')
+    expect(setTextCursorPosition).toHaveBeenCalledWith('new-paragraph', 'start')
+    expect(focus).toHaveBeenCalled()
+  })
+
+  it('moves the cursor into the code on Enter when the caret is not at the fence start', () => {
+    const setTextCursorPosition = vi.fn()
+    const insertBlocks = vi.fn(() => [{ id: 'new-paragraph' }])
+    const focus = vi.fn()
+
+    render(
+      <CodeBlockFenceLine
+        target={fenceTargetFor()}
+        editor={{ setTextCursorPosition, insertBlocks, focus }}
+        locale="en"
+        onBeginEditing={vi.fn()}
+        onEndEditing={vi.fn()}
+      />,
+    )
+
+    const input = screen.getByLabelText('Code fence line') as HTMLInputElement
+    input.focus()
+    input.setSelectionRange(input.value.length, input.value.length)
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(insertBlocks).not.toHaveBeenCalled()
     expect(setTextCursorPosition).toHaveBeenCalledWith('block-1', 'start')
+    expect(focus).toHaveBeenCalled()
   })
 
   it('restores the fence text on Escape', () => {
