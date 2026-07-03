@@ -365,6 +365,69 @@ describe('useActiveCodeBlockFence', () => {
     expect(result.current.fenceTarget).toMatchObject({ blockId: 'block-1', language: 'js', nowrap: true })
   })
 
+  it('skips the cursor-block snapshot while the collapsed cursor is outside code blocks', () => {
+    const { container } = buildCodeBlockDom()
+    const containerRef = { current: container as HTMLDivElement }
+    const listeners: Array<() => void> = []
+    const getTextCursorPosition = vi.fn(() => ({
+      block: { id: 'block-1', type: 'paragraph' as const, props: {} },
+    }))
+    const editor: CodeBlockChromeEditor = {
+      prosemirrorView: {
+        state: {
+          selection: {
+            empty: true,
+            $from: { parent: { type: { name: 'paragraph' }, textContent: 'plain typing' }, parentOffset: 5 },
+          },
+        },
+      },
+      getTextCursorPosition,
+      onChange: (callback) => {
+        listeners.push(callback)
+        return () => {}
+      },
+      onSelectionChange: (callback) => {
+        listeners.push(callback)
+        return () => {}
+      },
+    }
+
+    const { result } = renderHook(() => useActiveCodeBlockFence(editor, containerRef, true))
+    act(() => listeners.forEach((listener) => listener()))
+
+    expect(result.current.fenceTarget).toBeNull()
+    expect(getTextCursorPosition).not.toHaveBeenCalled()
+  })
+
+  it('still snapshots the cursor block for range selections outside code blocks', () => {
+    const { container } = buildCodeBlockDom()
+    const containerRef = { current: container as HTMLDivElement }
+    const listeners: Array<() => void> = []
+    const getTextCursorPosition = vi.fn(() => ({
+      block: { id: 'block-1', type: 'paragraph' as const, props: {} },
+    }))
+    const editor: CodeBlockChromeEditor = {
+      prosemirrorView: {
+        state: {
+          selection: {
+            empty: false,
+            $from: { parent: { type: { name: 'paragraph' }, textContent: 'plain typing' }, parentOffset: 5 },
+          },
+        },
+      },
+      getTextCursorPosition,
+      onSelectionChange: (callback) => {
+        listeners.push(callback)
+        return () => {}
+      },
+    }
+
+    renderHook(() => useActiveCodeBlockFence(editor, containerRef, true))
+    act(() => listeners.forEach((listener) => listener()))
+
+    expect(getTextCursorPosition).toHaveBeenCalled()
+  })
+
   it('moves focus into the fence input on ArrowUp from the first code line', () => {
     const { container } = buildCodeBlockDom()
     const input = document.createElement('input')

@@ -15,7 +15,13 @@ struct VaultChangedPayload {
 fn has_ignored_component(path: &Path) -> bool {
     path.components().any(|part| {
         let component = part.as_os_str();
-        component == OsStr::new(".git") || component == OsStr::new("node_modules")
+        component == OsStr::new(".git")
+            || component == OsStr::new("node_modules")
+            // Obsidian rewrites its workspace state constantly when the same
+            // folder is open there; reacting would reload the vault per keypress.
+            || component == OsStr::new(".obsidian")
+            // Rename transactions are Tolaria's own scratch space.
+            || component == OsStr::new(".tolaria-rename-txn")
     })
 }
 
@@ -368,6 +374,18 @@ mod tests {
         assert!(!is_watchable_path(Path::new(".git/index.lock"), None));
         assert!(!is_watchable_path(
             Path::new("node_modules/package/index.js"),
+            None
+        ));
+    }
+
+    #[test]
+    fn ignores_foreign_app_state_and_rename_transaction_directories() {
+        assert!(!is_watchable_path(
+            Path::new("/vault/.obsidian/workspace.json"),
+            None
+        ));
+        assert!(!is_watchable_path(
+            Path::new("/vault/.tolaria-rename-txn/pending.md"),
             None
         ));
     }

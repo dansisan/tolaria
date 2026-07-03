@@ -106,6 +106,8 @@ import { openNoteInNewWindow } from './utils/openNoteWindow'
 import { resolveAdjacentNote } from './utils/adjacentNote'
 import { isWindows } from './utils/platform'
 import { getPulledVaultUpdateOptions, refreshPulledVaultState } from './utils/pulledVaultRefresh'
+import { applyWatcherPartialRefresh } from './utils/watcherPartialRefresh'
+import { findByNotePath, notePathsMatch } from './utils/notePathIdentity'
 import { isAiWorkspaceWindow, isNoteWindow, getNoteWindowParams, type NoteWindowParams } from './utils/windowMode'
 import type { NotePdfExportSource } from './utils/notePdfExport'
 import { GitSetupDialog } from './components/GitRequiredModal'
@@ -785,16 +787,46 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     }),
     [handleVaultUpdate],
   )
+  const vaultEntriesRef = useRef(vault.entries)
+  useEffect(() => { vaultEntriesRef.current = vault.entries }, [vault.entries])
   const handleFocusedVaultUpdate = useCallback(
-    (updatedFiles: string[]) => {
+    async (updatedFiles: string[]) => {
       // A bulk operation (e.g. Apple Notes import) writes hundreds of files via
       // the backend. Those land as external watcher events, and reacting to each
       // batch with a full reload would storm the UI. The bulk operation does its
       // own single reload when it finishes, so ignore watcher events meanwhile.
       if (suppressVaultWatcherRef.current) return
+      const outcome = await applyWatcherPartialRefresh(updatedFiles, {
+        findEntry: (path) => findByNotePath(vaultEntriesRef.current, path),
+        reloadEntry: (path) => (isTauri()
+          ? invoke<VaultEntry>('reload_vault_entry', { path })
+          : mockInvoke<VaultEntry>('reload_vault_entry', { path })),
+        updateEntry: vault.updateEntry,
+        reloadViews: vault.reloadViews,
+        refreshGitModifiedFiles,
+        isActiveTabPath: (path) => {
+          const active = notes.activeTabPathRef.current
+          return !!active && notePathsMatch(path, active)
+        },
+        hasUnsavedChanges: () => {
+          const active = notes.activeTabPathRef.current
+          return !active || vault.unsavedPaths.has(active)
+        },
+        isEditorFocused: isActiveElementInsideEditorSurface,
+        replaceActiveTab: handleReplaceActiveTab,
+      })
+      if (outcome === 'handled') return
       return handleVaultUpdate(updatedFiles, { preserveFocusedEditor: true })
     },
-    [handleVaultUpdate],
+    [
+      handleReplaceActiveTab,
+      handleVaultUpdate,
+      notes.activeTabPathRef,
+      refreshGitModifiedFiles,
+      vault.reloadViews,
+      vault.unsavedPaths,
+      vault.updateEntry,
+    ],
   )
   useEffect(() => {
     if (watchedVaultPaths.length === 0) return

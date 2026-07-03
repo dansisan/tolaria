@@ -163,6 +163,19 @@ function readEditorView(editor: CodeBlockChromeEditor): CodeBlockEditorViewLike 
   return editor._tiptapEditor?.view ?? editor.prosemirrorView ?? null
 }
 
+/**
+ * True when the collapsed text cursor is provably outside any code block —
+ * the O(1) check that lets fence tracking skip `getTextCursorPosition()`,
+ * which snapshots the whole cursor block (expensive on huge blocks) and would
+ * otherwise run on every keystroke. Range/node selections and editors without
+ * a live view return false so those fall back to the full read.
+ */
+function collapsedCursorOutsideCodeBlock(view: CodeBlockEditorViewLike | null): boolean {
+  if (!view) return false
+  const { selection } = view.state
+  return selection.empty && selection.$from.parent.type.name !== 'codeBlock'
+}
+
 /** True when the collapsed text cursor sits on the first line of a code block. */
 export function caretOnFirstCodeBlockLine(view: CodeBlockEditorViewLike | null): boolean {
   if (!view) return false
@@ -201,7 +214,8 @@ export function useActiveCodeBlockFence(
     if (editingFenceRef.current) return
 
     const container = containerRef.current
-    const block = enabled && container ? readCursorCodeBlock(editor) : null
+    const active = enabled && container && !collapsedCursorOutsideCodeBlock(readEditorView(editor))
+    const block = active ? readCursorCodeBlock(editor) : null
     const nextTarget = block && container ? fenceTargetForBlock(block, container) : null
     fenceTargetRef.current = nextTarget
     setFenceTarget((previous) => sameFenceTarget(previous, nextTarget) ? previous : nextTarget)
