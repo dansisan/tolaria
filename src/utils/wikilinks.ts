@@ -575,3 +575,19 @@ export function countWords(content: MarkdownSource): WordCount {
   if (!text) return 0
   return text.split(/\s+/).filter(Boolean).length
 }
+
+const lastWordCount = { content: '', count: 0 as WordCount }
+
+/**
+ * countWords with a last-result cache. The editor chrome recomputes the word
+ * count on every render of the active note; the regex sweep over a large note
+ * costs milliseconds each time, and renders come in bursts while typing. The
+ * active content string only changes on an editor flush, so one slot suffices.
+ */
+export function countWordsCached(content: MarkdownSource): WordCount {
+  if (lastWordCount.content !== content) {
+    lastWordCount.content = content
+    lastWordCount.count = countWords(content)
+  }
+  return lastWordCount.count
+}

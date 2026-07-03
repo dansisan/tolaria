@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { preProcessWikilinks, injectWikilinks, restoreWikilinksInBlocks, splitFrontmatter, countWords, extractOutgoingLinks, extractAttachmentLinks, extractBacklinkContext, extractSnippet } from './wikilinks'
+import { preProcessWikilinks, injectWikilinks, restoreWikilinksInBlocks, splitFrontmatter, countWords, countWordsCached, extractOutgoingLinks, extractAttachmentLinks, extractBacklinkContext, extractSnippet } from './wikilinks'
 
 interface TestBlock {
   type?: string
@@ -237,6 +237,20 @@ describe('splitFrontmatter', () => {
     const [fm, body] = splitFrontmatter(content)
     expect(fm).toBe('---\ntitle: "A --- B"\ntype: Note\n---\n')
     expect(body).toBe('\nBody text')
+  })
+})
+
+describe('countWordsCached', () => {
+  it('matches countWords and serves repeats of the same content from cache', () => {
+    const content = '---\ntitle: Hello\n---\n\nThis is a test note with seven words.'
+    expect(countWordsCached(content)).toBe(countWords(content))
+    expect(countWordsCached(content)).toBe(countWords(content))
+  })
+
+  it('recomputes when the content changes', () => {
+    expect(countWordsCached('one two three')).toBe(3)
+    expect(countWordsCached('one two')).toBe(2)
+    expect(countWordsCached('one two three')).toBe(3)
   })
 })
 

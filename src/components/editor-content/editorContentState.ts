@@ -1,6 +1,6 @@
 import type { NoteStatus, VaultEntry } from '../../types'
 import { extractH1TitleFromContent } from '../../utils/noteTitle'
-import { countWords } from '../../utils/wikilinks'
+import { countWordsCached } from '../../utils/wikilinks'
 
 export interface EditorContentTab {
   entry: VaultEntry
@@ -99,6 +99,6 @@ export function deriveEditorContentState(input: EditorContentStateInput): Editor
     hasH1,
     ...visibilityState,
     path: activeTab?.entry.path ?? '',
-    wordCount: activeTab ? countWords(activeTab.content) : 0,
+    wordCount: activeTab ? countWordsCached(activeTab.content) : 0,
   }
 }

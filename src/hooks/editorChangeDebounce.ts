@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type MutableRefObject } from 'react'
+import { startTransition, useCallback, useEffect, useRef, type MutableRefObject } from 'react'
 
 export const RICH_EDITOR_CHANGE_DEBOUNCE_MS = 500
 
@@ -33,7 +33,13 @@ export function useDebouncedEditorChange({
     clearTimer()
     timerRef.current = setTimeout(() => {
       timerRef.current = null
-      void flushPendingEditorChange()
+      // The flush updates app-wide state (tab content, unsaved tracking) and
+      // triggers a broad re-render. As a transition, React can interrupt that
+      // render to service the next keystroke instead of stalling typing.
+      // Explicit flushes (before save/navigation) stay synchronous.
+      startTransition(() => {
+        void flushPendingEditorChange()
+      })
     }, RICH_EDITOR_CHANGE_DEBOUNCE_MS)
   }, [clearTimer, flushPendingEditorChange, suppressChangeRef])
 

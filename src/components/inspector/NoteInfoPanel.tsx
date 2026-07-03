@@ -1,6 +1,6 @@
 import type { VaultEntry } from '../../types'
 import { Info } from '@phosphor-icons/react'
-import { countWords } from '../../utils/wikilinks'
+import { countWordsCached } from '../../utils/wikilinks'
 import { translate, type AppLocale } from '../../lib/i18n'
 import {
   formatTimestampForDateDisplay,
@@ -40,7 +40,7 @@ export function NoteInfoPanel({
   locale?: AppLocale
 }) {
   const dateDisplayFormat = useDateDisplayFormat()
-  const wordCount = countWords(content ?? '')
+  const wordCount = countWordsCached(content ?? '')
   return (
     <div>
       <h4 className="font-mono-overline mb-2 flex items-center gap-1 text-muted-foreground">
