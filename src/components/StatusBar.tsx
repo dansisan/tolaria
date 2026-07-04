@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import type { McpStatus } from '../hooks/useMcpStatus'
 import type { ThemeMode } from '../lib/themeMode'
 import type { AppLocale } from '../lib/i18n'
@@ -263,7 +263,7 @@ function StatusBarFooter(props: StatusBarFooterProps) {
   )
 }
 
-export function StatusBar(props: StatusBarProps) {
+export const StatusBar = memo(function StatusBar(props: StatusBarProps) {
   useStatusBarTicker()
   const { compact, stacked } = useStatusBarLayout()
 
@@ -272,4 +272,4 @@ export function StatusBar(props: StatusBarProps) {
       <StatusBarFooter {...props} compact={compact} stacked={stacked} />
     </TooltipProvider>
   )
-}
+})
