@@ -65,6 +65,15 @@ export function createFixtureVaultCopy(): string {
   return tempVaultDir
 }
 
+const PERF_VAULT = path.resolve('tests/fixtures/perf-vault')
+
+/** Copy of the persistent big-note fixtures (see its README) — never edit the originals. */
+export function createPerfVaultCopy(): string {
+  const tempVaultDir = fs.mkdtempSync(path.join(os.tmpdir(), 'laputa-perf-vault-'))
+  copyDirSync({ src: PERF_VAULT, dest: tempVaultDir })
+  return tempVaultDir
+}
+
 function removeFixtureVaultDirectory({ tempVaultDir }: RemoveFixtureVaultArgs): void {
   fs.rmSync(tempVaultDir, {
     recursive: true,

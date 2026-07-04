@@ -488,6 +488,11 @@ function handleStableActivePath(options: {
   if (rawModeJustEnded) {
     return !markRawModeReswapPending({ activeTabPath, cache, rawSwapPendingRef })
   }
+  // A scheduled swap is still in flight: the editor holds another note's
+  // content. Treating this render as stable would cache that note's blocks
+  // under the active path (and mark the editor as showing it), letting the
+  // pending swap and the change flush cross-contaminate note bodies.
+  if (editorContentPathRef.current !== activeTabPath) return false
   if (shouldKeepPendingLocalContent({ activeTabPath, activeTab, pendingLocalContentRef })) {
     return consumePendingLocalContent({
       cache,
