@@ -406,7 +406,7 @@ export interface NoteRenameConfig {
   /** Refresh just the given notes in memory (re-parse from disk). Used after a
    *  rename to update the few notes whose wikilinks changed, instead of
    *  rescanning the whole vault. */
-  refreshEntries?: (paths: string[]) => void | Promise<void>
+  refreshEntries?: (paths: string[]) => void | Promise<Array<VaultEntry | null> | void>
 }
 
 interface RenameTabDeps {

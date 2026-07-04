@@ -29,7 +29,7 @@ export interface NoteActionsConfig {
   updateEntry: (path: string, patch: Partial<VaultEntry>) => void
   /** Re-parse the given notes from disk and update them in memory (used after a
    *  rename to refresh only the notes whose wikilinks changed). */
-  refreshEntries?: (paths: string[]) => void | Promise<void>
+  refreshEntries?: (paths: string[]) => void | Promise<Array<VaultEntry | null> | void>
   vaultPath: string
   defaultWorkspacePath?: string | null
   vaults?: readonly VaultOption[]
