@@ -2,6 +2,7 @@ import { startTransition, useCallback, useEffect, useMemo, useRef, type MutableR
 import { invoke } from '@tauri-apps/api/core'
 import { useEditorSaveWithLinks } from './useEditorSaveWithLinks'
 import { UNTITLED_RENAME_DEBOUNCE_MS } from './editorSaveTiming'
+import { cacheNoteContent } from './useTabManagement'
 import { flushEditorContent } from '../utils/autoSave'
 import { extractH1TitleFromContent } from '../utils/noteTitle'
 import { isTauri } from '../mock-tauri'
@@ -473,7 +474,7 @@ interface AppSaveDeps {
   writableVaultPaths?: readonly string[]
   initialH1AutoRenameEnabled: boolean
   onInternalVaultWrite?: (path: string) => void
-  refreshEntries?: (paths: string[]) => Promise<void>
+  refreshEntries?: (paths: string[]) => Promise<Array<VaultEntry | null> | void>
   locale?: AppLocale
 }
 
@@ -697,12 +698,26 @@ function useEditorPersistence({
   // the write path, so the content the editor shows is untouched — but the
   // in-memory entry's `properties` are now stale. Re-read the entry from disk so
   // those derived fields stay searchable without waiting for a full rescan.
+  const persistStampSeqRef = useRef(new Map<string, number>())
+
   const onNotePersisted = useCallback((path: string, content: string) => {
     onInternalVaultWrite?.(path)
     clearUnsaved(path)
     if (path.endsWith('.yml')) reloadViews?.()
     scheduleUntitledRename(path, content)
-    void refreshEntries?.([path])
+    // Re-stamp the in-memory content cache with the refreshed on-disk identity
+    // so revisiting an edited note trusts memory instead of re-reading disk.
+    // The sequence guard keeps an out-of-order refresh from stamping content
+    // that a newer save has already superseded.
+    const stampSeq = (persistStampSeqRef.current.get(path) ?? 0) + 1
+    persistStampSeqRef.current.set(path, stampSeq)
+    void refreshEntries?.([path]).then((refreshed) => {
+      if (persistStampSeqRef.current.get(path) !== stampSeq) return
+      const freshEntry = Array.isArray(refreshed)
+        ? refreshed.find((candidate) => candidate && notePathsMatch(candidate.path, path))
+        : null
+      if (freshEntry) cacheNoteContent(path, content, freshEntry)
+    })
   }, [clearUnsaved, onInternalVaultWrite, refreshEntries, reloadViews, scheduleUntitledRename])
 
   const {

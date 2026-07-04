@@ -86,6 +86,7 @@ interface RunTabSwapEffectOptions {
   editorMountedRef: MutableRefObject<boolean>
   pendingSwapRef: MutableRefObject<(() => void) | null>
   swapSeqRef: MutableRefObject<number>
+  scheduledSwapRequestRef: MutableRefObject<ScheduledSwapRequest | null>
   prevRawModeRef: MutableRefObject<boolean>
   rawSwapPendingRef: MutableRefObject<boolean>
   suppressChangeRef: MutableRefObject<boolean>
@@ -637,6 +638,12 @@ function requestNextFrame(callback: FrameRequestCallback): void {
   setTimeout(() => callback(Date.now()), 0)
 }
 
+interface ScheduledSwapRequest {
+  seq: number
+  path: string
+  content: string
+}
+
 function schedulePostPaint(callback: () => void): void {
   if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
     setTimeout(callback, 0)
@@ -800,6 +807,7 @@ function scheduleTabSwap(options: {
   clearDomSelection: boolean
   pendingSwapRef: MutableRefObject<(() => void) | null>
   swapSeqRef: MutableRefObject<number>
+  scheduledSwapRequestRef: MutableRefObject<ScheduledSwapRequest | null>
   tabsRef: MutableRefObject<Tab[]>
   prevActivePathRef: MutableRefObject<string | null>
   rawSwapPendingRef: MutableRefObject<boolean>
@@ -815,6 +823,7 @@ function scheduleTabSwap(options: {
     clearDomSelection,
     pendingSwapRef,
     swapSeqRef,
+    scheduledSwapRequestRef,
     tabsRef,
     prevActivePathRef,
     rawSwapPendingRef,
@@ -823,10 +832,23 @@ function scheduleTabSwap(options: {
     vaultPath,
   } = options
 
+  // Effect re-runs land in bursts (path change render, then tabs updates).
+  // If an identical swap is already waiting for its post-paint slot, keep it —
+  // re-scheduling would abort it and wait out another frame for no gain.
+  const scheduled = scheduledSwapRequestRef.current
+  if (scheduled
+    && scheduled.seq === swapSeqRef.current
+    && scheduled.path === targetPath
+    && scheduled.content === activeTab.content) {
+    return
+  }
+
   const token = createSwapToken(swapSeqRef, targetPath, activeTab.content)
+  scheduledSwapRequestRef.current = { seq: token.seq, path: targetPath, content: activeTab.content }
   suppressChangeRef.current = true
 
   const doSwap = () => {
+    if (scheduledSwapRequestRef.current?.seq === token.seq) scheduledSwapRequestRef.current = null
     if (shouldAbortSwap({ prevActivePathRef, suppressChangeRef, swapSeqRef, tabsRef, token })) return
     if (clearStaleSwap({ targetPath, prevActivePathRef, suppressChangeRef })) return
     rawSwapPendingRef.current = false
@@ -973,6 +995,7 @@ function runTabSwapEffect(options: RunTabSwapEffectOptions) {
     editorMountedRef,
     pendingSwapRef,
     swapSeqRef,
+    scheduledSwapRequestRef,
     prevRawModeRef,
     rawSwapPendingRef,
     suppressChangeRef,
@@ -1017,6 +1040,7 @@ function runTabSwapEffect(options: RunTabSwapEffectOptions) {
     clearDomSelection: shouldClearDomSelectionForScheduledSwap({ activeTabPath, state }),
     pendingSwapRef,
     swapSeqRef,
+    scheduledSwapRequestRef,
     tabsRef,
     prevActivePathRef,
     rawSwapPendingRef,
@@ -1038,6 +1062,7 @@ function useTabSwapEffect(options: UseTabSwapEffectOptions) {
     editorMountedRef,
     pendingSwapRef,
     swapSeqRef,
+    scheduledSwapRequestRef,
     prevRawModeRef,
     rawSwapPendingRef,
     suppressChangeRef,
@@ -1059,6 +1084,7 @@ function useTabSwapEffect(options: UseTabSwapEffectOptions) {
       prevActivePathRef,
       pendingSwapRef,
       swapSeqRef,
+      scheduledSwapRequestRef,
       prevRawModeRef,
       rawSwapPendingRef,
       suppressChangeRef,
@@ -1073,6 +1099,7 @@ function useTabSwapEffect(options: UseTabSwapEffectOptions) {
     editorMountedRef,
     pendingSwapRef,
     swapSeqRef,
+    scheduledSwapRequestRef,
     prevActivePathRef,
     prevRawModeRef,
     rawMode,
@@ -1182,6 +1209,7 @@ export function useEditorTabSwap({ tabs, activeTabPath, editor, onContentChange,
   const editorMountedRef = useRef(false)
   const pendingSwapRef = useRef<(() => void) | null>(null)
   const swapSeqRef = useRef(0)
+  const scheduledSwapRequestRef = useRef<ScheduledSwapRequest | null>(null)
   const prevRawModeRef = useRef(!!rawMode)
   const rawModeLatestRef = useLatestRef(!!rawMode)
   const rawSwapPendingRef = useRef(false)
@@ -1221,6 +1249,7 @@ export function useEditorTabSwap({ tabs, activeTabPath, editor, onContentChange,
     editorMountedRef,
     pendingSwapRef,
     swapSeqRef,
+    scheduledSwapRequestRef,
     prevRawModeRef,
     rawSwapPendingRef,
     suppressChangeRef,

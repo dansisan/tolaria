@@ -6,6 +6,7 @@ import { AUTO_SAVE_DEBOUNCE_MS, UNTITLED_RENAME_DEBOUNCE_MS } from './editorSave
 import type { VaultEntry } from '../types'
 import { isTauri } from '../mock-tauri'
 import { invoke } from '@tauri-apps/api/core'
+import { cacheNoteContent } from './useTabManagement'
 
 const { startTransitionMock } = vi.hoisted(() => ({
   startTransitionMock: vi.fn((callback: () => void) => callback()),
@@ -22,6 +23,11 @@ vi.mock('react', async (importOriginal) => {
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn().mockResolvedValue(undefined),
 }))
+vi.mock('./useTabManagement', async (importOriginal) => ({
+  ...await importOriginal<typeof import('./useTabManagement')>(),
+  cacheNoteContent: vi.fn(),
+}))
+
 vi.mock('../mock-tauri', () => ({
   isTauri: vi.fn(() => false),
   mockInvoke: vi.fn().mockResolvedValue(undefined),
@@ -398,6 +404,63 @@ describe('useAppSave', () => {
     })
 
     expect(refreshEntries).toHaveBeenCalledWith(['/vault/note.md'])
+  })
+
+  it('re-stamps the note content cache with the saved content and refreshed identity', async () => {
+    vi.mocked(isTauri).mockReturnValue(true)
+    vi.mocked(cacheNoteContent).mockClear()
+    const freshEntry = { ...makeEntry('/vault/note.md', 'Note', 'note.md'), modifiedAt: 42, fileSize: 99 }
+    const refreshEntries = vi.fn().mockResolvedValue([freshEntry])
+    const entry = makeEntry('/vault/note.md', 'Note', 'note.md')
+
+    const { result } = renderSave({
+      refreshEntries,
+      tabs: [{ entry, content: '# Note\n\nBefore' }],
+      activeTabPath: entry.path,
+      unsavedPaths: new Set([entry.path]),
+    })
+
+    await act(async () => {
+      result.current.handleContentChange(entry.path, '# Note\n\nAfter')
+      await result.current.handleSave()
+    })
+
+    expect(cacheNoteContent).toHaveBeenCalledWith('/vault/note.md', '# Note\n\nAfter', freshEntry)
+  })
+
+  it('does not stamp the content cache when a newer save superseded the refresh', async () => {
+    vi.mocked(isTauri).mockReturnValue(true)
+    vi.mocked(cacheNoteContent).mockClear()
+    const freshEntry = { ...makeEntry('/vault/note.md', 'Note', 'note.md'), modifiedAt: 42, fileSize: 99 }
+    const firstRefresh = createDeferred<Array<VaultEntry | null>>()
+    const refreshEntries = vi.fn()
+      .mockReturnValueOnce(firstRefresh.promise)
+      .mockResolvedValue([freshEntry])
+    const entry = makeEntry('/vault/note.md', 'Note', 'note.md')
+
+    const { result } = renderSave({
+      refreshEntries,
+      tabs: [{ entry, content: '# Note\n\nBefore' }],
+      activeTabPath: entry.path,
+      unsavedPaths: new Set([entry.path]),
+    })
+
+    await act(async () => {
+      result.current.handleContentChange(entry.path, '# Note\n\nFirst')
+      await result.current.handleSave()
+      result.current.handleContentChange(entry.path, '# Note\n\nSecond')
+      await result.current.handleSave()
+      firstRefresh.resolve([freshEntry])
+      await firstRefresh.promise
+    })
+
+    // useSaveNote also stamps identity-less on every save; only the
+    // identity-carrying stamps (with a refreshed entry) matter here.
+    const stampedContents = vi.mocked(cacheNoteContent).mock.calls
+      .filter(([, , stampedEntry]) => stampedEntry)
+      .map(([, content]) => content)
+    expect(stampedContents).not.toContain('# Note\n\nFirst')
+    expect(stampedContents).toContain('# Note\n\nSecond')
   })
 
   it('debounces untitled H1 auto-rename until the user pauses typing', async () => {

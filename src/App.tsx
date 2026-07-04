@@ -691,14 +691,16 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
   // rescanning the whole vault.
   const updateVaultEntry = vault.updateEntry
   const refreshVaultEntries = useCallback(async (paths: string[]) => {
-    await Promise.all(paths.map(async (path) => {
+    return Promise.all(paths.map(async (path) => {
       try {
         const entry = isTauri()
           ? await invoke<VaultEntry>('reload_vault_entry', { path })
           : await mockInvoke<VaultEntry>('reload_vault_entry', { path })
         updateVaultEntry(path, entry)
+        return entry
       } catch {
         // Leave the entry stale; the next natural vault reload reconciles it.
+        return null
       }
     }))
   }, [updateVaultEntry])
