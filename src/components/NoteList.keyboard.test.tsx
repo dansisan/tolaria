@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { LIKELY_NEXT_PRELOAD_LIMIT } from './note-list/useNoteListModel'
 import { NoteList } from './NoteList'
 import {
   allSelection,
@@ -136,6 +137,32 @@ describe('NoteList keyboard activation', () => {
     })
   })
 
+  it('moves the selected styling with the keyboard cursor before the open commits', async () => {
+    // Freeze selectedNote to simulate the open pipeline still being in flight:
+    // the row the cursor moved to must already read as the active selection.
+    const onOpen = vi.fn()
+    render(
+      <NoteListKeyboardHarness
+        onOpen={onOpen}
+        selectedNoteOverride={mockEntries[0]}
+        initialSelectedNote={mockEntries[0]}
+      />,
+    )
+
+    const container = screen.getByTestId('note-list-container')
+    fireEvent.click(container)
+    fireEvent.keyDown(container, { key: 'ArrowDown' })
+
+    await waitFor(() => {
+      const rows = screen.getAllByRole('option')
+      const selectedTitles = rows
+        .filter((row) => row.getAttribute('aria-selected') === 'true')
+        .map((row) => row.textContent)
+      expect(selectedTitles).toHaveLength(1)
+      expect(selectedTitles[0]).toContain(mockEntries[1].title)
+    })
+  })
+
   it('prefetches note content on hover so click opens can use the warm path', () => {
     const prefetchSpy = vi.spyOn(tabManagement, 'prefetchNoteContent').mockImplementation(() => {})
     render(<NoteListKeyboardHarness onOpen={vi.fn()} />)
@@ -165,10 +192,10 @@ describe('NoteList keyboard activation', () => {
       )
 
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(1_500)
+        await vi.advanceTimersByTimeAsync(5_000)
       })
 
-      expect(prefetchSpy).toHaveBeenCalledTimes(6)
+      expect(prefetchSpy).toHaveBeenCalledTimes(LIKELY_NEXT_PRELOAD_LIMIT)
       expect(prefetchSpy.mock.calls[0][1]).toEqual({ parsedBlockPreload: true })
       for (const call of prefetchSpy.mock.calls.slice(1)) {
         expect(call[1]).toEqual({ parsedBlockPreload: false })
@@ -184,10 +211,10 @@ describe('NoteList keyboard activation', () => {
       )
 
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(1_500)
+        await vi.advanceTimersByTimeAsync(5_000)
       })
 
-      expect(prefetchSpy).toHaveBeenCalledTimes(6)
+      expect(prefetchSpy).toHaveBeenCalledTimes(LIKELY_NEXT_PRELOAD_LIMIT)
       expect(prefetchSpy.mock.calls[0][1]).toEqual({ parsedBlockPreload: true })
       for (const call of prefetchSpy.mock.calls.slice(1)) {
         expect(call[1]).toEqual({ parsedBlockPreload: false })

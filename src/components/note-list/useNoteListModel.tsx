@@ -39,10 +39,10 @@ import { addNoteListSearchToggleListener, dispatchNoteListSearchAvailability } f
 import { useDateDisplayFormat } from '../../hooks/useAppPreferences'
 
 type EntitySelection = Extract<SidebarSelection, { kind: 'entity' }>
-const LIKELY_NEXT_PRELOAD_LIMIT = 6
-const ADJACENT_PRELOAD_RADIUS = 3
-const LIKELY_NEXT_PRELOAD_START_DELAY_MS = 350
-const LIKELY_NEXT_PRELOAD_STEP_DELAY_MS = 180
+export const LIKELY_NEXT_PRELOAD_LIMIT = 16
+const ADJACENT_PRELOAD_RADIUS = 8
+const LIKELY_NEXT_PRELOAD_START_DELAY_MS = 250
+const LIKELY_NEXT_PRELOAD_STEP_DELAY_MS = 120
 
 function useViewFlags(selection: SidebarSelection) {
   const isSectionGroup = selection.kind === 'sectionGroup'
@@ -504,12 +504,16 @@ function useRenderItem({
   const sortedByModified = listSort === 'modified'
   const contextMenuHandler = isChangesView && onDiscardFile ? changesContextMenu : noteListContextMenu
 
-  return useCallback((entry: VaultEntry, options?: { forceSelected?: boolean }) => (
-    isDeletedNoteEntry(entry) ? (
+  return useCallback((entry: VaultEntry, options?: { forceSelected?: boolean }) => {
+    // The keyboard cursor always opens the note it lands on, so the selected
+    // styling follows it immediately instead of waiting for the open to
+    // commit (the visible grey-then-blue flash during rapid arrow browsing).
+    const visualSelectedPath = noteListKeyboard.highlightedPath ?? selectedNotePath
+    return isDeletedNoteEntry(entry) ? (
       <NoteItem
         key={entry.path}
         entry={entry}
-        isSelected={options?.forceSelected || selectedNotePath === entry.path}
+        isSelected={options?.forceSelected || visualSelectedPath === entry.path}
         isMultiSelected={multiSelect.selectedPaths.has(entry.path)}
         isMultiSelectActive={multiSelect.bulkMode}
         isHighlighted={entry.path === noteListKeyboard.highlightedPath}
@@ -527,7 +531,7 @@ function useRenderItem({
       <NoteItem
         key={entry.path}
         entry={entry}
-        isSelected={options?.forceSelected || selectedNotePath === entry.path}
+        isSelected={options?.forceSelected || visualSelectedPath === entry.path}
         isMultiSelected={multiSelect.selectedPaths.has(entry.path)}
         isMultiSelectActive={multiSelect.bulkMode}
         isHighlighted={entry.path === noteListKeyboard.highlightedPath}
@@ -543,7 +547,7 @@ function useRenderItem({
         onContextMenu={contextMenuHandler}
       />
     )
-  ), [
+  }, [
     contextMenuHandler,
     displayPropsOverride,
     entries,
@@ -551,9 +555,9 @@ function useRenderItem({
     handleClickNote,
     multiSelect.bulkMode,
     multiSelect.selectedPaths,
-    noteListKeyboard.highlightedPath,
     noteListKeyboard.isPanelActive,
     resolvedGetNoteStatus,
+    noteListKeyboard.highlightedPath,
     selectedNotePath,
     sortedByModified,
     typeEntryMap,

@@ -9,9 +9,12 @@ export interface ParsedNoteBlockCacheEntry {
   vaultPath?: string
 }
 
-export const PARSED_NOTE_BLOCK_CACHE_LIMIT = 6
-export const PARSED_NOTE_BLOCK_ENTRY_MAX_BYTES = 768 * 1024
-export const PARSED_NOTE_BLOCK_CACHE_MAX_SOURCE_BYTES = 3 * 1024 * 1024
+// Deliberately generous: parsed blocks are what make revisits instant, and
+// even a large personal vault's working set fits comfortably in memory on a
+// desktop app (~64 notes x ~1MB source ceiling).
+export const PARSED_NOTE_BLOCK_CACHE_LIMIT = 64
+export const PARSED_NOTE_BLOCK_ENTRY_MAX_BYTES = 1024 * 1024
+export const PARSED_NOTE_BLOCK_CACHE_MAX_SOURCE_BYTES = 32 * 1024 * 1024
 
 const parsedBlockCache = new Map<string, ParsedNoteBlockCacheEntry>()
 const sourceSizeEncoder = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null

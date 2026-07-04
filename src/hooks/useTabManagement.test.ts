@@ -498,6 +498,30 @@ describe('useTabManagement (single-note model)', () => {
       expect(result.current.tabs[0].content).toBe('# Fresh after pull')
     })
 
+    it('applies trusted cached content in a single render without a disk read', async () => {
+      const entry = makeEntry({ path: '/vault/cached-sync.md', title: 'Cached', modifiedAt: 10, fileSize: 20 })
+      cacheNoteContent(entry.path, '# Cached body', entry)
+
+      let renders = 0
+      const { result } = renderHook(() => {
+        renders += 1
+        return useTabManagement()
+      })
+      await selectNote(result, { path: '/vault/other.md', title: 'Other' })
+      vi.mocked(mockInvoke).mockClear()
+      const rendersBefore = renders
+
+      await act(async () => {
+        await result.current.handleReplaceActiveTab(entry)
+      })
+
+      expect(result.current.activeTabPath).toBe(entry.path)
+      expect(result.current.tabs).toHaveLength(1)
+      expect(result.current.tabs[0].content).toBe('# Cached body')
+      expect(vi.mocked(mockInvoke)).not.toHaveBeenCalled()
+      expect(renders - rendersBefore).toBeLessThanOrEqual(1)
+    })
+
     it('reloads content when replacing with the same entry', async () => {
       vi.mocked(mockInvoke)
         .mockResolvedValueOnce('# Stale before pull')

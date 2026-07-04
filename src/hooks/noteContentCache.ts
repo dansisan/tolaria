@@ -47,9 +47,11 @@ const prefetchQueue: NoteContentCacheEntry[] = []
 const resolvedListeners = new Set<NoteContentResolvedListener>()
 const contentSizeEncoder = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null
 
-export const NOTE_CONTENT_CACHE_LIMIT = 24
-export const NOTE_CONTENT_ENTRY_MAX_BYTES = 1024 * 1024
-export const NOTE_CONTENT_CACHE_MAX_BYTES = 8 * 1024 * 1024
+// Deliberately generous: raw note text is cheap (a whole large vault is tens
+// of MB) and every cached note skips a disk round-trip on open.
+export const NOTE_CONTENT_CACHE_LIMIT = 512
+export const NOTE_CONTENT_ENTRY_MAX_BYTES = 4 * 1024 * 1024
+export const NOTE_CONTENT_CACHE_MAX_BYTES = 96 * 1024 * 1024
 export const NOTE_CONTENT_PREFETCH_CONCURRENCY = 4
 const NOTE_CONTENT_REQUEST_CANCELED = 'Note content request canceled'
 const NOTE_CONTENT_LOAD_RETRY_DELAYS_MS = [120, 320, 800] as const
@@ -463,6 +465,21 @@ async function loadCachedContentIfFresh(entry: VaultEntry, cachedEntry: NoteCont
   }
   prefetchCache.delete(entry.path)
   return null
+}
+
+/**
+ * Synchronous trusted-cache read: returns the remembered content when the
+ * entry's on-disk identity (mtime/size) matches the cached one, letting a
+ * note switch set the active path and tab content in a single render
+ * instead of paying a second app-wide render after an async hop.
+ */
+export function readTrustedNoteContentSync(entry: VaultEntry): string | null {
+  const cachedEntry = prefetchCache.get(entry.path)
+  if (!cachedEntry || cachedEntry.value === null) return null
+  if (!matchesCachedContentVault(entry, cachedEntry)) return null
+  if (!canTrustCachedContentIdentity(entry, cachedEntry)) return null
+  rememberNoteContent(cachedEntry)
+  return cachedEntry.value
 }
 
 export async function loadContentForOpen(options: {

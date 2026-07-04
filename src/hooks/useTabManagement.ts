@@ -14,6 +14,7 @@ import {
   isNoActiveVaultSelectedError,
   isUnreadableNoteContentError,
   loadContentForOpen,
+  readTrustedNoteContentSync,
   NOTE_CONTENT_CACHE_LIMIT,
   NOTE_CONTENT_CACHE_MAX_BYTES,
   NOTE_CONTENT_ENTRY_MAX_BYTES,
@@ -455,6 +456,23 @@ async function loadTextEntry(options: Required<Pick<NavigateToEntryOptions, 'for
   }
 }
 
+/** Trusted cache hit: set the active path and tab content in one commit, so
+ * the switch costs a single app render instead of two. */
+function applyTrustedCachedEntry(options: NavigateToEntryOptions): boolean {
+  const { entry, navSeqRef, tabsRef, activeTabPathRef, setTabs, setActiveTabPath } = options
+  // Same-path reopens are read-only (they must not overwrite the tab's entry
+  // with possibly-stale list metadata); only genuine switches take this path.
+  if (notePathsMatch(entry.path, activeTabPathRef.current)) return false
+  const content = readTrustedNoteContentSync(entry)
+  if (content === null) return false
+
+  startEntryNavigation({ entry, navSeqRef, activeTabPathRef, setActiveTabPath })
+  markNoteOpenTrace(entry.path, 'contentLoadStart')
+  markNoteOpenTrace(entry.path, 'contentLoadEnd')
+  setSingleTab(tabsRef, setTabs, { entry, content })
+  return true
+}
+
 async function navigateToEntry(options: NavigateToEntryOptions) {
   const forceReload = options.forceReload ?? false
 
@@ -464,6 +482,7 @@ async function navigateToEntry(options: NavigateToEntryOptions) {
   }
 
   if (!forceReload && reopenAlreadyViewingEntry(options)) return
+  if (!forceReload && applyTrustedCachedEntry(options)) return
 
   await loadTextEntry({ ...options, forceReload })
 }

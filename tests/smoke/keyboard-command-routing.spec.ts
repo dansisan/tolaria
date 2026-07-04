@@ -122,6 +122,10 @@ test.describe('keyboard command routing', () => {
     await openFixtureVaultDesktopHarness(page, tempVaultDir)
     await triggerMenuCommand(page, APP_COMMAND_IDS.fileNewNote)
 
+    // New notes focus the breadcrumb filename input for naming; leave it to
+    // read the untitled stem from the trigger.
+    await expect(page.getByTestId('breadcrumb-filename-input')).toBeFocused({ timeout: 5_000 })
+    await page.keyboard.press('Escape')
     await expect(page.getByTestId('breadcrumb-filename-trigger')).toContainText(/untitled-note-\d+/i, { timeout: 5_000 })
     await expectRuntimeStyleNonce(page)
     expect(runtimeStyleCspSignals).toEqual([])

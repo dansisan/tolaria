@@ -644,17 +644,6 @@ interface ScheduledSwapRequest {
   content: string
 }
 
-function schedulePostPaint(callback: () => void): void {
-  if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
-    setTimeout(callback, 0)
-    return
-  }
-
-  window.requestAnimationFrame(() => {
-    window.setTimeout(callback, 0)
-  })
-}
-
 function clearStaleSwap(options: {
   targetPath: string
   prevActivePathRef: MutableRefObject<string | null>,
@@ -897,7 +886,11 @@ function scheduleTabSwap(options: {
   }
 
   if (editor.prosemirrorView) {
-    schedulePostPaint(doSwap)
+    // A microtask escapes the React effect stack (BlockNote's replaceBlocks
+    // uses flushSync, which is illegal inside an effect) without spending the
+    // 1-2 frames a post-paint rAF+setTimeout hop costs: cache-hit revisits
+    // apply before first paint instead of two frames after it.
+    queueMicrotask(doSwap)
     return
   }
   pendingSwapRef.current = doSwap

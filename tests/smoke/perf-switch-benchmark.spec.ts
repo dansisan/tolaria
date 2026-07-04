@@ -142,10 +142,32 @@ test('@smoke benchmark: large-note switch and typing latency', async ({ page }) 
       }
     }
 
+    const editedRevisitEnd = perfLines.length
+
+    // E: rapid succession — burst through the rotation without settling,
+    // measuring burst start -> final note's content visible.
+    const burstTimes: number[] = []
+    for (let round = 0; round < 3; round += 1) {
+      const start = Date.now()
+      for (const [title] of ROTATION) {
+        await page.getByTestId('note-list-container').getByText(title, { exact: true }).click()
+        await page.waitForTimeout(60)
+      }
+      const [, lastMarker] = ROTATION[ROTATION.length - 1]
+      await expect(page.locator('.bn-editor')).toContainText(`UNIQUE-MARKER: ${lastMarker}`, { timeout: 30_000 })
+      burstTimes.push(Date.now() - start)
+      await page.waitForTimeout(400)
+    }
+
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('Performance.enable')
+    const { metrics } = await cdp.send('Performance.getMetrics')
+    const heapMb = (metrics.find((metric) => metric.name === 'JSHeapUsedSize')?.value ?? 0) / (1024 * 1024)
+
     const samples = perfLines.map(parsePerfLine).filter((sample): sample is NoteOpenSample => sample !== null)
     const firstVisits = samples.slice(0, firstVisitEnd)
     const cleanRevisits = samples.slice(firstVisitEnd, cleanRevisitEnd)
-    const editedSamples = samples.slice(cleanRevisitEnd)
+    const editedSamples = samples.slice(cleanRevisitEnd, editedRevisitEnd)
     // The first edited-round visit to each note is still a clean revisit
     // (nothing edited yet when it opens); everything after is post-edit.
     const editedRevisits = editedSamples.slice(ROTATION.length)
@@ -164,6 +186,8 @@ test('@smoke benchmark: large-note switch and typing latency', async ({ page }) 
           max: quantile(keystrokes, 1),
         },
         'D revisit-edited': summarizeSwitches(editedRevisits),
+        'E rapid-burst-to-settle ms': { runs: burstTimes, p50: quantile(burstTimes, 0.5) },
+        jsHeapUsedMb: Number(heapMb.toFixed(1)),
       },
       byNoteEdited: Object.fromEntries(ROTATION.map(([title]) => {
         const slug = title.toLowerCase().replace(/ /g, '-')
@@ -179,6 +203,8 @@ test('@smoke benchmark: large-note switch and typing latency', async ({ page }) 
     const typing = report.conditions['C typing keydown->frame ms']
     console.log(`C typing         : p50=${typing.p50.toFixed(1)} p95=${typing.p95.toFixed(1)} max=${typing.max.toFixed(1)} (n=${typing.n})`)
     console.log(formatSwitchRow('D revisit-edited', report.conditions['D revisit-edited']))
+    console.log(`E rapid-burst     : settle p50=${quantile(burstTimes, 0.5).toFixed(0)}ms runs=[${burstTimes.map((t) => t.toFixed(0)).join(', ')}]`)
+    console.log(`JS heap           : ${heapMb.toFixed(1)}MB`)
   } finally {
     removeFixtureVaultCopy(vaultDir)
   }
