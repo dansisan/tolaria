@@ -1,0 +1,70 @@
+{
+  "generatedAt": "2026-07-04T20:41:55.499Z",
+  "note": "Browser dev harness; dev-build React inflates absolutes. Compare runs, not absolutes.",
+  "conditions": {
+    "A first-visit": {
+      "n": 5,
+      "totalP50": 352.2,
+      "totalP90": 425.8,
+      "contentLoadP50": 63.1,
+      "editorSwapP50": 247.6
+    },
+    "B revisit-clean": {
+      "n": 10,
+      "totalP50": 238.4,
+      "totalP90": 329.4,
+      "contentLoadP50": 97.5,
+      "editorSwapP50": 156.3
+    },
+    "C typing keydown->frame ms": {
+      "n": 120,
+      "p50": 2.9000000059604645,
+      "p95": 19.5,
+      "max": 24.100000008940697
+    },
+    "D revisit-edited": {
+      "n": 10,
+      "totalP50": 331.9,
+      "totalP90": 432.8,
+      "contentLoadP50": 49.8,
+      "editorSwapP50": 166.2
+    }
+  },
+  "byNoteEdited": {
+    "Big Note A": {
+      "n": 2,
+      "totalP50": 215.9,
+      "totalP90": 215.9,
+      "contentLoadP50": 30,
+      "editorSwapP50": 94.7
+    },
+    "Big Note B": {
+      "n": 2,
+      "totalP50": 378.2,
+      "totalP90": 378.2,
+      "contentLoadP50": 49.8,
+      "editorSwapP50": 198.2
+    },
+    "Giant Block": {
+      "n": 2,
+      "totalP50": 432.8,
+      "totalP90": 432.8,
+      "contentLoadP50": 143.4,
+      "editorSwapP50": 174.1
+    },
+    "Big Note C": {
+      "n": 2,
+      "totalP50": 383.4,
+      "totalP90": 383.4,
+      "contentLoadP50": 52.3,
+      "editorSwapP50": 252.5
+    },
+    "Small Control": {
+      "n": 2,
+      "totalP50": 331.9,
+      "totalP90": 331.9,
+      "contentLoadP50": 55.5,
+      "editorSwapP50": 140.2
+    }
+  }
+}
