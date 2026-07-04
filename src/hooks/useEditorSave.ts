@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import type { SetStateAction } from 'react'
+import { AUTO_SAVE_DEBOUNCE_MS } from './editorSaveTiming'
 import { useSaveNote } from './useSaveNote'
 import { createTranslator, type AppLocale } from '../lib/i18n'
 import { canWritePathToVault } from '../utils/vaultPathContainment'
@@ -37,7 +38,7 @@ interface EditorSaveConfig {
  */
 const noop = () => {}
 
-export const AUTO_SAVE_DEBOUNCE_MS = 1_500
+export { AUTO_SAVE_DEBOUNCE_MS }
 export const MISSING_ACTIVE_VAULT_SAVE_MESSAGE = 'Select or restore a vault before saving.'
 type Translator = ReturnType<typeof createTranslator>
 

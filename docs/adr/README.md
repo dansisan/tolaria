@@ -154,7 +154,7 @@ proposed → active → superseded
 | [0099](0099-cumulative-vault-asset-scope.md) | Cumulative vault asset scope for previews | active |
 | [0100](0100-synthetic-vault-root-folder-row.md) | Synthetic vault-root row in folder navigation | active |
 | [0101](0101-categorical-product-analytics-events.md) | Categorical product analytics events | active |
-| [0102](0102-low-end-safe-autosave-idle-window.md) | Low-end-safe autosave idle window | active |
+| [0102](0102-low-end-safe-autosave-idle-window.md) | Low-end-safe autosave idle window | superseded → [0136](0136-wider-autosave-idle-window.md) |
 | [0103](0103-adapter-specific-ai-permission-semantics.md) | Adapter-specific AI permission semantics | active |
 | [0104](0104-tauri-frontend-readiness-watchdog.md) | Tauri frontend readiness watchdog | active |
 | [0105](0105-editor-correctness-and-responsiveness-contract.md) | Editor correctness and responsiveness contract | active |
@@ -187,3 +187,4 @@ proposed → active → superseded
 | [0133](0133-request-scoped-ai-stream-events.md) | Request-scoped AI stream event channels | active |
 | [0134](0134-direct-shiki-language-registrations.md) | Direct Shiki language registrations for code blocks | active |
 | [0135](0135-single-newline-line-break-convention.md) | Single newline renders as a line break (notes-markdown convention) | active |
+| [0136](0136-wider-autosave-idle-window.md) | Wider autosave idle window | active |

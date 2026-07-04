@@ -1950,7 +1950,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     onPastePlainText: pastePlainTextCommand,
     onCreateNote: notes.handleCreateNoteImmediate,
     onCreateNoteOfType: notes.handleCreateNoteImmediate,
-    onSave: appSave.handleSave,
+    onSave: handleTrackedSave,
     onCloseNote: handleCloseActiveNote,
     onUndo: undoCommand,
     onRedo: redoCommand,

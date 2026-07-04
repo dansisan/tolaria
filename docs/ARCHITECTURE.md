@@ -263,7 +263,7 @@ The AI workspace can also open in a separate Tauri window through `openAiWorkspa
 **Architecture:**
 - `openNoteInNewWindow()` (`src/utils/openNoteWindow.ts`) creates a new `WebviewWindow` via the Tauri v2 JS API with URL query params (`?window=note&path=...&vault=...&title=...`)
 - `main.tsx` always mounts `App`; `App` checks `isNoteWindow()` at startup, keeps normal vault/workspace loading active, and `useNoteWindowLifecycle` opens the requested note after the app graph is ready
-- Each window has its own auto-save via `useEditorSaveWithLinks` (same 1.5s low-end-safe idle debounce, same Rust `save_note_content` command), and raw-editor typing also derives frontmatter-backed `VaultEntry` state in the renderer so Inspector and note-list surfaces react immediately without waiting for a full reload
+- Each window has its own auto-save via `useEditorSaveWithLinks` (same 30s backstop idle debounce — `AUTO_SAVE_DEBOUNCE_MS`, ADR-0136 — same Rust `save_note_content` command), and raw-editor typing also derives frontmatter-backed `VaultEntry` state in the renderer so Inspector and note-list surfaces react immediately without waiting for a full reload
 - Secondary windows are sized 800×700; macOS keeps the overlay title bar, while Linux mounts the shared React titlebar on undecorated windows
 - Capabilities config (`src-tauri/capabilities/default.json`) grants permissions to both `main` and `note-*` window labels
 

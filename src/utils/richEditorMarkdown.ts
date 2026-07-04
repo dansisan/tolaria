@@ -19,6 +19,28 @@ export function serializeRichEditorBodyToMarkdown(
   )
 }
 
+const cachedBodyByDoc = new WeakMap<object, string>()
+
+/**
+ * Body serialization with a cache keyed on ProseMirror doc identity. Doc
+ * nodes are immutable — every edit produces a new node — so a cache hit
+ * means the body cannot have changed. Render-path comparisons (tab-swap
+ * stability checks) call this repeatedly with an unchanged doc and would
+ * otherwise re-serialize the whole note on every app-wide render.
+ */
+export function serializeRichEditorBodyToMarkdownCached(
+  editor: ReturnType<typeof useCreateBlockNote>,
+): string {
+  const doc: object | undefined = editor.prosemirrorState?.doc
+  if (!doc) return serializeRichEditorBodyToMarkdown(editor)
+
+  const cached = cachedBodyByDoc.get(doc)
+  if (cached !== undefined) return cached
+  const serialized = serializeRichEditorBodyToMarkdown(editor)
+  cachedBodyByDoc.set(doc, serialized)
+  return serialized
+}
+
 export function serializeRichEditorDocumentToMarkdown(
   editor: ReturnType<typeof useCreateBlockNote>,
   tabContent: string,

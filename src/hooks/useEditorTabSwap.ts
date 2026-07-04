@@ -4,7 +4,7 @@ import type { VaultEntry } from '../types'
 import { compactMarkdown } from '../utils/compact-markdown'
 import { failNoteOpenTrace, finishNoteOpenTrace } from '../utils/noteOpenPerformance'
 import {
-  serializeRichEditorBodyToMarkdown,
+  serializeRichEditorBodyToMarkdownCached,
   serializeRichEditorDocumentToMarkdown,
 } from '../utils/richEditorMarkdown'
 import { useEditorMountState, useLatestRef } from './editorTabSwapLifecycle'
@@ -124,7 +124,7 @@ function findActiveTab(options: {
 }
 
 function serializeEditorBody(editor: ReturnType<typeof useCreateBlockNote>): string {
-  return serializeRichEditorBodyToMarkdown(editor)
+  return serializeRichEditorBodyToMarkdownCached(editor)
 }
 
 function trySerializeEditorBody(

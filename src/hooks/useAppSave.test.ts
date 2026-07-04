@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import type { SetStateAction } from 'react'
 import { useAppSave } from './useAppSave'
-import { AUTO_SAVE_DEBOUNCE_MS } from './useEditorSave'
+import { AUTO_SAVE_DEBOUNCE_MS, UNTITLED_RENAME_DEBOUNCE_MS } from './editorSaveTiming'
 import type { VaultEntry } from '../types'
 import { isTauri } from '../mock-tauri'
 import { invoke } from '@tauri-apps/api/core'
@@ -431,7 +431,7 @@ describe('useAppSave', () => {
     expect(vi.mocked(invoke)).not.toHaveBeenCalledWith('auto_rename_untitled', expect.anything())
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(2_499)
+      await vi.advanceTimersByTimeAsync(UNTITLED_RENAME_DEBOUNCE_MS - 1)
     })
     expect(vi.mocked(invoke)).not.toHaveBeenCalledWith('auto_rename_untitled', expect.anything())
 
@@ -511,7 +511,7 @@ describe('useAppSave', () => {
 
     await act(async () => {
       result.current.handleContentChange(entry.path, '# Fresh Title\n\nBody')
-      await vi.advanceTimersByTimeAsync(AUTO_SAVE_DEBOUNCE_MS + 2_500)
+      await vi.advanceTimersByTimeAsync(AUTO_SAVE_DEBOUNCE_MS + UNTITLED_RENAME_DEBOUNCE_MS)
     })
 
     expect(vi.mocked(invoke)).not.toHaveBeenCalledWith('auto_rename_untitled', expect.anything())
@@ -523,7 +523,7 @@ describe('useAppSave', () => {
 
     await act(async () => {
       result.current.handleContentChange('/vault/untitled-note-123.md', '# Fresh Title\n\nBody')
-      await vi.advanceTimersByTimeAsync(AUTO_SAVE_DEBOUNCE_MS + 2_500)
+      await vi.advanceTimersByTimeAsync(AUTO_SAVE_DEBOUNCE_MS + UNTITLED_RENAME_DEBOUNCE_MS)
     })
 
     expect(deps.handleSwitchTab).toHaveBeenCalledWith(newPath)
@@ -537,7 +537,7 @@ describe('useAppSave', () => {
 
     await act(async () => {
       result.current.handleContentChange('/vault/untitled-note-123.md', '# Fresh Title\n\nBody')
-      await vi.advanceTimersByTimeAsync(AUTO_SAVE_DEBOUNCE_MS + 2_500)
+      await vi.advanceTimersByTimeAsync(AUTO_SAVE_DEBOUNCE_MS + UNTITLED_RENAME_DEBOUNCE_MS)
     })
 
     expect(startTransitionMock).toHaveBeenCalled()
@@ -572,7 +572,7 @@ describe('useAppSave', () => {
     rerender({ currentActiveTabPath: '/vault/other.md' })
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(2_500)
+      await vi.advanceTimersByTimeAsync(UNTITLED_RENAME_DEBOUNCE_MS)
     })
 
     expect(vi.mocked(invoke)).not.toHaveBeenCalledWith('auto_rename_untitled', expect.anything())
@@ -583,7 +583,7 @@ describe('useAppSave', () => {
 
     await act(async () => {
       result.current.handleContentChange(oldPath, '# Fresh Title\n\nBody')
-      await vi.advanceTimersByTimeAsync(AUTO_SAVE_DEBOUNCE_MS + 2_500)
+      await vi.advanceTimersByTimeAsync(AUTO_SAVE_DEBOUNCE_MS + UNTITLED_RENAME_DEBOUNCE_MS)
     })
 
     await act(async () => {
@@ -779,7 +779,7 @@ describe('useAppSave', () => {
     })
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(2_500)
+      await vi.advanceTimersByTimeAsync(UNTITLED_RENAME_DEBOUNCE_MS)
     })
 
     expect(deps.replaceEntry).toHaveBeenCalledWith(
@@ -796,7 +796,7 @@ describe('useAppSave', () => {
 
     await act(async () => {
       result.current.handleContentChange(oldPath, '# Fresh Title\n\nBody')
-      await vi.advanceTimersByTimeAsync(AUTO_SAVE_DEBOUNCE_MS + 2_500)
+      await vi.advanceTimersByTimeAsync(AUTO_SAVE_DEBOUNCE_MS + UNTITLED_RENAME_DEBOUNCE_MS)
     })
 
     expect(deps.onInternalVaultWrite).toHaveBeenCalledWith(oldPath)
@@ -900,7 +900,7 @@ describe('useAppSave', () => {
 
     await act(async () => {
       result.current.handleContentChange(oldPath, initialContent)
-      await vi.advanceTimersByTimeAsync(AUTO_SAVE_DEBOUNCE_MS + 2_500)
+      await vi.advanceTimersByTimeAsync(AUTO_SAVE_DEBOUNCE_MS + UNTITLED_RENAME_DEBOUNCE_MS)
     })
 
     const saveCallsBeforeRename = vi.mocked(invoke).mock.calls.filter(([command]) => command === 'save_note_content')

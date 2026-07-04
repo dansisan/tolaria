@@ -1,8 +1,20 @@
 import fs from 'fs'
 import { test, expect, type Page } from '@playwright/test'
 import { APP_COMMAND_IDS } from '../../src/hooks/appCommandCatalog'
-import { createFixtureVaultCopy, openFixtureVaultTauri, removeFixtureVaultCopy } from '../helpers/fixtureVault'
+import { RICH_EDITOR_CHANGE_DEBOUNCE_MS } from '../../src/hooks/editorChangeDebounce'
+import {
+  createFixtureVaultCopy,
+  FIXTURE_AUTOSAVE_IDLE_MS,
+  FIXTURE_UNTITLED_RENAME_MS,
+  openFixtureVaultTauri,
+  removeFixtureVaultCopy,
+} from '../helpers/fixtureVault'
 import { triggerMenuCommand, triggerShortcutCommand } from './testBridge'
+
+// Idle rename lands after flush + autosave + rename debounce (fixture-scaled
+// via __TOLARIA_AUTOSAVE_IDLE_MS); polls need headroom past that.
+const RENAME_SETTLE_TIMEOUT_MS =
+  RICH_EDITOR_CHANGE_DEBOUNCE_MS + FIXTURE_AUTOSAVE_IDLE_MS + FIXTURE_UNTITLED_RENAME_MS + 8_000
 
 function markdownFiles(vaultPath: string): string[] {
   return fs.readdirSync(vaultPath).filter((name) => name.endsWith('.md')).sort()
@@ -50,24 +62,24 @@ async function writeNewHeadingAndBody(page: Page, title: string, body: string): 
 async function expectRenamedFile({ vaultPath, filename }: FileExpectation): Promise<void> {
   await expect(async () => {
     expect(markdownFiles(vaultPath)).toContain(filename)
-  }).toPass({ timeout: 10_000 })
+  }).toPass({ timeout: RENAME_SETTLE_TIMEOUT_MS })
 }
 
 async function expectFileMissing({ vaultPath, filename }: FileExpectation): Promise<void> {
   await expect(async () => {
     expect(markdownFiles(vaultPath)).not.toContain(filename)
-  }).toPass({ timeout: 10_000 })
+  }).toPass({ timeout: RENAME_SETTLE_TIMEOUT_MS })
 }
 
 async function expectFileContentContains({ vaultPath, filename, text }: FileContentExpectation): Promise<void> {
   await expect(async () => {
     const content = fs.readFileSync(`${vaultPath}/${filename}`, 'utf-8')
     expect(content).toContain(text)
-  }).toPass({ timeout: 10_000 })
+  }).toPass({ timeout: RENAME_SETTLE_TIMEOUT_MS })
 }
 
 async function expectActiveFilename(page: Page, filenameStem: string): Promise<void> {
-  await expect(page.getByTestId('breadcrumb-filename-trigger')).toContainText(filenameStem, { timeout: 10_000 })
+  await expect(page.getByTestId('breadcrumb-filename-trigger')).toContainText(filenameStem, { timeout: RENAME_SETTLE_TIMEOUT_MS })
 }
 
 async function expectEditorFocused(page: Page): Promise<void> {
@@ -425,7 +437,7 @@ test('@smoke new-note H1 auto-rename does not recreate the untitled file when a 
   expect(untitledStem).toMatch(/^untitled-note-\d+(?:-\d+)?$/i)
 
   await writeNewHeading(page, title)
-  await page.waitForTimeout(2_600)
+  await page.waitForTimeout(RICH_EDITOR_CHANGE_DEBOUNCE_MS + FIXTURE_AUTOSAVE_IDLE_MS + 600)
   await page.keyboard.type(lateBody)
 
   await expectActiveFilename(page, 'late-save-guard')

@@ -1,6 +1,7 @@
 import { startTransition, useCallback, useEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useEditorSaveWithLinks } from './useEditorSaveWithLinks'
+import { UNTITLED_RENAME_DEBOUNCE_MS } from './editorSaveTiming'
 import { flushEditorContent } from '../utils/autoSave'
 import { extractH1TitleFromContent } from '../utils/noteTitle'
 import { isTauri } from '../mock-tauri'
@@ -15,7 +16,6 @@ interface TabState {
   content: string
 }
 
-const UNTITLED_RENAME_DEBOUNCE_MS = 2500
 
 interface PendingUntitledRename {
   path: string

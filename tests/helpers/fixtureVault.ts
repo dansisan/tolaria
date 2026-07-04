@@ -6,6 +6,14 @@ import type { FolderNode } from '../../src/types'
 import { installFixtureVaultDesktopBridgeInBrowser } from './fixtureVaultDesktopBridge'
 
 const FIXTURE_VAULT = path.resolve('tests/fixtures/test-vault')
+
+/**
+ * Fast autosave timing injected into the app via `__TOLARIA_AUTOSAVE_IDLE_MS`
+ * (see src/hooks/editorSaveTiming.ts). Specs must derive waits from these
+ * instead of the production constants, which are far larger.
+ */
+export const FIXTURE_AUTOSAVE_IDLE_MS = 1_500
+export const FIXTURE_UNTITLED_RENAME_MS = FIXTURE_AUTOSAVE_IDLE_MS + 1_000
 const FIXTURE_VAULT_READY_TIMEOUT = 30_000
 const FIXTURE_VAULT_REMOVE_RETRIES = 10
 const FIXTURE_VAULT_REMOVE_RETRY_DELAY_MS = 100
@@ -72,7 +80,8 @@ export function removeFixtureVaultCopy(tempVaultDir: string | null | undefined):
 }
 
 async function installFixtureVaultInitScript({ page, vaultPath, isGitRepo, folders }: FixtureVaultPageArgs): Promise<void> {
-  await page.addInitScript(({ dismissedKey, fixtureFolders, initialIsGitRepo, resolvedVaultPath }: { dismissedKey: string; fixtureFolders: FolderNode[]; initialIsGitRepo: boolean; resolvedVaultPath: string }) => {
+  await page.addInitScript(({ autosaveIdleMs, dismissedKey, fixtureFolders, initialIsGitRepo, resolvedVaultPath }: { autosaveIdleMs: number; dismissedKey: string; fixtureFolders: FolderNode[]; initialIsGitRepo: boolean; resolvedVaultPath: string }) => {
+    Reflect.set(globalThis, '__TOLARIA_AUTOSAVE_IDLE_MS', autosaveIdleMs)
     localStorage.clear()
     localStorage.setItem(dismissedKey, '1')
     let gitRepoReady = initialIsGitRepo
@@ -442,6 +451,7 @@ async function installFixtureVaultInitScript({ page, vaultPath, isGitRepo, folde
       },
     })
   }, {
+    autosaveIdleMs: FIXTURE_AUTOSAVE_IDLE_MS,
     dismissedKey: CLAUDE_CODE_ONBOARDING_DISMISSED_KEY,
     fixtureFolders: folders,
     initialIsGitRepo: isGitRepo,

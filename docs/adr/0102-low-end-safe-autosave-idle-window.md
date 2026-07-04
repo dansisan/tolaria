@@ -2,7 +2,8 @@
 type: ADR
 id: "0102"
 title: "Low-end-safe autosave idle window"
-status: active
+status: superseded
+superseded_by: "0136"
 date: 2026-04-30
 supersedes: "0015"
 ---

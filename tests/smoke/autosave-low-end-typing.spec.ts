@@ -3,6 +3,7 @@ import path from 'path'
 import { test, expect, type Page } from '@playwright/test'
 import {
   createFixtureVaultCopy,
+  FIXTURE_AUTOSAVE_IDLE_MS,
   openFixtureVault,
   removeFixtureVaultCopy,
 } from '../helpers/fixtureVault'
@@ -97,7 +98,7 @@ test('@smoke autosave waits for idle typing and persists the latest draft only',
 
   expect(await readAutosaveProbe(page)).toEqual([])
 
-  await expect.poll(() => readAutosaveProbe(page), { timeout: 5_000 }).toEqual([
+  await expect.poll(() => readAutosaveProbe(page), { timeout: FIXTURE_AUTOSAVE_IDLE_MS + 5_000 }).toEqual([
     expect.objectContaining({ path: notePath, content: latestDraft }),
   ])
   expect(fs.readFileSync(notePath, 'utf8')).toBe(latestDraft)
