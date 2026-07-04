@@ -12,7 +12,7 @@ const mockEntries: VaultEntry[] = [
     modifiedAt: 1700000000, createdAt: 1700000000, fileSize: 100,
     snippet: '', wordCount: 0, relationships: {}, icon: null, color: null, order: null, template: null, sort: null, outgoingLinks: [],
     sidebarLabel: null, view: null, visible: null, organized: false, favorite: false, favoriteIndex: null,
-    listPropertiesDisplay: [], properties: {}, hasH1: false,
+    listPropertiesDisplay: [], properties: {}, hasH1: false, inlineTags: [], attachmentLinks: [],
   },
 ]
 

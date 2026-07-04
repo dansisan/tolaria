@@ -138,16 +138,14 @@ describe('useUpdater', () => {
     expect(mockInvoke).not.toHaveBeenCalled()
   })
 
-  it('checks for stable updates after the startup delay', async () => {
+  it('does not auto-check for updates on startup (disabled for this fork)', async () => {
     vi.mocked(isTauri).mockReturnValue(true)
     installInvokeHandlers({ checkResult: null })
 
     renderUpdater('stable')
     await advanceAutoCheck()
 
-    expect(mockInvoke).toHaveBeenCalledWith('check_for_app_update', {
-      releaseChannel: 'stable',
-    })
+    expect(mockInvoke).not.toHaveBeenCalledWith('check_for_app_update', expect.anything())
   })
 
   it('transitions to available when an alpha update is found', async () => {

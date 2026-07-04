@@ -18,6 +18,7 @@ function makeMockEditor(docRef: { current: unknown[] }) {
     get prosemirrorView() { return {} },
     onMount: (cb: () => void) => { cb(); return () => {} },
     replaceBlocks: vi.fn((_old, newBlocks) => { docRef.current = newBlocks }),
+    transact: vi.fn((cb: (tr: { setMeta: () => void }) => void) => cb({ setMeta: vi.fn() })),
     blocksToMarkdownLossy: vi.fn(() => ''),
     tryParseMarkdownToBlocks: vi.fn(() => initialBlocks),
   }

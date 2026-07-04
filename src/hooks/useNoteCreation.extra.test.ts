@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import type { VaultEntry } from '../types'
 import {
   slugify,
@@ -181,19 +181,32 @@ describe('entryMatchesTarget', () => {
 })
 
 describe('buildNoteContent', () => {
+  const FIXED_DATE = new Date('2026-01-15T12:30:45')
+  const FIXED_DATETIME = '2026-01-15 12:30:45'
+  const DATE_FIELDS = `created: "${FIXED_DATETIME}"\ndayCreated: Thu\nmodified: "${FIXED_DATETIME}"`
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(FIXED_DATE)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('generates frontmatter with title and status for regular types', () => {
     const content = buildNoteContent({ title: 'My Note', type: 'Note', status: 'Active' })
-    expect(content).toBe('---\ntitle: My Note\ntype: Note\nstatus: Active\n---\n')
+    expect(content).toBe(`---\ntitle: My Note\ntype: Note\nstatus: Active\n${DATE_FIELDS}\n---\n`)
   })
 
   it('omits title when null', () => {
     const content = buildNoteContent({ title: null, type: 'Note', status: 'Active' })
-    expect(content).toBe('---\ntype: Note\nstatus: Active\n---\n')
+    expect(content).toBe(`---\ntype: Note\nstatus: Active\n${DATE_FIELDS}\n---\n`)
   })
 
   it('omits status when null', () => {
     const content = buildNoteContent({ title: 'AI', type: 'Topic', status: null })
-    expect(content).toBe('---\ntitle: AI\ntype: Topic\n---\n')
+    expect(content).toBe(`---\ntitle: AI\ntype: Topic\n${DATE_FIELDS}\n---\n`)
   })
 
   it('includes template body when provided', () => {
@@ -205,12 +218,12 @@ describe('buildNoteContent', () => {
 
   it('ignores null template', () => {
     const content = buildNoteContent({ title: 'My Note', type: 'Note', status: 'Active', template: null })
-    expect(content).toBe('---\ntitle: My Note\ntype: Note\nstatus: Active\n---\n')
+    expect(content).toBe(`---\ntitle: My Note\ntype: Note\nstatus: Active\n${DATE_FIELDS}\n---\n`)
   })
 
   it('prepends an empty H1 for untitled-note creation flows', () => {
     const content = buildNoteContent({ title: null, type: 'Note', status: 'Active', initialEmptyHeading: true })
-    expect(content).toBe('---\ntype: Note\nstatus: Active\n---\n\n# \n\n')
+    expect(content).toBe(`---\ntype: Note\nstatus: Active\n${DATE_FIELDS}\n---\n\n# \n\n`)
   })
 
   it('keeps the empty H1 ahead of templates for typed untitled notes', () => {
@@ -221,7 +234,7 @@ describe('buildNoteContent', () => {
       template: '## Objective\n\n## Notes\n\n',
       initialEmptyHeading: true,
     })
-    expect(content).toBe('---\ntype: Project\nstatus: Active\n---\n\n# \n\n## Objective\n\n## Notes\n\n')
+    expect(content).toBe(`---\ntype: Project\nstatus: Active\n${DATE_FIELDS}\n---\n\n# \n\n## Objective\n\n## Notes\n\n`)
   })
 })
 

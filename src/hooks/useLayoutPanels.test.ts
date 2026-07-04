@@ -87,14 +87,14 @@ describe('useLayoutPanels', () => {
     expect(result.current.inspectorWidth).toBe(500)
   })
 
-  it('defaults inspector to collapsed', () => {
+  it('defaults inspector to open', () => {
     const { result } = renderHook(() => useLayoutPanels())
-    expect(result.current.inspectorCollapsed).toBe(true)
+    expect(result.current.inspectorCollapsed).toBe(false)
   })
 
   it('accepts initial inspector collapsed override', () => {
-    const { result } = renderHook(() => useLayoutPanels({ initialInspectorCollapsed: false }))
-    expect(result.current.inspectorCollapsed).toBe(false)
+    const { result } = renderHook(() => useLayoutPanels({ initialInspectorCollapsed: true }))
+    expect(result.current.inspectorCollapsed).toBe(true)
   })
 
   it('restores persisted panel widths', () => {

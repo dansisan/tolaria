@@ -7,7 +7,7 @@
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5202",
     "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "pnpm build && pnpm bundle-mcp && pnpm agent-docs"
+    "beforeBuildCommand": "node scripts/prebuild-checks.mjs && pnpm build && pnpm bundle-mcp && pnpm agent-docs"
   },
   "app": {
     "withGlobalTauri": true,

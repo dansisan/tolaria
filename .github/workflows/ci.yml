@@ -30,7 +30,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
         with:
-          version: 10
+          version: 11
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -70,7 +70,8 @@ jobs:
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe
         with:
           use_oidc: true
-          fail_ci_if_error: true
+          # Non-fatal: this fork has no Codecov OIDC linkage; tests already ran.
+          fail_ci_if_error: false
           disable_search: true
           files: ./coverage/lcov.info
           flags: frontend
@@ -180,7 +181,8 @@ jobs:
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe
         with:
           use_oidc: true
-          fail_ci_if_error: true
+          # Non-fatal: this fork has no Codecov OIDC linkage; tests already ran.
+          fail_ci_if_error: false
           disable_search: true
           files: ./coverage/rust.lcov
           flags: rust
@@ -223,7 +225,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
         with:
-          version: 10
+          version: 11
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

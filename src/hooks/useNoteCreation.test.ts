@@ -390,7 +390,7 @@ describe('useNoteCreation hook', () => {
     expect(createdEntry.title).toBe('Test Note')
     expect(createdEntry.isA).toBe('Note')
     expect(createdEntry.status).toBeNull()
-    expect(openTabWithContent.mock.calls[0][1]).toBe('---\ntitle: Test Note\ntype: Note\n---\n')
+    expect(openTabWithContent.mock.calls[0][1]).toMatch(/^---\ntitle: Test Note\ntype: Note\ncreated: "[^"]+"\ndayCreated: \w+\nmodified: "[^"]+"\n---\n$/)
   })
 
   it('handleCreateNoteImmediate generates timestamp-based title', async () => {
@@ -594,7 +594,7 @@ describe('useNoteCreation hook', () => {
     })
     expect(addEntry.mock.calls[0][0].isA).toBe('Project')
     expect(addEntry.mock.calls[0][0].status).toBeNull()
-    expect(openTabWithContent.mock.calls[0][1]).toBe('---\ntype: Project\n---\n\n# \n\n')
+    expect(openTabWithContent.mock.calls[0][1]).toMatch(/^---\ntype: Project\ncreated: "[^"]+"\ndayCreated: \w+\nmodified: "[^"]+"\n---\n$/)
   })
 
   it('handleCreateNoteImmediate persists typed notes under Windows verbatim vault roots', async () => {

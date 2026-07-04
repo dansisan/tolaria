@@ -420,7 +420,7 @@ describe('useNoteActions hook', () => {
     })
 
     const tabContent = result.current.tabs[0].content
-    expect(tabContent).toBe('---\ntitle: My Project\ntype: Project\n---\n')
+    expect(tabContent).toMatch(/^---\ntitle: My Project\ntype: Project\ncreated: "[^"]+"\ndayCreated: \w+\nmodified: "[^"]+"\n---\n$/)
   })
 
   it('handleCreateNote uses custom template from type entry', () => {

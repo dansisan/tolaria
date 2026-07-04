@@ -29,6 +29,7 @@ const mockEditor = vi.hoisted(() => ({
   tryParseMarkdownToBlocks: vi.fn(async () => [] as unknown[]),
   replaceBlocks: vi.fn(),
   insertBlocks: vi.fn(),
+  transact: vi.fn((cb: (tr: { setMeta: () => void }) => void) => cb({ setMeta: vi.fn() })),
   document: [{ id: '1', type: 'paragraph', content: [], props: {}, children: [] }],
   insertInlineContent: vi.fn(),
   headless: false,
@@ -473,14 +474,16 @@ describe('Editor', () => {
     renderEditor({
       tabs: [mockTab],
       activeTabPath: mockEntry.path,
+      onDeleteNote: vi.fn(),
     })
 
-    expect(screen.getByRole('button', { name: 'Open the raw editor' })).toBeInTheDocument()
     fireEvent.pointerDown(screen.getByRole('button', { name: 'More note actions' }), {
       button: 0,
       ctrlKey: false,
     })
-    expect(within(await screen.findByRole('menu')).getByRole('menuitem', { name: 'Delete this note' })).toBeInTheDocument()
+    const overflowMenu = await screen.findByRole('menu')
+    expect(within(overflowMenu).getByRole('menuitem', { name: /Open the raw editor/ })).toBeInTheDocument()
+    expect(within(overflowMenu).getByRole('menuitem', { name: 'Delete this note' })).toBeInTheDocument()
   })
 
   it('keeps editor chrome visible while active note content is loading', () => {
@@ -575,7 +578,11 @@ describe('Editor', () => {
       />
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open table of contents' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'More note actions' }), {
+      button: 0,
+      ctrlKey: false,
+    })
+    fireEvent.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: /Open table of contents/ }))
 
     expect(screen.getByTestId('table-of-contents-panel')).toBeInTheDocument()
     expect(await screen.findByRole('button', { name: 'Table Heading' }, { timeout: 5000 })).toBeInTheDocument()

@@ -37,6 +37,7 @@ function makeMockEditor(docRef: { current: unknown[] }) {
     onMount: (cb: () => void) => { cb(); return () => {} },
     replaceBlocks: vi.fn((_old, newBlocks) => { docRef.current = newBlocks }),
     insertBlocks: vi.fn(),
+    transact: vi.fn((cb: (tr: { setMeta: () => void }) => void) => cb({ setMeta: vi.fn() })),
     blocksToMarkdownLossy: vi.fn(() => ''),
     blocksToHTMLLossy: vi.fn(() => ''),
     tryParseMarkdownToBlocks: vi.fn(() => blocksA),

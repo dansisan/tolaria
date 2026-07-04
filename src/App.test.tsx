@@ -367,7 +367,7 @@ vi.mock('./hooks/useUpdater', async () => {
 vi.mock('@blocknote/core', () => ({
   audioParse: vi.fn(() => undefined), createAudioBlockConfig: vi.fn(() => ({})),
   BlockNoteSchema: { create: () => ({ extend: () => ({}) }) },
-  createCodeBlockSpec: vi.fn(() => ({})),
+  createCodeBlockSpec: vi.fn(() => ({ config: { propSchema: {} } })),
   createExtension: (factory: unknown) => () => factory,
   createVideoBlockConfig: vi.fn(() => ({})), defaultInlineContentSpecs: {},
   filterSuggestionItems: vi.fn(() => []), videoParse: vi.fn(() => undefined),
@@ -642,7 +642,7 @@ describe('App', () => {
       await waitFor(() => {
         expect(saveNoteContent).toHaveBeenCalledWith({
           path: '/vault/untitled-note-1700000000.md',
-          content: '---\ntype: Note\n---\n\n# \n\n',
+          content: expect.stringMatching(/^---\ntype: Note\ncreated: "[^"]+"\ndayCreated: \w+\nmodified: "[^"]+"\n---\n$/),
           vaultPath: '/vault',
         })
       })
@@ -1193,12 +1193,12 @@ describe('App', () => {
 
     await clickNoteListItem(noteListContainer, 'Alpha')
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Set note as organized' })).toBeInTheDocument()
-    })
+    const overflowTrigger = await screen.findByRole('button', { name: 'More note actions' })
+    fireEvent.pointerDown(overflowTrigger, { button: 0, ctrlKey: false })
+    const organizedItem = within(await screen.findByRole('menu')).getByRole('menuitem', { name: /Set note as organized/ })
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Set note as organized' }))
+      fireEvent.click(organizedItem)
       await Promise.resolve()
     })
 
@@ -1226,12 +1226,12 @@ describe('App', () => {
 
     await clickNoteListItem(noteListContainer, 'Alpha')
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Set note as organized' })).toBeInTheDocument()
-    })
+    const overflowTrigger = await screen.findByRole('button', { name: 'More note actions' })
+    fireEvent.pointerDown(overflowTrigger, { button: 0, ctrlKey: false })
+    const organizedItem = within(await screen.findByRole('menu')).getByRole('menuitem', { name: /Set note as organized/ })
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Set note as organized' }))
+      fireEvent.click(organizedItem)
       await Promise.resolve()
     })
 
@@ -1377,10 +1377,11 @@ describe('App', () => {
 
     invoke.mockClear()
 
+    // Editor-only min width plus the inspector, which defaults to open.
     fireEvent.keyDown(window, { key: '1', metaKey: true })
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith('update_current_window_min_size', {
-        minWidth: 480,
+        minWidth: 760,
         minHeight: 400,
         growToFit: true,
       })
@@ -1391,7 +1392,7 @@ describe('App', () => {
     fireEvent.keyDown(window, { key: '3', metaKey: true })
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith('update_current_window_min_size', {
-        minWidth: 1030,
+        minWidth: 1310,
         minHeight: 400,
         growToFit: true,
       })

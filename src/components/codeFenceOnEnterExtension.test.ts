@@ -160,7 +160,7 @@ describe('createCodeFenceOnEnterExtension', () => {
     expect(fixture.setTextCursorPosition).toHaveBeenCalledWith(fixture.block, 'start')
     expect(event.preventDefault).toHaveBeenCalled()
     expect(event.stopPropagation).toHaveBeenCalled()
-    expect(trackEvent).toHaveBeenCalledWith('code_block_fence_converted', { has_language: false, has_nowrap: false })
+    expect(trackEvent).toHaveBeenCalledWith('code_block_fence_converted', { has_language: 0, has_nowrap: 0 })
   })
 
   it('carries the fence language into the code block', () => {
@@ -185,7 +185,7 @@ describe('createCodeFenceOnEnterExtension', () => {
       props: { language: 'typescript', nowrap: true },
       content: [],
     })
-    expect(trackEvent).toHaveBeenCalledWith('code_block_fence_converted', { has_language: true, has_nowrap: true })
+    expect(trackEvent).toHaveBeenCalledWith('code_block_fence_converted', { has_language: 1, has_nowrap: 1 })
   })
 
   it('ignores paragraphs that are not a bare fence', () => {
