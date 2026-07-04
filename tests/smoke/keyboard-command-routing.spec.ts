@@ -55,14 +55,24 @@ async function expectRuntimeStyleNonce(page: Page): Promise<void> {
 }
 
 async function expectPropertiesPanelToggle(page: Page, toggle: () => Promise<void>) {
-  const propertiesButton = page.getByRole('button', { name: 'Open the properties panel' })
-  await expect(propertiesButton).toBeVisible({ timeout: 5_000 })
+  // The panel defaults open, and the breadcrumb "open" button only renders
+  // while the panel is collapsed — its absence is the open state.
+  const openButton = page.getByRole('button', { name: 'Open the properties panel' })
+  await expect(openButton).toHaveCount(0)
 
   await toggle()
-  await expect(propertiesButton).toHaveCount(0)
+  await expect(openButton).toBeVisible({ timeout: 5_000 })
 
   await toggle()
-  await expect(page.getByRole('button', { name: 'Open the properties panel' })).toBeVisible({ timeout: 5_000 })
+  await expect(openButton).toHaveCount(0)
+}
+
+/** The organized toggle lives in the breadcrumb overflow menu; read its state from the menu item label. */
+async function expectOrganizedMenuLabel(page: Page, label: string) {
+  await page.getByTestId('breadcrumb-overflow-menu-trigger').click()
+  await expect(page.getByRole('menuitem', { name: label })).toBeVisible({ timeout: 5_000 })
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('menu')).toHaveCount(0)
 }
 
 async function dispatchAppCommand(page: Page, id: string): Promise<void> {
@@ -198,26 +208,26 @@ test.describe('keyboard command routing', () => {
   test('desktop menu-command bridge toggles organized state through the shared command path @smoke', async ({ page }) => {
     await openAlphaProjectInEditor(page)
 
-    await expect(page.getByRole('button', { name: 'Set note as organized' })).toBeVisible({ timeout: 5_000 })
+    await expectOrganizedMenuLabel(page, 'Set note as organized')
 
     await triggerMenuCommand(page, APP_COMMAND_IDS.noteToggleOrganized)
-    await expect(page.getByRole('button', { name: 'Set note as not organized' })).toBeVisible({ timeout: 5_000 })
+    await expectOrganizedMenuLabel(page, 'Set note as not organized')
 
     await triggerMenuCommand(page, APP_COMMAND_IDS.noteToggleOrganized)
-    await expect(page.getByRole('button', { name: 'Set note as organized' })).toBeVisible({ timeout: 5_000 })
+    await expectOrganizedMenuLabel(page, 'Set note as organized')
   })
 
   test('app command bridge undoes and redoes organized state through action history @smoke', async ({ page }) => {
     await openAlphaProjectInEditor(page)
 
     await triggerMenuCommand(page, APP_COMMAND_IDS.noteToggleOrganized)
-    await expect(page.getByRole('button', { name: 'Set note as not organized' })).toBeVisible({ timeout: 5_000 })
+    await expectOrganizedMenuLabel(page, 'Set note as not organized')
 
     await dispatchAppCommand(page, APP_COMMAND_IDS.editUndo)
-    await expect(page.getByRole('button', { name: 'Set note as organized' })).toBeVisible({ timeout: 5_000 })
+    await expectOrganizedMenuLabel(page, 'Set note as organized')
 
     await dispatchAppCommand(page, APP_COMMAND_IDS.editRedo)
-    await expect(page.getByRole('button', { name: 'Set note as not organized' })).toBeVisible({ timeout: 5_000 })
+    await expectOrganizedMenuLabel(page, 'Set note as not organized')
   })
 
   test('renderer shortcut bridge toggles the raw editor through the shared keyboard handler @smoke', async ({ page }) => {

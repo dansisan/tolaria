@@ -39,6 +39,7 @@ function untitledRow(page: Page, typeLabel: string) {
 type EmptyHeadingState = {
   contentType: string | null
   editorFocused: boolean
+  filenameInputFocused: boolean
   placeholder: string | null
 }
 
@@ -56,17 +57,18 @@ async function readEmptyHeadingState(page: Page): Promise<EmptyHeadingState> {
     return {
       contentType: firstBlock?.getAttribute('data-content-type') ?? null,
       editorFocused: Boolean(active?.isContentEditable || active?.closest('[contenteditable="true"]')),
+      filenameInputFocused: active?.getAttribute('data-testid') === 'breadcrumb-filename-input',
       placeholder: inlineHeading ? getComputedStyle(inlineHeading, '::before').content : null,
     }
   })
 }
 
-function hasExpectedTitlePlaceholder(placeholder: string | null): boolean {
-  return placeholder === '"Heading"' || placeholder === '"Title"'
-}
-
 function isReadyEmptyTitleHeading(state: EmptyHeadingState): boolean {
-  return state.editorFocused && state.contentType === 'heading' && hasExpectedTitlePlaceholder(state.placeholder)
+  // New notes no longer seed an H1 ("No heading in new notes"): focus lands
+  // in the breadcrumb filename input for naming, with an empty paragraph
+  // body. Ready means the user can type somewhere sensible without a crash.
+  if (state.filenameInputFocused) return true
+  return state.editorFocused && (state.contentType === 'paragraph' || state.contentType === 'heading')
 }
 
 async function expectReadyEmptyTitleHeading(page: Page): Promise<void> {

@@ -57,7 +57,10 @@ test.describe('Frontmatter date picker', () => {
     await page.getByTestId('note-list-container').getByText('Alpha Project', { exact: true }).click()
     await expect(page.locator('.bn-editor')).toBeVisible({ timeout: 5_000 })
     await expect(page.getByRole('heading', { name: 'Alpha Project', level: 1 })).toBeVisible({ timeout: 5_000 })
-    await triggerShortcutCommand(page, APP_COMMAND_IDS.viewToggleProperties)
+    // The properties panel defaults open; toggle only if it is closed.
+    if (!await page.getByTestId('add-property-row').isVisible()) {
+      await triggerShortcutCommand(page, APP_COMMAND_IDS.viewToggleProperties)
+    }
     await expect(page.getByTestId('add-property-row')).toBeVisible()
 
     const dateRow = page.getByTestId('editable-property').filter({ hasText: 'Date' })

@@ -48,7 +48,10 @@ test.describe('Type-derived instance properties', () => {
   test('type schema placeholders stay visible and valued defaults seed new instances @smoke', async ({ page }) => {
     const existingBookPath = path.join(tempVaultDir, 'dune.md')
     await openNoteViaQuickOpen(page, 'Dune')
-    await sendShortcut(page, 'i', ['Control', 'Shift'])
+    // The properties panel defaults open; toggle only if it is closed.
+    if (!await page.getByTestId('add-property-row').isVisible()) {
+      await sendShortcut(page, 'i', ['Control', 'Shift'])
+    }
 
     const startDatePlaceholder = page.getByTestId('type-derived-property').filter({ hasText: 'Start date' })
     await expect(startDatePlaceholder).toBeVisible()
