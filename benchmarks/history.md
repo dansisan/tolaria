@@ -109,3 +109,33 @@ Round-4 options, by expected payoff on F:
    Medium effort; must respect the content-bleed guards (tab content briefly
    stale while blocks cache is authoritative).
 3. Accept the floor at 300KB.
+
+## 2026-07-04 — round 4: EditorState swap instead of replaceBlocks
+
+Profiling the 557ms huge swap: 40% was pm-model TRANSACTION machinery
+(addRange/replaceTwoWay/apply/step + appendMappingInverted/invert +
+validContent/matchFragment) — replaceBlocks runs the full editing pipeline
+(doc-wide replace step, schema revalidation, history inverse mappings we
+discard) to do a document SWAP. Not parsing, not a BlockNote limit.
+
+Fix: `applyCachedDocState` in editorContentSwapApply — a WeakMap from cached
+blocks arrays to the built (immutable) ProseMirror doc; revisits install a
+fresh EditorState (view.updateState) with the cached doc. No step, no
+validation, no history math; plugin state reset = per-open undo isolation
+(what addToHistory:false approximated). First visits keep the old path and
+populate the doc cache.
+
+2 runs, p50:
+| condition | round 3 | round 4 |
+|---|---|---|
+| F huge-pair-clean | 575 | **351** (−39%) |
+| F huge-pair-edited | 745 | 680 (departure flush ~200ms remains) |
+| B revisit-clean | 104 | ~98 |
+| A first-visit | 206 | ~215 (unchanged) |
+
+Remaining floors: ~343ms = PM view DOM rebuild + React for ~1000 blocks
+(next candidates: above-the-fold chunked apply exploiting PM node-identity
+reuse in view diffing; deferred departure serialization for the edited tax).
+Also verified: CodeMirror never mounts in rich mode and the rich view
+unmounts in raw mode — the dual-editor architecture costs bundle size, not
+switch time.

@@ -1,5 +1,6 @@
 import type { MutableRefObject } from 'react'
-import type { Transaction } from 'prosemirror-state'
+import { EditorState, type Transaction } from 'prosemirror-state'
+import type { Node as ProseMirrorNode } from 'prosemirror-model'
 import type { useCreateBlockNote } from '@blocknote/react'
 import { blankParagraphBlocks } from './editorTabContent'
 import { EDITOR_CONTAINER_SELECTOR } from './editorDomSelection'
@@ -7,6 +8,53 @@ import { resetTextSelectionBeforeContentSwap } from './editorTiptapSelection'
 import { repairMalformedEditorBlocks } from './editorBlockRepair'
 
 type EditorBlocks = unknown[]
+
+interface StateSwapView {
+  state: { doc: ProseMirrorNode; plugins: readonly unknown[] }
+  updateState: (state: EditorState) => void
+}
+
+interface StateSwapEditor {
+  _tiptapEditor?: { view?: StateSwapView }
+  prosemirrorView?: StateSwapView
+}
+
+/**
+ * ProseMirror documents already built for a given cached blocks array.
+ * Docs are immutable, and block arrays are cache-identity-stable per
+ * content version, so a hit means the exact doc can be reinstalled as a
+ * fresh EditorState — no replace step, no schema revalidation, no history
+ * mapping. That transaction machinery is ~40% of a large-note swap.
+ */
+const builtDocsByBlocks = new WeakMap<object, ProseMirrorNode>()
+
+function stateSwapView(editor: ApplyBlocksToEditorOptions['editor']): StateSwapView | null {
+  const source = editor as unknown as StateSwapEditor
+  const view = source._tiptapEditor?.view ?? source.prosemirrorView
+  if (!view || typeof view.updateState !== 'function' || !view.state?.doc) return null
+  return view
+}
+
+function applyCachedDocState(
+  editor: ApplyBlocksToEditorOptions['editor'],
+  blocks: EditorBlocks,
+): boolean {
+  const cachedDoc = builtDocsByBlocks.get(blocks as unknown as object)
+  if (!cachedDoc) return false
+  const view = stateSwapView(editor)
+  if (!view) return false
+
+  resetTextSelectionBeforeContentSwap(editor)
+  // A whole-state swap also resets plugin state, which clears undo history —
+  // the same isolation the addToHistory:false transaction below approximates.
+  view.updateState(EditorState.create({ doc: cachedDoc, plugins: view.state.plugins as EditorState['plugins'] }))
+  return true
+}
+
+function rememberBuiltDoc(editor: ApplyBlocksToEditorOptions['editor'], blocks: EditorBlocks): void {
+  const view = stateSwapView(editor)
+  if (view) builtDocsByBlocks.set(blocks as unknown as object, view.state.doc)
+}
 
 export type EditorContentPathRef = MutableRefObject<string | null>
 
@@ -37,8 +85,12 @@ export function applyBlocksToEditor(options: ApplyBlocksToEditorOptions): boolea
     blocks,
     suppressChangeRef,
   } = options
-  const safeBlocks = repairMalformedEditorBlocks(blocks)
   suppressChangeRef.current = true
+  if (applyCachedDocState(editor, blocks)) {
+    commitAppliedEditorContent(options)
+    return true
+  }
+  const safeBlocks = repairMalformedEditorBlocks(blocks)
   try {
     resetTextSelectionBeforeContentSwap(editor)
     // Load the note's content without recording it in the undo history. The
@@ -67,6 +119,7 @@ export function applyBlocksToEditor(options: ApplyBlocksToEditorOptions): boolea
     }
   }
 
+  rememberBuiltDoc(editor, blocks)
   commitAppliedEditorContent(options)
   return true
 }
