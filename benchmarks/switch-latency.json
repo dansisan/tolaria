@@ -1,79 +1,93 @@
 {
-  "generatedAt": "2026-07-04T22:52:08.349Z",
+  "generatedAt": "2026-07-04T23:31:22.067Z",
   "note": "Browser dev harness; dev-build React inflates absolutes. Compare runs, not absolutes.",
   "conditions": {
     "A first-visit": {
       "n": 5,
-      "totalP50": 204.7,
-      "totalP90": 349.4,
+      "totalP50": 218.7,
+      "totalP90": 346.6,
       "contentLoadP50": 0,
-      "editorSwapP50": 196
+      "editorSwapP50": 208.6
     },
     "B revisit-clean": {
       "n": 10,
-      "totalP50": 104.4,
-      "totalP90": 137.3,
+      "totalP50": 102.2,
+      "totalP90": 148,
       "contentLoadP50": 0,
-      "editorSwapP50": 102.1
+      "editorSwapP50": 100.2
     },
     "C typing keydown->frame ms": {
-      "n": 120,
-      "p50": 3.5,
-      "p95": 18.700000002980232,
-      "max": 21.599999994039536
+      "n": 138,
+      "p50": 3.2999999970197678,
+      "p95": 21.899999991059303,
+      "max": 55.70000000298023
     },
     "D revisit-edited": {
       "n": 10,
-      "totalP50": 211.8,
-      "totalP90": 265.5,
+      "totalP50": 203.4,
+      "totalP90": 270.9,
       "contentLoadP50": 0,
-      "editorSwapP50": 101.9
+      "editorSwapP50": 96.2
     },
     "E rapid-burst-to-settle ms": {
       "runs": [
-        957,
-        945,
-        921
+        977,
+        930,
+        949
       ],
-      "p50": 945
+      "p50": 949
     },
-    "jsHeapUsedMb": 132
+    "F huge-pair-clean": {
+      "n": 6,
+      "totalP50": 575.3,
+      "totalP90": 613.3,
+      "contentLoadP50": 0,
+      "editorSwapP50": 565.2
+    },
+    "F huge-pair-edited": {
+      "n": 6,
+      "totalP50": 744.7,
+      "totalP90": 796.6,
+      "contentLoadP50": 0,
+      "editorSwapP50": 560.1
+    },
+    "jsHeapUsedMb": 168.4
   },
   "byNoteEdited": {
     "Big Note A": {
       "n": 2,
-      "totalP50": 173.7,
-      "totalP90": 173.7,
+      "totalP50": 148.5,
+      "totalP90": 148.5,
       "contentLoadP50": 0,
-      "editorSwapP50": 88
+      "editorSwapP50": 75.5
     },
     "Big Note B": {
       "n": 2,
-      "totalP50": 265.5,
-      "totalP90": 265.5,
+      "totalP50": 270.9,
+      "totalP90": 270.9,
       "contentLoadP50": 0,
-      "editorSwapP50": 140.5
+      "editorSwapP50": 139.5
     },
     "Giant Block": {
       "n": 2,
-      "totalP50": 216.2,
-      "totalP90": 216.2,
+      "totalP50": 212.6,
+      "totalP90": 212.6,
       "contentLoadP50": 0,
-      "editorSwapP50": 102.2
+      "editorSwapP50": 101.3
     },
     "Big Note C": {
       "n": 2,
-      "totalP50": 216.1,
-      "totalP90": 216.1,
+      "totalP50": 208.8,
+      "totalP90": 208.8,
       "contentLoadP50": 0,
-      "editorSwapP50": 102.4
+      "editorSwapP50": 96.2
     },
     "Small Control": {
       "n": 2,
-      "totalP50": 186,
-      "totalP90": 186,
+      "totalP50": 183.3,
+      "totalP90": 183.3,
       "contentLoadP50": 0,
-      "editorSwapP50": 71.2
+      "editorSwapP50": 72.1
     }
   }
 }

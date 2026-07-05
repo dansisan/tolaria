@@ -51,6 +51,8 @@ function note(title, marker, body) {
 fs.mkdirSync(OUT_DIR, { recursive: true })
 
 const files = {
+  'huge-note-x.md': note('Huge Note X', 'HUGE-NOTE-X', paragraphBody('xray', TARGET_BYTES * 3)),
+  'huge-note-y.md': note('Huge Note Y', 'HUGE-NOTE-Y', paragraphBody('yankee', TARGET_BYTES * 3)),
   'big-note-a.md': note('Big Note A', 'BIG-NOTE-A', paragraphBody('alpha', TARGET_BYTES)),
   'big-note-b.md': note('Big Note B', 'BIG-NOTE-B', paragraphBody('bravo', TARGET_BYTES)),
   'big-note-c.md': note('Big Note C', 'BIG-NOTE-C', paragraphBody('charlie', TARGET_BYTES)),

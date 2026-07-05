@@ -87,3 +87,25 @@ Three changes:
 | JS heap after full run | — | ~133MB (dev build) |
 
 Campaign totals from start: B 219→104 (−53%), A 352→206 (−41%).
+
+## 2026-07-04 — round 4 baseline: the two biggest notes (300KB fixtures added)
+
+New perf-vault fixtures huge-note-x/y (300KB each; `make-perf-vault.mjs`), new
+benchmark condition F (back-and-forth on the pair):
+
+| condition | p50 | p90 | where the time is |
+|---|---|---|---|
+| F huge-pair-clean | 575 | 613 | ~99% editorSwap — ProseMirror rebuild of ~1000 blocks; all caches hit |
+| F huge-pair-edited | 745 | 797 | + ~180-230ms beforeNavigate — departure serialize+save on the critical path |
+
+Round-4 options, by expected payoff on F:
+1. **Editor view pool** — keep the last 2-3 notes' editor views mounted and
+   swap visibility instead of rebuilding the document. Removes ~550ms swap
+   for pooled notes (back-and-forth ≈ instant). Architecture change: editor
+   instance per pooled tab, focus/event routing, memory (~acceptable given
+   the new cache posture). High effort, high reward.
+2. **Deferred departure serialization** — capture the immutable PM doc at
+   switch, serialize+save post-swap. Removes the ~200ms edited-departure tax.
+   Medium effort; must respect the content-bleed guards (tab content briefly
+   stale while blocks cache is authoritative).
+3. Accept the floor at 300KB.

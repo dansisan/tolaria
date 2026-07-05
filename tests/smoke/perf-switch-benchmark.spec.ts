@@ -159,6 +159,23 @@ test('@smoke benchmark: large-note switch and typing latency', async ({ page }) 
       await page.waitForTimeout(400)
     }
 
+    // F: the two biggest notes back and forth — clean, then edited.
+    const hugePair: Array<[string, string]> = [['Huge Note X', 'HUGE-NOTE-X'], ['Huge Note Y', 'HUGE-NOTE-Y']]
+    for (const [title, marker] of hugePair) { await openNote(page, title, marker); await page.waitForTimeout(250) }
+    const hugeCleanStart = perfLines.length
+    for (let round = 0; round < 3; round += 1) {
+      for (const [title, marker] of hugePair) { await openNote(page, title, marker); await page.waitForTimeout(250) }
+    }
+    const hugeCleanEnd = perfLines.length
+    for (let round = 0; round < 3; round += 1) {
+      for (const [title, marker] of hugePair) {
+        await openNote(page, title, marker)
+        await editAtTop(page, `f${round} `)
+        await page.waitForTimeout(250)
+      }
+    }
+    const hugeEditedEnd = perfLines.length
+
     const cdp = await page.context().newCDPSession(page)
     await cdp.send('Performance.enable')
     const { metrics } = await cdp.send('Performance.getMetrics')
@@ -187,6 +204,8 @@ test('@smoke benchmark: large-note switch and typing latency', async ({ page }) 
         },
         'D revisit-edited': summarizeSwitches(editedRevisits),
         'E rapid-burst-to-settle ms': { runs: burstTimes, p50: quantile(burstTimes, 0.5) },
+        'F huge-pair-clean': summarizeSwitches(samples.slice(hugeCleanStart, hugeCleanEnd)),
+        'F huge-pair-edited': summarizeSwitches(samples.slice(hugeCleanEnd, hugeEditedEnd)),
         jsHeapUsedMb: Number(heapMb.toFixed(1)),
       },
       byNoteEdited: Object.fromEntries(ROTATION.map(([title]) => {
@@ -204,6 +223,8 @@ test('@smoke benchmark: large-note switch and typing latency', async ({ page }) 
     console.log(`C typing         : p50=${typing.p50.toFixed(1)} p95=${typing.p95.toFixed(1)} max=${typing.max.toFixed(1)} (n=${typing.n})`)
     console.log(formatSwitchRow('D revisit-edited', report.conditions['D revisit-edited']))
     console.log(`E rapid-burst     : settle p50=${quantile(burstTimes, 0.5).toFixed(0)}ms runs=[${burstTimes.map((t) => t.toFixed(0)).join(', ')}]`)
+    console.log(formatSwitchRow('F huge-clean    ', report.conditions['F huge-pair-clean']))
+    console.log(formatSwitchRow('F huge-edited   ', report.conditions['F huge-pair-edited']))
     console.log(`JS heap           : ${heapMb.toFixed(1)}MB`)
   } finally {
     removeFixtureVaultCopy(vaultDir)
