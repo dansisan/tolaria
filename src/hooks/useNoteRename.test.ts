@@ -363,6 +363,44 @@ describe('useNoteRename hook', () => {
     )
   })
 
+  it('does not clobber an unsaved background tab when refreshing other open tabs after a filename rename', async () => {
+    const renamedEntry = makeEntry({ path: '/vault/untitled-1.md', filename: 'untitled-1.md', title: 'Fresh Title' })
+    const otherPath = '/vault/note-b.md'
+    const unsavedContent = '# Note B\n\nUnsaved local edits the user just typed'
+    const staleDiskContent = '# Note B\n\nStale content still on disk'
+    const otherEntry = makeEntry({ path: otherPath, filename: 'note-b.md', title: 'Note B' })
+
+    let tabs = [
+      { entry: renamedEntry, content: '# Fresh Title\n' },
+      { entry: otherEntry, content: unsavedContent },
+    ]
+    const setTabs = vi.fn((update: typeof tabs | ((prev: typeof tabs) => typeof tabs)) => {
+      tabs = typeof update === 'function' ? update(tabs) : update
+    })
+    const realUpdateTabContent = (path: string, newContent: string) => {
+      tabs = tabs.map((tab) => tab.entry.path === path ? { ...tab, content: newContent } : tab)
+    }
+
+    vi.mocked(mockInvoke).mockImplementation(async (cmd: string, args?: Record<string, unknown>) => {
+      if (cmd === 'rename_note_filename') return { new_path: '/vault/fresh-title.md', updated_files: 1, failed_updates: 0 }
+      if (cmd === 'get_note_content' && (args as { path?: string } | undefined)?.path === otherPath) return staleDiskContent
+      if (cmd === 'get_note_content') return '# Fresh Title\n'
+      return ''
+    })
+
+    const { result } = renderHook(() => useNoteRename(
+      { entries: [], setToastMessage, isPathUnsaved: (path: string) => path === otherPath },
+      { tabs, setTabs, activeTabPathRef, handleSwitchTab, updateTabContent: realUpdateTabContent },
+    ))
+
+    await act(async () => {
+      await result.current.handleRenameFilename('/vault/untitled-1.md', 'fresh-title', '/vault', vi.fn())
+    })
+
+    const tabB = tabs.find((tab) => tab.entry.path === otherPath)
+    expect(tabB?.content).toBe(unsavedContent)
+  })
+
   it('warns when rename succeeds but some backlink rewrites fail', async () => {
     const entry = makeEntry({ path: '/vault/old.md', title: 'Old' })
     await runHandleRenameNote({

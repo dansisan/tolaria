@@ -866,6 +866,53 @@ describe('useAppSave', () => {
     expect(deps.onInternalVaultWrite).toHaveBeenCalledWith(newPath)
   })
 
+  it('does not clobber an unsaved background tab when untitled auto-rename refreshes other open tabs', async () => {
+    vi.useFakeTimers()
+    vi.mocked(isTauri).mockReturnValue(true)
+
+    const oldPath = '/vault/untitled-note-123.md'
+    const newPath = '/vault/fresh-title.md'
+    const content = '# Fresh Title\n\nBody'
+    const entryA = makeEntry(oldPath, 'Untitled Note 123', 'untitled-note-123.md')
+
+    const otherPath = '/vault/note-b.md'
+    const unsavedContent = '# Note B\n\nUnsaved local edits the user just typed'
+    const staleDiskContent = '# Note B\n\nStale content still on disk'
+    const entryB = makeEntry(otherPath, 'Note B', 'note-b.md')
+
+    let tabsState = [
+      { entry: entryA, content },
+      { entry: entryB, content: unsavedContent },
+    ]
+    const setTabs = vi.fn((updater: SetStateAction<typeof tabsState>) => {
+      tabsState = typeof updater === 'function' ? updater(tabsState) : updater
+    })
+
+    vi.mocked(invoke).mockImplementation(async (command: string, args?: Record<string, unknown>) => {
+      if (command === 'save_note_content') return undefined
+      if (command === 'auto_rename_untitled') return { new_path: newPath, updated_files: 1 }
+      if (command === 'reload_vault_entry') return makeEntry(newPath, 'Fresh Title', 'fresh-title.md')
+      if (command === 'get_note_content' && args?.path === newPath) return content
+      if (command === 'get_note_content' && args?.path === otherPath) return staleDiskContent
+      return undefined
+    })
+
+    const { result } = renderSave({
+      setTabs,
+      tabs: tabsState,
+      activeTabPath: oldPath,
+      unsavedPaths: new Set([oldPath, otherPath]),
+    })
+
+    await act(async () => {
+      result.current.handleContentChange(oldPath, content)
+      await vi.advanceTimersByTimeAsync(AUTO_SAVE_DEBOUNCE_MS + UNTITLED_RENAME_DEBOUNCE_MS)
+    })
+
+    const tabB = tabsState.find((tab) => tab.entry.path === otherPath)
+    expect(tabB?.content).toBe(unsavedContent)
+  })
+
   it('does not run markdown title-sync renames for non-markdown text files', async () => {
     vi.mocked(isTauri).mockReturnValue(true)
 

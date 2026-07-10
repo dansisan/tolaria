@@ -783,6 +783,7 @@ export function useNoteActions(config: NoteActionsConfig) {
       reloadVault: config.reloadVault,
       onPathRenamed: handlePathRenamed,
       refreshEntries: config.refreshEntries,
+      isPathUnsaved: (path) => config.unsavedPaths?.has(path) ?? false,
     },
     { tabs: tabMgmt.tabs, setTabs, activeTabPathRef, handleSwitchTab, updateTabContent },
   )

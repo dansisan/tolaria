@@ -196,6 +196,7 @@ async function reloadAutoRenamedNote(
     handleSwitchTab,
     replaceEntry,
     loadModifiedFiles,
+    unsavedPathsRef,
   }: {
     oldPath: string
     newPath: string
@@ -205,14 +206,18 @@ async function reloadAutoRenamedNote(
     handleSwitchTab: AppSaveDeps['handleSwitchTab']
     replaceEntry: AppSaveDeps['replaceEntry']
     loadModifiedFiles: AppSaveDeps['loadModifiedFiles']
+    unsavedPathsRef: MutableRefObject<Set<string>>
   },
 ): Promise<void> {
   const newEntry = await invoke<VaultEntry>('reload_vault_entry', { path: newPath })
   const preservedContent = tabsRef.current.find((tab) => tab.entry.path === oldPath)?.content
     ?? await invoke<string>('get_note_content', { path: newPath })
 
+  // Skip tabs with unsaved edits: their in-memory content is newer than disk,
+  // so reloading here (to pick up rewritten wikilinks) would silently discard
+  // the user's pending changes. Those tabs catch up next time they're saved.
   const otherTabPaths = tabsRef.current
-    .filter((tab) => tab.entry.path !== oldPath && tab.entry.path !== newPath)
+    .filter((tab) => tab.entry.path !== oldPath && tab.entry.path !== newPath && !unsavedPathsRef.current.has(tab.entry.path))
     .map((tab) => tab.entry.path)
 
   startTransition(() => {
@@ -285,6 +290,7 @@ function useUntitledRenameExecutor({
   onInternalVaultWrite,
   renamedPathsRef,
   inFlightUntitledRenameRef,
+  unsavedPathsRef,
 }: {
   resolvedPath: string
   tabsRef: MutableRefObject<TabState[]>
@@ -296,6 +302,7 @@ function useUntitledRenameExecutor({
   onInternalVaultWrite?: AppSaveDeps['onInternalVaultWrite']
   renamedPathsRef: MutableRefObject<RenamedPathMap>
   inFlightUntitledRenameRef: MutableRefObject<InFlightRenameMap>
+  unsavedPathsRef: MutableRefObject<Set<string>>
 }) {
   return useCallback(async (path: string) => {
     const existingRename = inFlightUntitledRenameRef.current.get(path)
@@ -320,6 +327,7 @@ function useUntitledRenameExecutor({
           handleSwitchTab,
           replaceEntry,
           loadModifiedFiles,
+          unsavedPathsRef,
         })
         return result.new_path
       } catch {
@@ -342,6 +350,7 @@ function useUntitledRenameExecutor({
     onInternalVaultWrite,
     renamedPathsRef,
     inFlightUntitledRenameRef,
+    unsavedPathsRef,
   ])
 }
 
@@ -405,6 +414,7 @@ function useUntitledRenameCoordinator({
   loadModifiedFiles,
   onInternalVaultWrite,
   initialH1AutoRenameEnabled,
+  unsavedPathsRef,
 }: {
   resolvedPath: string
   tabsRef: MutableRefObject<TabState[]>
@@ -415,6 +425,7 @@ function useUntitledRenameCoordinator({
   loadModifiedFiles: AppSaveDeps['loadModifiedFiles']
   onInternalVaultWrite?: AppSaveDeps['onInternalVaultWrite']
   initialH1AutoRenameEnabled: boolean
+  unsavedPathsRef: MutableRefObject<Set<string>>
 }) {
   const {
     renamedPathsRef,
@@ -433,6 +444,7 @@ function useUntitledRenameCoordinator({
     loadModifiedFiles,
     onInternalVaultWrite,
     renamedPathsRef,
+    unsavedPathsRef,
     inFlightUntitledRenameRef,
   })
   const {
@@ -877,6 +889,7 @@ export function useAppSave({
   } = useUntitledRenameCoordinator({
     resolvedPath, tabsRef, activeTabPathRef, setTabs, handleSwitchTab,
     replaceEntry, loadModifiedFiles, onInternalVaultWrite, initialH1AutoRenameEnabled,
+    unsavedPathsRef,
   })
   const { handleSaveRaw, handleContentChange, savePendingForPath, savePending } = useEditorPersistence({
     updateEntry, setTabs, setToastMessage, loadModifiedFiles, trackUnsaved,
