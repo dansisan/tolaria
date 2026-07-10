@@ -19,6 +19,18 @@ import {
 import { isRecoveredBlockNoteRenderError } from './components/blockNoteRenderRecovery'
 import { isMac, shouldUseCustomWindowChrome } from './utils/platform'
 import { reloadFrontendOnceIfStartupFailed } from './utils/frontendReady'
+import { BUILD_COMMIT } from './buildInfo'
+
+declare global {
+  interface Window {
+    __TOLARIA_BUILD__?: string
+  }
+}
+
+// Surface the build stamp both in the webview console and on `window` so the
+// running artifact can be matched to its source commit without a rebuild.
+console.info(`Tolaria build ${BUILD_COMMIT}`)
+window.__TOLARIA_BUILD__ = BUILD_COMMIT
 
 const TLDRAW_CONTEXT_MENU_SELECTOR = '.tldraw-whiteboard'
 

@@ -14,10 +14,93 @@ import {
   type Dirent,
 } from 'fs'
 import os from 'os'
+import { execSync } from 'child_process'
+import { createHash } from 'crypto'
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import matter from 'gray-matter'
+
+/** Structured provenance for the built artifact — enough to judge, from a
+ * stray build alone, which commit it came from and whether/what was uncommitted. */
+interface BuildInfo {
+  /** Compact stamp: `<shortHash>` when clean, `<shortHash>-dirty-<fingerprint>` when not. */
+  buildId: string
+  commit: string
+  commitShort: string
+  /** ISO-8601 date of the HEAD commit. */
+  committedAt: string
+  dirty: boolean
+  /** sha1 of (tracked diff + porcelain status); present iff dirty. Lets you
+   * exact-match a candidate working tree to this build. */
+  fingerprint: string | null
+  /** `git status --porcelain` lines (code + path), so a stray build names the
+   * uncommitted files instead of hiding them behind a one-way hash. `[]` when clean. */
+  changes: string[]
+}
+
+/** Resolve build provenance from git. Clean tree → `buildId` is the short hash.
+ * Dirty tree → `<hash>-dirty-<fingerprint>`; a bare hash cannot tell a clean
+ * build apart from a dirty build on the same commit, hence the fingerprint. */
+function resolveBuildInfo(): BuildInfo {
+  // Trimming helper for scalar values (hashes, dates).
+  const git = (args: string): string =>
+    execSync(`git ${args}`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+  // Raw helper — leading spaces are significant in `--porcelain` status codes
+  // (` M` unstaged vs `M ` staged), so this output must NOT be left-trimmed.
+  const gitRaw = (args: string): string =>
+    execSync(`git ${args}`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+  const unknown: BuildInfo = {
+    buildId: 'unknown', commit: 'unknown', commitShort: 'unknown',
+    committedAt: 'unknown', dirty: false, fingerprint: null, changes: [],
+  }
+  try {
+    const commit = git('rev-parse HEAD')
+    const commitShort = git('rev-parse --short HEAD')
+    const committedAt = git('show -s --format=%cI HEAD')
+    const status = gitRaw('status --porcelain').replace(/\n+$/, '')
+    if (status === '') {
+      return { buildId: commitShort, commit, commitShort, committedAt, dirty: false, fingerprint: null, changes: [] }
+    }
+    const diff = gitRaw('diff HEAD')
+    const fingerprint = createHash('sha1').update(diff).update(' ').update(status).digest('hex').slice(0, 7)
+    return {
+      buildId: `${commitShort}-dirty-${fingerprint}`,
+      commit, commitShort, committedAt, dirty: true, fingerprint,
+      changes: status.split('\n').filter(Boolean),
+    }
+  } catch {
+    return unknown
+  }
+}
+
+const BUILD_INFO = resolveBuildInfo()
+const BUILD_COMMIT = BUILD_INFO.buildId
+
+/** Persist the build id (for `build.rs` to stamp into the Rust binary) and a
+ * richer manifest (bundled into the .app as a resource, see tauri.conf.json).
+ * `builtAt` is wall-clock build time — deliberately outside the fingerprint so
+ * the buildId stays reproducible, but recorded here so a found build can be
+ * cross-checked against the mtimes of untracked files still on disk.
+ * Build-only so `vite dev` does not churn the files. */
+function buildIdPlugin(): Plugin {
+  return {
+    name: 'tolaria-build-id',
+    apply: 'build',
+    buildStart() {
+      const manifest = { ...BUILD_INFO, builtAt: new Date().toISOString() }
+      try {
+        writeFileSync(path.resolve(__dirname, 'src-tauri/build-id.txt'), BUILD_COMMIT)
+        writeFileSync(
+          path.resolve(__dirname, 'src-tauri/build-manifest.json'),
+          `${JSON.stringify(manifest, null, 2)}\n`,
+        )
+      } catch {
+        // Non-fatal: build.rs falls back to a git-derived manifest.
+      }
+    },
+  }
+}
 
 // --- Vault API middleware (dev only) ---
 
@@ -966,7 +1049,7 @@ function mcpBridgeInfoPlugin(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss(), vaultApiPlugin(), mcpBridgeInfoPlugin()],
+  plugins: [react(), tailwindcss(), vaultApiPlugin(), mcpBridgeInfoPlugin(), buildIdPlugin()],
 
   resolve: {
     alias: {
@@ -981,6 +1064,7 @@ export default defineConfig({
   // CI must resolve the default vault path at runtime via the backend to avoid
   // baking the CI runner's absolute path into the distributed bundle.
   define: {
+    __BUILD_COMMIT__: JSON.stringify(BUILD_COMMIT),
     ...(process.env.CI || (process.env.TAURI_PLATFORM && !process.env.TAURI_DEBUG)
       ? {}
       : { __DEMO_VAULT_PATH__: JSON.stringify(path.resolve(__dirname, 'demo-vault-v2')) }),

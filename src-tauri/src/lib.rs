@@ -399,6 +399,7 @@ fn setup_macos_webview_shortcut_prevention(
 }
 
 fn setup_app(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    log::info!("Tolaria build {}", env!("BUILD_COMMIT"));
     setup_common_plugins(app)?;
 
     #[cfg(desktop)]
