@@ -389,7 +389,7 @@ describe('useNoteRename hook', () => {
     })
 
     const { result } = renderHook(() => useNoteRename(
-      { entries: [], setToastMessage, isPathUnsaved: (path: string) => path === otherPath },
+      { entries: [], setToastMessage },
       { tabs, setTabs, activeTabPathRef, handleSwitchTab, updateTabContent: realUpdateTabContent },
     ))
 
@@ -426,6 +426,42 @@ describe('useNoteRename hook', () => {
     })
 
     expect(setToastMessage).toHaveBeenCalledWith('A note with that name already exists')
+  })
+
+  it('does not register a path mapping when a filename rename attempt fails with a collision', async () => {
+    vi.mocked(mockInvoke).mockRejectedValueOnce(new Error('A note with that name already exists'))
+    const onEntryRenamed = vi.fn()
+
+    const { result } = renderHook(() => useNoteRename(
+      { entries: [makeEntry({ path: '/vault/a.md', filename: 'a.md' })], setToastMessage },
+      { tabs: [], setTabs, activeTabPathRef, handleSwitchTab, updateTabContent },
+    ))
+
+    await act(async () => {
+      await result.current.handleRenameFilename('/vault/a.md', 'a2', '/vault', onEntryRenamed)
+    })
+
+    expect(onEntryRenamed).not.toHaveBeenCalled()
+    expect(setTabs).not.toHaveBeenCalled()
+    expect(handleSwitchTab).not.toHaveBeenCalled()
+  })
+
+  it('does not register a path mapping when a title rename attempt fails with a collision', async () => {
+    vi.mocked(mockInvoke).mockRejectedValueOnce(new Error('A note with that name already exists'))
+    const onEntryRenamed = vi.fn()
+
+    const { result } = renderHook(() => useNoteRename(
+      { entries: [makeEntry({ path: '/vault/a.md', filename: 'a.md', title: 'A' })], setToastMessage },
+      { tabs: [], setTabs, activeTabPathRef, handleSwitchTab, updateTabContent },
+    ))
+
+    await act(async () => {
+      await result.current.handleRenameNote('/vault/a.md', 'A2', '/vault', onEntryRenamed)
+    })
+
+    expect(onEntryRenamed).not.toHaveBeenCalled()
+    expect(setTabs).not.toHaveBeenCalled()
+    expect(handleSwitchTab).not.toHaveBeenCalled()
   })
 
   it('handleMoveNoteToFolder moves the note and keeps its title intact', async () => {

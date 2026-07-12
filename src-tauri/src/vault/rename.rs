@@ -14,7 +14,13 @@ use super::rename_transaction::RenameWorkspace;
 use super::VaultEntry;
 use crate::frontmatter::{update_frontmatter_content, FrontmatterValue};
 
-/// Result of a rename operation
+/// Result of a rename operation. The file move is already committed by the
+/// time this is returned; `updated_files`/`failed_updates`/`updated_paths` are
+/// always zero/empty here — the vault-wide wikilink rewrite runs afterward as
+/// a background job (see `PendingWikilinkRewrite`) and reports its own result
+/// separately, since scanning/rewriting every other note that links this one
+/// is the slow part of a rename and callers shouldn't have to wait on it just
+/// to learn the new path.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RenameResult {
     /// New absolute file path after rename
@@ -27,6 +33,82 @@ pub struct RenameResult {
     /// renderer can refresh just those entries instead of rescanning the vault.
     #[serde(default)]
     pub updated_paths: Vec<String>,
+}
+
+/// The result of the deferred wikilink rewrite, reported once it completes —
+/// see `PendingWikilinkRewrite::run`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WikilinkRewriteCompleted {
+    pub old_path: String,
+    pub new_path: String,
+    pub updated_files: usize,
+    pub failed_updates: usize,
+    pub updated_paths: Vec<String>,
+}
+
+/// Everything needed to run a rename's vault-wide wikilink rewrite later, on a
+/// background thread, after the caller already has the fast RenameResult in
+/// hand. Holds owned data (not borrowed from the request) so it can move into
+/// a spawned task.
+pub struct PendingWikilinkRewrite {
+    vault_path: std::path::PathBuf,
+    old_targets: Vec<String>,
+    new_target: String,
+    exclude_path: std::path::PathBuf,
+    entries: Option<Vec<VaultEntry>>,
+    old_path: String,
+    new_path: String,
+    /// Move-to-workspace touches both the source and destination vaults when
+    /// they differ — this is the second one, rewritten with the same targets.
+    additional_vault_path: Option<std::path::PathBuf>,
+}
+
+impl PendingWikilinkRewrite {
+    fn noop(old_path: &str, new_path: &str) -> Self {
+        Self {
+            vault_path: std::path::PathBuf::new(),
+            old_targets: Vec::new(),
+            new_target: String::new(),
+            exclude_path: std::path::PathBuf::new(),
+            entries: None,
+            old_path: old_path.to_string(),
+            new_path: new_path.to_string(),
+            additional_vault_path: None,
+        }
+    }
+
+    /// Runs the vault-wide wikilink rewrite. Blocking (file I/O across
+    /// potentially every note in the vault) — call from a blocking-safe
+    /// context (e.g. `tokio::task::spawn_blocking`), not an async task.
+    pub fn run(self) -> WikilinkRewriteCompleted {
+        let old_targets: Vec<&str> = self.old_targets.iter().map(String::as_str).collect();
+        let mut summary = update_wikilinks_in_vault(
+            &self.vault_path,
+            &old_targets,
+            &self.new_target,
+            &self.exclude_path,
+            self.entries.as_deref(),
+        );
+        if let Some(additional_vault_path) = &self.additional_vault_path {
+            let additional = update_wikilinks_in_vault(
+                additional_vault_path,
+                &old_targets,
+                &self.new_target,
+                &self.exclude_path,
+                None,
+            );
+            summary.updated_files += additional.updated_files;
+            summary.failed_updates += additional.failed_updates;
+            summary.updated_paths.extend(additional.updated_paths);
+        }
+        WikilinkRewriteCompleted {
+            old_path: self.old_path,
+            new_path: self.new_path,
+            updated_files: summary.updated_files,
+            failed_updates: summary.failed_updates,
+            updated_paths: summary.updated_paths,
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -297,19 +379,32 @@ fn persist_staged_note(staged: NamedTempFile, target_path: &Path) -> Result<(), 
 
 fn finalize_rename(
     vault: &Path,
+    old_path: &str,
     old_targets: &[&str],
     new_file: &Path,
     entries: Option<&[VaultEntry]>,
-) -> RenameResult {
+) -> (RenameResult, PendingWikilinkRewrite) {
     let new_path = new_file.to_string_lossy().to_string();
     let new_path_stem = to_path_stem(new_file, vault);
-    let summary = update_wikilinks_in_vault(vault, old_targets, &new_path_stem, new_file, entries);
-    RenameResult {
-        new_path,
-        updated_files: summary.updated_files,
-        failed_updates: summary.failed_updates,
-        updated_paths: summary.updated_paths,
-    }
+    let pending = PendingWikilinkRewrite {
+        vault_path: vault.to_path_buf(),
+        old_targets: old_targets.iter().map(|target| target.to_string()).collect(),
+        new_target: new_path_stem,
+        exclude_path: new_file.to_path_buf(),
+        entries: entries.map(|entries| entries.to_vec()),
+        old_path: old_path.to_string(),
+        new_path: new_path.clone(),
+        additional_vault_path: None,
+    };
+    (
+        RenameResult {
+            new_path,
+            updated_files: 0,
+            failed_updates: 0,
+            updated_paths: Vec::new(),
+        },
+        pending,
+    )
 }
 
 fn create_new_note_file(path: &Path, content: &str) -> Result<(), String> {
@@ -355,13 +450,17 @@ struct LoadedNote {
     title: String,
 }
 
-fn unchanged_result(path: &Path) -> RenameResult {
-    RenameResult {
-        new_path: path.to_string_lossy().to_string(),
-        updated_files: 0,
-        failed_updates: 0,
-        updated_paths: Vec::new(),
-    }
+fn unchanged_result(path: &Path) -> (RenameResult, PendingWikilinkRewrite) {
+    let path_str = path.to_string_lossy().to_string();
+    (
+        RenameResult {
+            new_path: path_str.clone(),
+            updated_files: 0,
+            failed_updates: 0,
+            updated_paths: Vec::new(),
+        },
+        PendingWikilinkRewrite::noop(&path_str, &path_str),
+    )
 }
 
 fn validate_new_title(new_title: &str) -> Result<&str, String> {
@@ -403,7 +502,7 @@ fn persist_title_only_update(
     workspace: &RenameWorkspace,
     old_file: &Path,
     updated_content: &str,
-) -> Result<RenameResult, String> {
+) -> Result<(RenameResult, PendingWikilinkRewrite), String> {
     persist_staged_note(workspace.stage_note_content(updated_content)?, old_file)?;
     Ok(unchanged_result(old_file))
 }
@@ -413,7 +512,9 @@ fn persist_title_only_update(
 /// When `old_title_hint` is provided it is used instead of extracting the title from
 /// the file's frontmatter/filename.  This is needed when the caller has already saved
 /// updated content to disk before triggering the rename.
-pub fn rename_note(request: RenameNoteRequest<'_>) -> Result<RenameResult, String> {
+pub fn rename_note(
+    request: RenameNoteRequest<'_>,
+) -> Result<(RenameResult, PendingWikilinkRewrite), String> {
     rename_note_with_links(request, None)
 }
 
@@ -423,7 +524,7 @@ pub fn rename_note(request: RenameNoteRequest<'_>) -> Result<RenameResult, Strin
 pub fn rename_note_with_links(
     request: RenameNoteRequest<'_>,
     entries: Option<&[VaultEntry]>,
-) -> Result<RenameResult, String> {
+) -> Result<(RenameResult, PendingWikilinkRewrite), String> {
     let vault = Path::new(request.vault_path);
     let old_file = Path::new(request.old_path);
 
@@ -466,13 +567,19 @@ pub fn rename_note_with_links(
         )?;
     let old_path_stem = to_path_stem(old_file, vault);
     let old_targets = collect_legacy_wikilink_targets(&loaded.title, &old_path_stem);
-    Ok(finalize_rename(vault, &old_targets, committed.new_file(), entries))
+    Ok(finalize_rename(
+        vault,
+        request.old_path,
+        &old_targets,
+        committed.new_file(),
+        entries,
+    ))
 }
 
 /// Rename only the file path stem while preserving title/frontmatter content.
 pub fn rename_note_filename(
     request: RenameNoteFilenameRequest<'_>,
-) -> Result<RenameResult, String> {
+) -> Result<(RenameResult, PendingWikilinkRewrite), String> {
     rename_note_filename_with_links(request, None)
 }
 
@@ -481,7 +588,7 @@ pub fn rename_note_filename(
 pub fn rename_note_filename_with_links(
     request: RenameNoteFilenameRequest<'_>,
     entries: Option<&[VaultEntry]>,
-) -> Result<RenameResult, String> {
+) -> Result<(RenameResult, PendingWikilinkRewrite), String> {
     let vault = Path::new(request.vault_path);
     let old_file = Path::new(request.old_path);
 
@@ -517,11 +624,19 @@ pub fn rename_note_filename_with_links(
 
     let old_path_stem = to_path_stem(old_file, vault);
     let old_targets = collect_legacy_wikilink_targets(&old_title, &old_path_stem);
-    Ok(finalize_rename(vault, &old_targets, committed.new_file(), entries))
+    Ok(finalize_rename(
+        vault,
+        request.old_path,
+        &old_targets,
+        committed.new_file(),
+        entries,
+    ))
 }
 
 /// Move a note into a different folder while preserving its filename and content.
-pub fn move_note_to_folder(request: MoveNoteToFolderRequest<'_>) -> Result<RenameResult, String> {
+pub fn move_note_to_folder(
+    request: MoveNoteToFolderRequest<'_>,
+) -> Result<(RenameResult, PendingWikilinkRewrite), String> {
     move_note_to_folder_with_links(request, None)
 }
 
@@ -530,7 +645,7 @@ pub fn move_note_to_folder(request: MoveNoteToFolderRequest<'_>) -> Result<Renam
 pub fn move_note_to_folder_with_links(
     request: MoveNoteToFolderRequest<'_>,
     entries: Option<&[VaultEntry]>,
-) -> Result<RenameResult, String> {
+) -> Result<(RenameResult, PendingWikilinkRewrite), String> {
     let vault = Path::new(request.vault_path);
     let old_file = Path::new(request.old_path);
     let destination_dir = Path::new(request.destination_folder_path);
@@ -572,13 +687,19 @@ pub fn move_note_to_folder_with_links(
 
     let old_path_stem = to_path_stem(old_file, vault);
     let old_targets = collect_legacy_wikilink_targets(&old_title, &old_path_stem);
-    Ok(finalize_rename(vault, &old_targets, committed.new_file(), entries))
+    Ok(finalize_rename(
+        vault,
+        request.old_path,
+        &old_targets,
+        committed.new_file(),
+        entries,
+    ))
 }
 
 /// Move a note into another workspace while preserving its vault-relative path.
 pub fn move_note_to_workspace(
     request: MoveNoteToWorkspaceRequest<'_>,
-) -> Result<RenameResult, String> {
+) -> Result<(RenameResult, PendingWikilinkRewrite), String> {
     let source_vault = Path::new(request.source_vault_path);
     let destination_vault = Path::new(request.destination_vault_path);
     let old_file = Path::new(request.old_path);
@@ -617,32 +738,34 @@ pub fn move_note_to_workspace(
     let old_path_stem = to_path_stem(old_file, source_vault);
     let old_targets = collect_legacy_wikilink_targets(&old_title, &old_path_stem);
     let fallback_target = to_path_stem(new_file, destination_vault);
-    let replacement_target = request.replacement_target.unwrap_or(&fallback_target);
-    let source_summary =
-        update_wikilinks_in_vault(source_vault, &old_targets, replacement_target, new_file, None);
-    let destination_summary = if source_vault == destination_vault {
-        WikilinkUpdateSummary::default()
-    } else {
-        update_wikilinks_in_vault(
-            destination_vault,
-            &old_targets,
-            replacement_target,
-            new_file,
-            None,
-        )
+    let replacement_target = request
+        .replacement_target
+        .unwrap_or(&fallback_target)
+        .to_string();
+    let new_path = new_file.to_string_lossy().to_string();
+    let pending = PendingWikilinkRewrite {
+        vault_path: source_vault.to_path_buf(),
+        old_targets: old_targets.iter().map(|target| target.to_string()).collect(),
+        new_target: replacement_target,
+        exclude_path: new_file.to_path_buf(),
+        entries: None,
+        old_path: request.old_path.to_string(),
+        new_path: new_path.clone(),
+        additional_vault_path: if source_vault == destination_vault {
+            None
+        } else {
+            Some(destination_vault.to_path_buf())
+        },
     };
-
-    let updated_paths = source_summary
-        .updated_paths
-        .into_iter()
-        .chain(destination_summary.updated_paths)
-        .collect();
-    Ok(RenameResult {
-        new_path: new_file.to_string_lossy().to_string(),
-        updated_files: source_summary.updated_files + destination_summary.updated_files,
-        failed_updates: source_summary.failed_updates + destination_summary.failed_updates,
-        updated_paths,
-    })
+    Ok((
+        RenameResult {
+            new_path,
+            updated_files: 0,
+            failed_updates: 0,
+            updated_paths: Vec::new(),
+        },
+        pending,
+    ))
 }
 
 /// Check if a filename matches the untitled pattern (e.g. "untitled-note-1234567890.md").
@@ -661,7 +784,7 @@ fn is_untitled_filename(filename: &str) -> bool {
 /// This is a ONE-SHOT rename: only fires for untitled-* files with an H1.
 pub fn auto_rename_untitled(
     request: AutoRenameUntitledRequest<'_>,
-) -> Result<Option<RenameResult>, String> {
+) -> Result<Option<(RenameResult, PendingWikilinkRewrite)>, String> {
     let path = Path::new(request.note_path);
     let filename = path
         .file_name()
@@ -760,6 +883,45 @@ mod tests {
     use std::io::Write;
     use tempfile::TempDir;
 
+    /// Test-only helpers that run a rename and immediately resolve its
+    /// deferred wikilink rewrite, merging the result back into a single
+    /// `RenameResult` — reproducing the pre-decoupling synchronous shape so
+    /// the many existing tests below don't each need to juggle the
+    /// (RenameResult, PendingWikilinkRewrite) split by hand.
+    fn resolve(outcome: Result<(RenameResult, PendingWikilinkRewrite), String>) -> Result<RenameResult, String> {
+        let (mut result, pending) = outcome?;
+        let completed = pending.run();
+        result.updated_files = completed.updated_files;
+        result.failed_updates = completed.failed_updates;
+        result.updated_paths = completed.updated_paths;
+        Ok(result)
+    }
+
+    fn rename_note_sync(request: RenameNoteRequest<'_>) -> Result<RenameResult, String> {
+        resolve(rename_note(request))
+    }
+
+    fn rename_note_filename_sync(request: RenameNoteFilenameRequest<'_>) -> Result<RenameResult, String> {
+        resolve(rename_note_filename(request))
+    }
+
+    fn rename_note_filename_with_links_sync(
+        request: RenameNoteFilenameRequest<'_>,
+        entries: Option<&[VaultEntry]>,
+    ) -> Result<RenameResult, String> {
+        resolve(rename_note_filename_with_links(request, entries))
+    }
+
+    fn move_note_to_folder_sync(request: MoveNoteToFolderRequest<'_>) -> Result<RenameResult, String> {
+        resolve(move_note_to_folder(request))
+    }
+
+    fn move_note_to_workspace_sync(
+        request: MoveNoteToWorkspaceRequest<'_>,
+    ) -> Result<RenameResult, String> {
+        resolve(move_note_to_workspace(request))
+    }
+
     fn create_test_file(dir: &Path, name: impl AsRef<Path>, content: impl AsRef<[u8]>) {
         let file_path = dir.join(name);
         if let Some(parent) = file_path.parent() {
@@ -782,7 +944,7 @@ mod tests {
     ) -> (std::path::PathBuf, RenameResult) {
         create_test_file(vault, request.path, request.content);
         let old_path = vault.join(request.path);
-        let result = rename_note(RenameNoteRequest {
+        let result = rename_note_sync(RenameNoteRequest {
             vault_path: vault.to_str().unwrap(),
             old_path: old_path.to_str().unwrap(),
             new_title: request.new_title,
@@ -833,7 +995,7 @@ mod tests {
             create_test_file(vault, existing_path.as_ref(), "# Existing\n");
         }
 
-        let result = rename_note_filename(RenameNoteFilenameRequest {
+        let result = rename_note_filename_sync(RenameNoteFilenameRequest {
             vault_path: vault.to_str().unwrap(),
             old_path: current_path.to_str().unwrap(),
             new_filename_stem: new_filename_stem.as_ref(),
@@ -848,7 +1010,7 @@ mod tests {
         create_test_file(vault, "projects/weekly-review.md", "# Weekly Review\n");
         create_test_file(vault, "areas/weekly-review.md", "# Existing\n");
 
-        let result = move_note_to_folder(MoveNoteToFolderRequest {
+        let result = move_note_to_folder_sync(MoveNoteToFolderRequest {
             vault_path: vault.to_str().unwrap(),
             old_path: vault.join("projects/weekly-review.md").to_str().unwrap(),
             destination_folder_path: vault.join("areas").to_str().unwrap(),
@@ -915,7 +1077,7 @@ mod tests {
         );
 
         let old_path = vault.join("untitled-note-1700000000.md");
-        let result = rename_note(RenameNoteRequest {
+        let result = rename_note_sync(RenameNoteRequest {
             vault_path: vault.to_str().unwrap(),
             old_path: old_path.to_str().unwrap(),
             new_title: "你好",
@@ -969,7 +1131,7 @@ mod tests {
         );
 
         let old_path = vault.join("note/weekly-review.md");
-        let result = rename_note(RenameNoteRequest {
+        let result = rename_note_sync(RenameNoteRequest {
             vault_path: vault.to_str().unwrap(),
             old_path: old_path.to_str().unwrap(),
             new_title: "Sprint Retrospective",
@@ -1008,7 +1170,7 @@ mod tests {
         );
 
         let old_path = vault.join("note/weekly-review.md");
-        let result = rename_note(RenameNoteRequest {
+        let result = rename_note_sync(RenameNoteRequest {
             vault_path: vault.to_str().unwrap(),
             old_path: old_path.to_str().unwrap(),
             new_title: "Sprint Retrospective",
@@ -1033,7 +1195,7 @@ mod tests {
         create_test_file(vault, "note/test.md", "# Test\n");
 
         let old_path = vault.join("note/test.md");
-        let result = rename_note(RenameNoteRequest {
+        let result = rename_note_sync(RenameNoteRequest {
             vault_path: vault.to_str().unwrap(),
             old_path: old_path.to_str().unwrap(),
             new_title: "  ",
@@ -1131,7 +1293,7 @@ mod tests {
         );
 
         let old_path = vault.join("note/old.md");
-        let result = rename_note(RenameNoteRequest {
+        let result = rename_note_sync(RenameNoteRequest {
             vault_path: vault.to_str().unwrap(),
             old_path: old_path.to_str().unwrap(),
             new_title: "New Name",
@@ -1159,7 +1321,7 @@ mod tests {
         create_test_file(vault, filename.as_ref(), content.as_ref());
 
         let old_path = vault.join(filename.as_ref());
-        let result = rename_note(RenameNoteRequest {
+        let result = rename_note_sync(RenameNoteRequest {
             vault_path: vault.to_str().unwrap(),
             old_path: old_path.to_str().unwrap(),
             new_title: new_title.as_ref(),
@@ -1237,7 +1399,7 @@ mod tests {
         );
 
         let old_path = vault.join("note/untitled-note.md");
-        let result = rename_note(RenameNoteRequest {
+        let result = rename_note_sync(RenameNoteRequest {
             vault_path: vault.to_str().unwrap(),
             old_path: old_path.to_str().unwrap(),
             new_title: "My New Note",
@@ -1278,7 +1440,7 @@ mod tests {
         );
 
         let old_path = vault.join("note/untitled-note.md");
-        let result = rename_note(RenameNoteRequest {
+        let result = rename_note_sync(RenameNoteRequest {
             vault_path: vault.to_str().unwrap(),
             old_path: old_path.to_str().unwrap(),
             new_title: "My Note",
@@ -1314,7 +1476,7 @@ mod tests {
         );
 
         let old_path = vault.join("note/project-kickoff.md");
-        let result = rename_note_filename(RenameNoteFilenameRequest {
+        let result = rename_note_filename_sync(RenameNoteFilenameRequest {
             vault_path: vault.to_str().unwrap(),
             old_path: old_path.to_str().unwrap(),
             new_filename_stem: "manual-name",
@@ -1363,7 +1525,7 @@ mod tests {
             "Reference [[projects/weekly-review]]\n",
         );
 
-        let result = move_note_to_folder(MoveNoteToFolderRequest {
+        let result = move_note_to_folder_sync(MoveNoteToFolderRequest {
             vault_path: vault.to_str().unwrap(),
             old_path: vault.join("projects/weekly-review.md").to_str().unwrap(),
             destination_folder_path: vault.join("areas").to_str().unwrap(),
@@ -1386,7 +1548,7 @@ mod tests {
         create_test_file(vault, "projects/weekly-review.md", "# Weekly Review\n");
 
         let source = vault.join("projects/weekly-review.md");
-        let result = move_note_to_folder(MoveNoteToFolderRequest {
+        let result = move_note_to_folder_sync(MoveNoteToFolderRequest {
             vault_path: vault.to_str().unwrap(),
             old_path: source.to_str().unwrap(),
             destination_folder_path: vault.join("projects").to_str().unwrap(),
@@ -1420,7 +1582,7 @@ mod tests {
 
         let old_path = source.path().join("Projects/project-kickoff.md");
         let destination_path = destination.path().join("Projects/project-kickoff.md");
-        let result = move_note_to_workspace(MoveNoteToWorkspaceRequest {
+        let result = move_note_to_workspace_sync(MoveNoteToWorkspaceRequest {
             source_vault_path: source.path().to_str().unwrap(),
             destination_vault_path: destination.path().to_str().unwrap(),
             old_path: old_path.to_str().unwrap(),
@@ -1464,7 +1626,7 @@ mod tests {
         let old_path = vault.join("note/weekly-review.md");
         // Without old_title_hint, rename_note would see H1 = "Sprint Retrospective" == new_title → noop
         // With old_title_hint = "Weekly Review", it knows to search for [[Weekly Review]] and replace
-        let result = rename_note(RenameNoteRequest {
+        let result = rename_note_sync(RenameNoteRequest {
             vault_path: vault.to_str().unwrap(),
             old_path: old_path.to_str().unwrap(),
             new_title: "Sprint Retrospective",
@@ -1496,7 +1658,7 @@ mod tests {
         );
 
         let old_path = vault.join("note/old.md");
-        let result = rename_note(RenameNoteRequest {
+        let result = rename_note_sync(RenameNoteRequest {
             vault_path: vault.to_str().unwrap(),
             old_path: old_path.to_str().unwrap(),
             new_title: "Brand New Title",
@@ -1617,7 +1779,7 @@ mod tests {
         build_wikilink_fixture(full.path());
         let entries = scan_fixture(narrowed.path());
 
-        let narrowed_result = rename_note_filename_with_links(
+        let narrowed_result = rename_note_filename_with_links_sync(
             RenameNoteFilenameRequest {
                 vault_path: narrowed.path().to_str().unwrap(),
                 old_path: narrowed.path().join("note/weekly-review.md").to_str().unwrap(),
@@ -1626,7 +1788,7 @@ mod tests {
             Some(&entries),
         )
         .unwrap();
-        let full_result = rename_note_filename_with_links(
+        let full_result = rename_note_filename_with_links_sync(
             RenameNoteFilenameRequest {
                 vault_path: full.path().to_str().unwrap(),
                 old_path: full.path().join("note/weekly-review.md").to_str().unwrap(),

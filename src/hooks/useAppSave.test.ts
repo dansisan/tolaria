@@ -641,7 +641,12 @@ describe('useAppSave', () => {
     expect(vi.mocked(invoke)).not.toHaveBeenCalledWith('auto_rename_untitled', expect.anything())
   })
 
-  it('redirects stale editor saves to the latest renamed path', async () => {
+  it('keeps saving to the renamed path for edits made after an untitled rename settles', async () => {
+    // handleContentChange is called with whichever path the caller (the rich
+    // editor's own tab-swap tracking) currently believes is active — once a
+    // rename settles, that's always the new path already, not the old one.
+    // There's deliberately no map here to redirect a caller that still passes
+    // a stale path after settlement (see useRemapPendingContentPath).
     const { result, oldPath, newPath } = setupUntitledRenameHarness()
 
     await act(async () => {
@@ -650,7 +655,7 @@ describe('useAppSave', () => {
     })
 
     await act(async () => {
-      result.current.handleContentChange(oldPath, '# Fresh Title\n\nBody\n\nMore text')
+      result.current.handleContentChange(newPath, '# Fresh Title\n\nBody\n\nMore text')
       await vi.advanceTimersByTimeAsync(AUTO_SAVE_DEBOUNCE_MS)
     })
 
@@ -665,7 +670,7 @@ describe('useAppSave', () => {
     ])
   })
 
-  it('tracks filename renames so follow-up saves do not recreate the old path', async () => {
+  it('keeps saving to the renamed path for edits made after a manual filename rename', async () => {
     vi.useFakeTimers()
     vi.mocked(isTauri).mockReturnValue(true)
 
@@ -695,8 +700,11 @@ describe('useAppSave', () => {
       await result.current.handleFilenameRename(oldPath, 'manual-name')
     })
 
+    // The rich editor's own tab-swap tracking picks up the rename synchronously
+    // (see the 'laputa:note-path-renamed' listener in useEditorTabSwap.ts), so
+    // it calls handleContentChange with the new path from here on.
     await act(async () => {
-      result.current.handleContentChange(oldPath, '# Fresh Title\n\nBody\n\nMore text')
+      result.current.handleContentChange(newPath, '# Fresh Title\n\nBody\n\nMore text')
       await vi.advanceTimersByTimeAsync(AUTO_SAVE_DEBOUNCE_MS)
     })
 
@@ -716,13 +724,16 @@ describe('useAppSave', () => {
     )
   })
 
-  it('routes macOS alias-path editor saves to the renamed path', async () => {
+  it('tolerates a macOS alias of the current path for editor saves after a rename', async () => {
+    // Alias tolerance (macOS /tmp vs /private/tmp for the same file) is
+    // independent of rename bookkeeping — it must hold for the note's
+    // *current* path, not just pre-rename identities.
     vi.useFakeTimers()
     vi.mocked(isTauri).mockReturnValue(true)
 
     const oldPath = '/tmp/vault/fresh-title.md'
-    const aliasOldPath = '/private/tmp/vault/fresh-title.md'
     const newPath = '/tmp/vault/manual-name.md'
+    const aliasNewPath = '/private/tmp/vault/manual-name.md'
     const entry = makeEntry(oldPath, 'Fresh Title', 'fresh-title.md')
 
     vi.mocked(invoke).mockImplementation(async (command: string) => {
@@ -749,8 +760,8 @@ describe('useAppSave', () => {
     })
 
     await act(async () => {
-      result.current.handleContentChange(aliasOldPath, '# Fresh Title\n\nBody\n\nAlias edit')
-      await vi.advanceTimersByTimeAsync(AUTO_SAVE_DEBOUNCE_MS)
+      result.current.handleContentChange(newPath, '# Fresh Title\n\nBody\n\nAlias edit')
+      await result.current.savePendingForPath(aliasNewPath)
     })
 
     const saveCalls = vi.mocked(invoke).mock.calls.filter(([command]) => command === 'save_note_content')
@@ -760,7 +771,7 @@ describe('useAppSave', () => {
     ])
     expect(saveCalls).not.toContainEqual([
       'save_note_content',
-      { path: aliasOldPath, content: '# Fresh Title\n\nBody\n\nAlias edit' },
+      { path: aliasNewPath, content: '# Fresh Title\n\nBody\n\nAlias edit' },
     ])
   })
 

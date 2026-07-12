@@ -167,6 +167,54 @@ describe('useEditorSave', () => {
     })
   })
 
+  it('remapPendingContentPath retargets buffered content when its note gets renamed', async () => {
+    const { result } = renderSaveHook()
+
+    act(() => {
+      result.current.handleContentChange('/test/old-name.md', 'buffered before rename')
+    })
+
+    act(() => {
+      result.current.remapPendingContentPath('/test/old-name.md', '/test/new-name.md')
+    })
+
+    // A flush for the old path is now a no-op — the buffered content moved.
+    await act(async () => {
+      await result.current.savePendingForPath('/test/old-name.md')
+    })
+    expect(mockInvokeFn).not.toHaveBeenCalled()
+
+    // The same buffered content now saves under the new path.
+    await act(async () => {
+      await result.current.savePendingForPath('/test/new-name.md')
+    })
+    expect(mockInvokeFn).toHaveBeenCalledWith('save_note_content', {
+      path: '/test/new-name.md',
+      content: 'buffered before rename',
+    })
+  })
+
+  it('remapPendingContentPath leaves unrelated buffered content alone', async () => {
+    const { result } = renderSaveHook()
+
+    act(() => {
+      result.current.handleContentChange('/test/unrelated.md', 'unrelated content')
+    })
+
+    act(() => {
+      result.current.remapPendingContentPath('/test/old-name.md', '/test/new-name.md')
+    })
+
+    // The unrelated note's buffered content still saves under its own path.
+    await act(async () => {
+      await result.current.savePendingForPath('/test/unrelated.md')
+    })
+    expect(mockInvokeFn).toHaveBeenCalledWith('save_note_content', {
+      path: '/test/unrelated.md',
+      content: 'unrelated content',
+    })
+  })
+
   it('coalesces overlapping savePendingForPath calls for the same buffered content', async () => {
     let resolveSave!: (value: null) => void
     mockInvokeFn.mockReturnValue(new Promise<null>((resolve) => { resolveSave = resolve }))

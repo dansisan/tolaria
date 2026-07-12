@@ -10,13 +10,11 @@ import type { VaultEntry } from '../types'
 import { createTranslator, type AppLocale } from '../lib/i18n'
 import { canWritePathToVault } from '../utils/vaultPathContainment'
 import { vaultPathForEntry } from '../utils/workspaces'
-import { notePathsMatch } from '../utils/notePathIdentity'
 
 interface TabState {
   entry: VaultEntry
   content: string
 }
-
 
 interface PendingUntitledRename {
   path: string
@@ -24,70 +22,17 @@ interface PendingUntitledRename {
   timer: ReturnType<typeof setTimeout>
 }
 
-type RenamedPathMap = Map<string, string>
+/**
+ * In-flight auto-renames, keyed by the note's pre-rename path. Used to (a)
+ * dedupe concurrent rename attempts for the same note, and (b) let a save
+ * that's about to persist a note mid-rename wait for the rename's actual
+ * result instead of writing under a path that's about to stop existing.
+ */
 type InFlightRenameMap = Map<string, Promise<string>>
-
-function findRenamedPath(renamedPaths: RenamedPathMap, path: string): string | undefined {
-  for (const [oldPath, newPath] of renamedPaths) {
-    if (notePathsMatch(oldPath, path)) return newPath
-  }
-  return undefined
-}
-
-function resolveLatestPath(renamedPaths: RenamedPathMap, path: string): string {
-  let current = path
-  const visited = new Set<string>()
-
-  while (!visited.has(current)) {
-    visited.add(current)
-    const next = findRenamedPath(renamedPaths, current)
-    if (!next || next === current) break
-    current = next
-  }
-
-  return current
-}
-
-function trackRenamedPath(renamedPaths: RenamedPathMap, oldPath: string, newPath: string): void {
-  if (notePathsMatch(oldPath, newPath)) return
-  const latestPath = resolveLatestPath(renamedPaths, newPath)
-  for (const [trackedOldPath, trackedNewPath] of renamedPaths) {
-    if (notePathsMatch(trackedNewPath, oldPath)) renamedPaths.set(trackedOldPath, latestPath)
-  }
-  for (const trackedOldPath of renamedPaths.keys()) {
-    if (notePathsMatch(trackedOldPath, oldPath)) {
-      renamedPaths.set(trackedOldPath, latestPath)
-      return
-    }
-  }
-  renamedPaths.set(oldPath, latestPath)
-}
 
 function vaultPathForTabPath(tabs: TabState[], path: string, fallbackVaultPath: string): string {
   const tab = tabs.find((candidate) => candidate.entry.path === path)
   return tab ? vaultPathForEntry(tab.entry, fallbackVaultPath) : fallbackVaultPath
-}
-
-async function waitForSettledPath({
-  path,
-  renamedPaths,
-  inFlightRenames,
-}: {
-  path: string
-  renamedPaths: RenamedPathMap
-  inFlightRenames: InFlightRenameMap
-}): Promise<string> {
-  let current = resolveLatestPath(renamedPaths, path)
-  const visited = new Set<string>()
-
-  while (!visited.has(current)) {
-    visited.add(current)
-    const inFlightRename = inFlightRenames.get(current)
-    if (!inFlightRename) return resolveLatestPath(renamedPaths, current)
-    current = resolveLatestPath(renamedPaths, await inFlightRename)
-  }
-
-  return current
 }
 
 function findUnsavedFallback({
@@ -196,7 +141,6 @@ async function reloadAutoRenamedNote(
     handleSwitchTab,
     replaceEntry,
     loadModifiedFiles,
-    unsavedPathsRef,
   }: {
     oldPath: string
     newPath: string
@@ -206,19 +150,11 @@ async function reloadAutoRenamedNote(
     handleSwitchTab: AppSaveDeps['handleSwitchTab']
     replaceEntry: AppSaveDeps['replaceEntry']
     loadModifiedFiles: AppSaveDeps['loadModifiedFiles']
-    unsavedPathsRef: MutableRefObject<Set<string>>
   },
 ): Promise<void> {
   const newEntry = await invoke<VaultEntry>('reload_vault_entry', { path: newPath })
   const preservedContent = tabsRef.current.find((tab) => tab.entry.path === oldPath)?.content
     ?? await invoke<string>('get_note_content', { path: newPath })
-
-  // Skip tabs with unsaved edits: their in-memory content is newer than disk,
-  // so reloading here (to pick up rewritten wikilinks) would silently discard
-  // the user's pending changes. Those tabs catch up next time they're saved.
-  const otherTabPaths = tabsRef.current
-    .filter((tab) => tab.entry.path !== oldPath && tab.entry.path !== newPath && !unsavedPathsRef.current.has(tab.entry.path))
-    .map((tab) => tab.entry.path)
 
   startTransition(() => {
     setTabs((prev: TabState[]) => prev.map((tab) => (
@@ -228,19 +164,7 @@ async function reloadAutoRenamedNote(
     )))
     if (activeTabPathRef.current === oldPath) handleSwitchTab(newPath)
     replaceEntry(oldPath, { ...newEntry, path: newPath }, preservedContent)
-  })
-
-  void Promise.all(otherTabPaths.map(async (path) => {
-    const content = await invoke<string>('get_note_content', { path })
-    startTransition(() => {
-      setTabs((prev: TabState[]) => prev.map((tab) => (
-        tab.entry.path === path ? { ...tab, content } : tab
-      )))
-    })
-  })).finally(() => {
-    startTransition(() => {
-      loadModifiedFiles()
-    })
+    loadModifiedFiles()
   })
 }
 
@@ -252,33 +176,6 @@ function useCurrentValueRef<T>(value: T) {
   return ref
 }
 
-function useRenamePathRegistry() {
-  const renamedPathsRef = useRef<RenamedPathMap>(new Map())
-  const inFlightUntitledRenameRef = useRef<InFlightRenameMap>(new Map())
-
-  const registerRenamedPath = useCallback((oldPath: string, newPath: string) => {
-    trackRenamedPath(renamedPathsRef.current, oldPath, newPath)
-  }, [])
-
-  const resolveCurrentPath = useCallback((path: string) => resolveLatestPath(renamedPathsRef.current, path), [])
-  const resolvePathBeforeSave = useCallback(
-    (path: string) => waitForSettledPath({
-      path,
-      renamedPaths: renamedPathsRef.current,
-      inFlightRenames: inFlightUntitledRenameRef.current,
-    }),
-    [],
-  )
-
-  return {
-    renamedPathsRef,
-    inFlightUntitledRenameRef,
-    registerRenamedPath,
-    resolveCurrentPath,
-    resolvePathBeforeSave,
-  }
-}
-
 function useUntitledRenameExecutor({
   resolvedPath,
   tabsRef,
@@ -288,9 +185,8 @@ function useUntitledRenameExecutor({
   replaceEntry,
   loadModifiedFiles,
   onInternalVaultWrite,
-  renamedPathsRef,
   inFlightUntitledRenameRef,
-  unsavedPathsRef,
+  remapPendingContentPathRef,
 }: {
   resolvedPath: string
   tabsRef: MutableRefObject<TabState[]>
@@ -300,9 +196,8 @@ function useUntitledRenameExecutor({
   replaceEntry: AppSaveDeps['replaceEntry']
   loadModifiedFiles: AppSaveDeps['loadModifiedFiles']
   onInternalVaultWrite?: AppSaveDeps['onInternalVaultWrite']
-  renamedPathsRef: MutableRefObject<RenamedPathMap>
   inFlightUntitledRenameRef: MutableRefObject<InFlightRenameMap>
-  unsavedPathsRef: MutableRefObject<Set<string>>
+  remapPendingContentPathRef: MutableRefObject<(oldPath: string, newPath: string) => void>
 }) {
   return useCallback(async (path: string) => {
     const existingRename = inFlightUntitledRenameRef.current.get(path)
@@ -317,7 +212,7 @@ function useUntitledRenameExecutor({
         if (!result) return path
         onInternalVaultWrite?.(path)
         onInternalVaultWrite?.(result.new_path)
-        trackRenamedPath(renamedPathsRef.current, path, result.new_path)
+        remapPendingContentPathRef.current(path, result.new_path)
         await reloadAutoRenamedNote({
           oldPath: path,
           newPath: result.new_path,
@@ -327,7 +222,6 @@ function useUntitledRenameExecutor({
           handleSwitchTab,
           replaceEntry,
           loadModifiedFiles,
-          unsavedPathsRef,
         })
         return result.new_path
       } catch {
@@ -348,9 +242,8 @@ function useUntitledRenameExecutor({
     replaceEntry,
     loadModifiedFiles,
     onInternalVaultWrite,
-    renamedPathsRef,
     inFlightUntitledRenameRef,
-    unsavedPathsRef,
+    remapPendingContentPathRef,
   ])
 }
 
@@ -414,7 +307,7 @@ function useUntitledRenameCoordinator({
   loadModifiedFiles,
   onInternalVaultWrite,
   initialH1AutoRenameEnabled,
-  unsavedPathsRef,
+  remapPendingContentPathRef,
 }: {
   resolvedPath: string
   tabsRef: MutableRefObject<TabState[]>
@@ -425,15 +318,9 @@ function useUntitledRenameCoordinator({
   loadModifiedFiles: AppSaveDeps['loadModifiedFiles']
   onInternalVaultWrite?: AppSaveDeps['onInternalVaultWrite']
   initialH1AutoRenameEnabled: boolean
-  unsavedPathsRef: MutableRefObject<Set<string>>
+  remapPendingContentPathRef: MutableRefObject<(oldPath: string, newPath: string) => void>
 }) {
-  const {
-    renamedPathsRef,
-    inFlightUntitledRenameRef,
-    registerRenamedPath,
-    resolveCurrentPath,
-    resolvePathBeforeSave,
-  } = useRenamePathRegistry()
+  const inFlightUntitledRenameRef = useRef<InFlightRenameMap>(new Map())
   const executeUntitledRename = useUntitledRenameExecutor({
     resolvedPath,
     tabsRef,
@@ -443,9 +330,8 @@ function useUntitledRenameCoordinator({
     replaceEntry,
     loadModifiedFiles,
     onInternalVaultWrite,
-    renamedPathsRef,
-    unsavedPathsRef,
     inFlightUntitledRenameRef,
+    remapPendingContentPathRef,
   })
   const {
     pendingUntitledRenameRef,
@@ -455,11 +341,17 @@ function useUntitledRenameCoordinator({
     scheduleUntitledRename,
   } = useUntitledRenameScheduler({ executeUntitledRename, initialH1AutoRenameEnabled })
 
+  // A save that's about to persist a path with an in-flight auto-rename waits
+  // for that rename's actual result instead of writing under a path that's
+  // about to stop existing. No map, no chain: auto-renames are one-shot, so
+  // there's never more than this single hop to wait for.
+  const resolvePathBeforeSave = useCallback((path: string) => (
+    inFlightUntitledRenameRef.current.get(path) ?? Promise.resolve(path)
+  ), [inFlightUntitledRenameRef])
+
   return {
     pendingUntitledRenameRef,
     cancelPendingUntitledRename,
-    registerRenamedPath,
-    resolveCurrentPath,
     resolvePathBeforeSave,
     flushPendingUntitledRename,
     refreshPendingUntitledRename,
@@ -502,7 +394,6 @@ interface EditorPersistenceOptions {
   reloadViews: AppSaveDeps['reloadViews']
   refreshPendingUntitledRename: (path: string, content: string) => void
   scheduleUntitledRename: (path: string, content: string) => void
-  resolveCurrentPath: (path: string) => string
   resolvePathBeforeSave: (path: string) => Promise<string>
   canPersist: boolean
   persistenceScope: string | readonly string[]
@@ -547,7 +438,6 @@ function useAppSaveEffects({
 
 function useFlushBeforeAction({
   canPersist,
-  resolveCurrentPath,
   savePendingForPath,
   tabsRef,
   unsavedPathsRef,
@@ -557,7 +447,6 @@ function useFlushBeforeAction({
   locale,
 }: {
   canPersist: boolean
-  resolveCurrentPath: (path: string) => string
   savePendingForPath: (path: string) => Promise<boolean>
   tabsRef: MutableRefObject<TabState[]>
   unsavedPathsRef: MutableRefObject<Set<string>>
@@ -569,45 +458,39 @@ function useFlushBeforeAction({
   const t = useMemo(() => createTranslator(locale), [locale])
 
   return useCallback(async (path: string) => {
-    const currentPath = resolveCurrentPath(path)
     if (!canPersist) {
-      if (unsavedPathsRef.current.has(currentPath)) setToastMessage(t('save.toast.missingActiveVault'))
+      if (unsavedPathsRef.current.has(path)) setToastMessage(t('save.toast.missingActiveVault'))
       return
     }
     try {
-      await flushEditorContent(currentPath, {
+      await flushEditorContent(path, {
         savePendingForPath,
         getTabContent: (p) => tabsRef.current.find(t => t.entry.path === p)?.content,
         isUnsaved: (p) => unsavedPathsRef.current.has(p),
         onSaved: (p) => { clearUnsaved(p) },
       })
-      await flushPendingUntitledRename(currentPath)
+      await flushPendingUntitledRename(path)
     } catch (err) {
       setToastMessage(t('save.error.autoFailed', { error: String(err) }))
       throw err
     }
-  }, [canPersist, resolveCurrentPath, savePendingForPath, tabsRef, unsavedPathsRef, clearUnsaved, setToastMessage, flushPendingUntitledRename, t])
+  }, [canPersist, savePendingForPath, tabsRef, unsavedPathsRef, clearUnsaved, setToastMessage, flushPendingUntitledRename, t])
 }
 
 async function preparePathForManualRename({
   path,
-  resolveCurrentPath,
   savePendingForPath,
   cancelPendingUntitledRename,
 }: {
   path: string
-  resolveCurrentPath: (path: string) => string
   savePendingForPath: (path: string) => Promise<boolean>
   cancelPendingUntitledRename: (path?: string) => boolean
-}): Promise<string> {
-  const currentPath = resolveCurrentPath(path)
-  await savePendingForPath(currentPath)
-  cancelPendingUntitledRename(currentPath)
-  return currentPath
+}): Promise<void> {
+  await savePendingForPath(path)
+  cancelPendingUntitledRename(path)
 }
 
 function useRenameHandlers({
-  resolveCurrentPath,
   savePendingForPath,
   cancelPendingUntitledRename,
   handleRenameNote,
@@ -617,7 +500,6 @@ function useRenameHandlers({
   replaceRenamedEntry,
   loadModifiedFiles,
 }: {
-  resolveCurrentPath: (path: string) => string
   savePendingForPath: (path: string) => Promise<boolean>
   cancelPendingUntitledRename: (path?: string) => boolean
   handleRenameNote: AppSaveDeps['handleRenameNote']
@@ -628,30 +510,20 @@ function useRenameHandlers({
   loadModifiedFiles: AppSaveDeps['loadModifiedFiles']
 }) {
   const handleFilenameRename = useCallback(async (path: string, newFilenameStem: string) => {
-    const currentPath = await preparePathForManualRename({
-      path,
-      resolveCurrentPath,
-      savePendingForPath,
-      cancelPendingUntitledRename,
-    })
-    const renameVaultPath = vaultPathForTabPath(tabsRef.current, currentPath, resolvedPath)
-    await handleRenameFilename(currentPath, newFilenameStem, renameVaultPath, replaceRenamedEntry).then(loadModifiedFiles)
-  }, [resolveCurrentPath, savePendingForPath, cancelPendingUntitledRename, tabsRef, resolvedPath, handleRenameFilename, replaceRenamedEntry, loadModifiedFiles])
+    await preparePathForManualRename({ path, savePendingForPath, cancelPendingUntitledRename })
+    const renameVaultPath = vaultPathForTabPath(tabsRef.current, path, resolvedPath)
+    await handleRenameFilename(path, newFilenameStem, renameVaultPath, replaceRenamedEntry).then(loadModifiedFiles)
+  }, [savePendingForPath, cancelPendingUntitledRename, tabsRef, resolvedPath, handleRenameFilename, replaceRenamedEntry, loadModifiedFiles])
 
   const handleTitleSync = useCallback((path: string, newTitle: string) => {
-    void preparePathForManualRename({
-      path,
-      resolveCurrentPath,
-      savePendingForPath,
-      cancelPendingUntitledRename,
-    })
-      .then((currentPath) => {
-        const renameVaultPath = vaultPathForTabPath(tabsRef.current, currentPath, resolvedPath)
-        return handleRenameNote(currentPath, newTitle, renameVaultPath, replaceRenamedEntry)
+    void preparePathForManualRename({ path, savePendingForPath, cancelPendingUntitledRename })
+      .then(() => {
+        const renameVaultPath = vaultPathForTabPath(tabsRef.current, path, resolvedPath)
+        return handleRenameNote(path, newTitle, renameVaultPath, replaceRenamedEntry)
       })
       .then(loadModifiedFiles)
       .catch((err) => console.error('Title rename failed:', err))
-  }, [resolveCurrentPath, savePendingForPath, cancelPendingUntitledRename, tabsRef, resolvedPath, handleRenameNote, replaceRenamedEntry, loadModifiedFiles])
+  }, [savePendingForPath, cancelPendingUntitledRename, tabsRef, resolvedPath, handleRenameNote, replaceRenamedEntry, loadModifiedFiles])
 
   return { handleFilenameRename, handleTitleSync }
 }
@@ -662,26 +534,19 @@ function useHandleSaveAction({
   activeTabPath,
   unsavedPaths,
   flushPendingUntitledRename,
-  resolveCurrentPath,
 }: {
   handleSaveRaw: (unsavedFallback?: { path: string; content: string }) => Promise<boolean>
   tabs: TabState[]
   activeTabPath: string | null
   unsavedPaths: Set<string>
   flushPendingUntitledRename: (path?: string) => Promise<boolean>
-  resolveCurrentPath: (path: string) => string
 }) {
   return useCallback(async () => {
-    const resolvedActiveTabPath = activeTabPath ? resolveCurrentPath(activeTabPath) : null
-    const saveCompleted = await handleSaveRaw(findUnsavedFallback({
-      tabs,
-      activeTabPath: resolvedActiveTabPath,
-      unsavedPaths,
-    }))
+    const saveCompleted = await handleSaveRaw(findUnsavedFallback({ tabs, activeTabPath, unsavedPaths }))
     if (!saveCompleted) return false
-    await flushPendingUntitledRename(resolvedActiveTabPath ?? undefined)
+    await flushPendingUntitledRename(activeTabPath ?? undefined)
     return true
-  }, [handleSaveRaw, tabs, activeTabPath, unsavedPaths, flushPendingUntitledRename, resolveCurrentPath])
+  }, [handleSaveRaw, tabs, activeTabPath, unsavedPaths, flushPendingUntitledRename])
 }
 
 function useEditorPersistence({
@@ -696,7 +561,6 @@ function useEditorPersistence({
   reloadViews,
   refreshPendingUntitledRename,
   scheduleUntitledRename,
-  resolveCurrentPath,
   resolvePathBeforeSave,
   canPersist,
   persistenceScope,
@@ -726,7 +590,7 @@ function useEditorPersistence({
     void refreshEntries?.([path]).then((refreshed) => {
       if (persistStampSeqRef.current.get(path) !== stampSeq) return
       const freshEntry = Array.isArray(refreshed)
-        ? refreshed.find((candidate) => candidate && notePathsMatch(candidate.path, path))
+        ? refreshed.find((candidate) => candidate && candidate.path === path)
         : null
       if (freshEntry) cacheNoteContent(path, content, freshEntry)
     })
@@ -737,6 +601,7 @@ function useEditorPersistence({
     handleContentChange: handleContentChangeRaw,
     savePendingForPath: savePendingForPathRaw,
     savePending,
+    remapPendingContentPath,
   } = useEditorSaveWithLinks({
     updateEntry,
     setTabs,
@@ -744,7 +609,6 @@ function useEditorPersistence({
     onAfterSave,
     onBeforePersist: onInternalVaultWrite,
     onNotePersisted,
-    resolvePath: resolveCurrentPath,
     resolvePathBeforeSave,
     canPersist,
     persistenceScope,
@@ -752,34 +616,26 @@ function useEditorPersistence({
   })
 
   const handleContentChange = useCallback((path: string, content: string) => {
-    const currentPath = resolveCurrentPath(path)
-    if (!canWritePathToVault(currentPath, persistenceScope)) return
-    refreshPendingUntitledRename(currentPath, content)
-    trackUnsaved?.(currentPath)
-    handleContentChangeRaw(currentPath, content)
-  }, [handleContentChangeRaw, persistenceScope, refreshPendingUntitledRename, resolveCurrentPath, trackUnsaved])
+    if (!canWritePathToVault(path, persistenceScope)) return
+    refreshPendingUntitledRename(path, content)
+    trackUnsaved?.(path)
+    handleContentChangeRaw(path, content)
+  }, [handleContentChangeRaw, persistenceScope, refreshPendingUntitledRename, trackUnsaved])
 
-  const savePendingForPath = useCallback((path: string) => {
-    const currentPath = resolveCurrentPath(path)
-    return canWritePathToVault(currentPath, persistenceScope)
-      ? savePendingForPathRaw(currentPath)
-      : Promise.resolve(false)
-  }, [savePendingForPathRaw, persistenceScope, resolveCurrentPath])
-
-  return { handleSaveRaw, handleContentChange, savePendingForPath, savePending }
+  return { handleSaveRaw, handleContentChange, savePendingForPath: savePendingForPathRaw, savePending, remapPendingContentPath }
 }
 
 function useReplaceRenamedEntry({
-  registerRenamedPath,
+  remapPendingContentPath,
   replaceEntry,
 }: {
-  registerRenamedPath: (oldPath: string, newPath: string) => void
+  remapPendingContentPath: (oldPath: string, newPath: string) => void
   replaceEntry: AppSaveDeps['replaceEntry']
 }) {
   return useCallback((oldPath: string, newEntry: Partial<VaultEntry> & { path: string }, newContent: string) => {
-    registerRenamedPath(oldPath, newEntry.path)
+    remapPendingContentPath(oldPath, newEntry.path)
     replaceEntry(oldPath, newEntry, newContent)
-  }, [registerRenamedPath, replaceEntry])
+  }, [remapPendingContentPath, replaceEntry])
 }
 
 function useAppSaveHandlers({
@@ -789,7 +645,6 @@ function useAppSaveHandlers({
   cancelPendingUntitledRename,
   pendingUntitledRenameRef,
   activeTabPath,
-  resolveCurrentPath,
   savePendingForPath,
   tabsRef,
   unsavedPathsRef,
@@ -812,7 +667,6 @@ function useAppSaveHandlers({
   cancelPendingUntitledRename: (path?: string) => boolean
   pendingUntitledRenameRef: MutableRefObject<PendingUntitledRename | null>
   activeTabPath: string | null
-  resolveCurrentPath: (path: string) => string
   savePendingForPath: (path: string) => Promise<boolean>
   tabsRef: MutableRefObject<TabState[]>
   unsavedPathsRef: MutableRefObject<Set<string>>
@@ -839,7 +693,6 @@ function useAppSaveHandlers({
 
   const flushBeforeAction = useFlushBeforeAction({
     canPersist,
-    resolveCurrentPath,
     savePendingForPath,
     tabsRef,
     unsavedPathsRef,
@@ -849,7 +702,6 @@ function useAppSaveHandlers({
     locale,
   })
   const { handleFilenameRename, handleTitleSync } = useRenameHandlers({
-    resolveCurrentPath,
     savePendingForPath,
     cancelPendingUntitledRename,
     handleRenameNote,
@@ -865,7 +717,6 @@ function useAppSaveHandlers({
     activeTabPath,
     unsavedPaths,
     flushPendingUntitledRename,
-    resolveCurrentPath,
   })
 
   return { handleFilenameRename, handleSave, handleTitleSync, flushBeforeAction }
@@ -882,26 +733,35 @@ export function useAppSave({
   const contentChangeRef = useRef<(path: string, content: string) => void>(() => {})
   const canPersist = resolvedPath.trim().length > 0
   const { tabsRef, activeTabPathRef, unsavedPathsRef } = useAppSaveStateRefs({ tabs, activeTabPath, unsavedPaths })
+  // useEditorPersistence (constructed below) is where remapPendingContentPath
+  // actually lives, but the untitled-rename executor (constructed first, since
+  // its scheduleUntitledRename/refreshPendingUntitledRename feed the opposite
+  // direction into useEditorPersistence) needs to call it too. Break the cycle
+  // with a ref, populated once useEditorPersistence exists.
+  const remapPendingContentPathRef = useRef<(oldPath: string, newPath: string) => void>(() => {})
   const {
-    pendingUntitledRenameRef, cancelPendingUntitledRename, registerRenamedPath,
-    resolveCurrentPath, resolvePathBeforeSave, flushPendingUntitledRename,
+    pendingUntitledRenameRef, cancelPendingUntitledRename,
+    resolvePathBeforeSave, flushPendingUntitledRename,
     refreshPendingUntitledRename, scheduleUntitledRename,
   } = useUntitledRenameCoordinator({
     resolvedPath, tabsRef, activeTabPathRef, setTabs, handleSwitchTab,
     replaceEntry, loadModifiedFiles, onInternalVaultWrite, initialH1AutoRenameEnabled,
-    unsavedPathsRef,
+    remapPendingContentPathRef,
   })
-  const { handleSaveRaw, handleContentChange, savePendingForPath, savePending } = useEditorPersistence({
+  const { handleSaveRaw, handleContentChange, savePendingForPath, savePending, remapPendingContentPath } = useEditorPersistence({
     updateEntry, setTabs, setToastMessage, loadModifiedFiles, trackUnsaved,
     clearUnsaved, onInternalVaultWrite, refreshEntries, reloadViews, refreshPendingUntitledRename, scheduleUntitledRename,
-    resolveCurrentPath, resolvePathBeforeSave, canPersist,
+    resolvePathBeforeSave, canPersist,
     persistenceScope: writableVaultPaths && writableVaultPaths.length > 0 ? writableVaultPaths : resolvedPath,
     locale,
   })
-  const replaceRenamedEntry = useReplaceRenamedEntry({ registerRenamedPath, replaceEntry })
+  useEffect(() => {
+    remapPendingContentPathRef.current = remapPendingContentPath
+  }, [remapPendingContentPath])
+  const replaceRenamedEntry = useReplaceRenamedEntry({ remapPendingContentPath, replaceEntry })
   const { handleFilenameRename, handleSave, handleTitleSync, flushBeforeAction } = useAppSaveHandlers({
     contentChangeRef, handleContentChange, canPersist, cancelPendingUntitledRename,
-    pendingUntitledRenameRef, activeTabPath, resolveCurrentPath, savePendingForPath,
+    pendingUntitledRenameRef, activeTabPath, savePendingForPath,
     tabsRef, unsavedPathsRef, clearUnsaved, setToastMessage, flushPendingUntitledRename, locale, handleRenameNote,
     handleRenameFilename: handleRenameFilenameRaw,
     resolvedPath, replaceRenamedEntry, loadModifiedFiles, handleSaveRaw, tabs, unsavedPaths,
@@ -909,6 +769,6 @@ export function useAppSave({
 
   return {
     contentChangeRef, handleContentChange, handleFilenameRename, handleSave,
-    handleTitleSync, savePending, savePendingForPath, trackRenamedPath: registerRenamedPath, flushBeforeAction,
+    handleTitleSync, savePending, savePendingForPath, trackRenamedPath: remapPendingContentPath, flushBeforeAction,
   }
 }

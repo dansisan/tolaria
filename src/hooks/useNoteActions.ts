@@ -10,13 +10,14 @@ import { resolveEntry } from '../utils/wikilink'
 import { useNoteCreation } from './useNoteCreation'
 import {
   useNoteRename,
-  performRename, loadNoteContent, renameToastMessage, reloadTabsAfterRename, reloadVaultAfterRename,
+  performRename, loadNoteContent, renameToastMessage,
 } from './useNoteRename'
 import { runFrontmatterAndApply, type FrontmatterOpOptions } from './frontmatterOps'
 import { findByNotePath, notePathFilename, notePathsMatch } from '../utils/notePathIdentity'
 import type { VaultOption } from '../components/status-bar/types'
 import { canonicalFrontmatterKey } from '../utils/systemMetadata'
 import { useActionHistory, type ActionHistoryController, type ActionHistoryEntry } from './useActionHistory'
+import { useWikilinkRewriteNotifications } from './useWikilinkRewriteNotifications'
 
 export interface NoteActionsConfig {
   addEntry: (entry: VaultEntry) => void
@@ -149,16 +150,6 @@ interface ApplyTitleRenamePathChangeParams {
   path: string
 }
 
-function tabPathsExceptRenamed(
-  tabs: { entry: VaultEntry; content: string }[],
-  path: string,
-  newPath: string,
-): string[] {
-  return tabs
-    .filter(t => !notePathsMatch(t.entry.path, path) && !notePathsMatch(t.entry.path, newPath))
-    .map(t => t.entry.path)
-}
-
 async function applyTitleRenamePathChange({
   deps,
   newPath,
@@ -174,10 +165,8 @@ async function applyTitleRenamePathChange({
     ? { entry: { ...t.entry, path: newPath, filename: newFilename, title: newTitle }, content: newContent }
     : t))
   if (notePathsMatch(deps.activeTabPathRef.current, path)) deps.handleSwitchTab(newPath)
-  await reloadTabsAfterRename({
-    tabPaths: tabPathsExceptRenamed(deps.tabsRef.current, path, newPath),
-    updateTabContent: deps.updateTabContent,
-  })
+  // Other open tabs whose wikilinks changed are refreshed once the deferred
+  // rewrite completes (see useWikilinkRewriteNotifications), not eagerly here.
 }
 
 async function renameAfterTitleChange({ path, newTitle, deps }: RenameAfterTitleChangeParams): Promise<void> {
@@ -187,7 +176,6 @@ async function renameAfterTitleChange({ path, newTitle, deps }: RenameAfterTitle
   if (!notePathsMatch(result.new_path, path)) {
     await applyTitleRenamePathChange({ path, newPath: result.new_path, newTitle, deps })
   }
-  await reloadVaultAfterRename(deps.reloadVault)
   deps.setToastMessage(renameToastMessage(result.updated_files, result.failed_updates ?? 0))
 }
 
@@ -776,17 +764,19 @@ export function useNoteActions(config: NoteActionsConfig) {
   }, [setTabs])
 
   const creation = useNoteCreation(config, { openTabWithContent })
+  const isPathUnsaved = useCallback((path: string) => config.unsavedPaths?.has(path) ?? false, [config.unsavedPaths])
   const rename = useNoteRename(
-    {
-      entries,
-      setToastMessage,
-      reloadVault: config.reloadVault,
-      onPathRenamed: handlePathRenamed,
-      refreshEntries: config.refreshEntries,
-      isPathUnsaved: (path) => config.unsavedPaths?.has(path) ?? false,
-    },
+    { entries, setToastMessage, onPathRenamed: handlePathRenamed },
     { tabs: tabMgmt.tabs, setTabs, activeTabPathRef, handleSwitchTab, updateTabContent },
   )
+  useWikilinkRewriteNotifications({
+    tabs: tabMgmt.tabs,
+    updateTabContent,
+    isPathUnsaved,
+    setToastMessage,
+    refreshEntries: config.refreshEntries,
+    reloadVault: config.reloadVault,
+  })
 
   const handleNavigateWikilink = useCallback(
     (target: string) => navigateWikilink({

@@ -1,11 +1,29 @@
 use crate::commands::expand_tilde;
-use crate::vault::{self, DetectedRename, RenameResult};
+use crate::vault::{self, DetectedRename, PendingWikilinkRewrite, RenameResult};
 use serde::Deserialize;
 use std::path::Path;
+use tauri::Emitter;
 
 use super::boundary::{
     with_boundary, with_existing_path_in_requested_vault, with_validated_path, ValidatedPathMode,
 };
+
+/// Emitted once a rename's vault-wide wikilink rewrite finishes — see
+/// `vault::WikilinkRewriteCompleted` for the payload shape. Renames return
+/// the new path immediately; scanning/rewriting every other note that links
+/// the renamed one is the slow part and callers don't wait on it.
+pub const WIKILINK_REWRITE_COMPLETED_EVENT: &str = "wikilinks-rewrite-completed";
+
+/// Runs a rename's deferred wikilink rewrite on a blocking thread and emits
+/// its result — fire-and-forget from the caller's perspective.
+fn spawn_wikilink_rewrite(app: tauri::AppHandle, pending: PendingWikilinkRewrite) {
+    tokio::task::spawn_blocking(move || {
+        let completed = pending.run();
+        if let Err(err) = app.emit(WIKILINK_REWRITE_COMPLETED_EVENT, &completed) {
+            log::warn!("Failed to emit wikilink rewrite completion: {}", err);
+        }
+    });
+}
 
 struct RequestedNotePath<'a> {
     vault_path: &'a str,
@@ -107,7 +125,7 @@ enum NoteRenameCommandArgs {
 }
 
 impl NoteRenameCommandArgs {
-    fn run(self, note: ValidatedNotePath<'_>) -> Result<RenameResult, String> {
+    fn run(self, note: ValidatedNotePath<'_>) -> Result<(RenameResult, PendingWikilinkRewrite), String> {
         // Use the parsed link sets to update only the notes that actually link
         // this one, instead of reading every file. Falls back to a full scan when
         // the index is unavailable (e.g. non-git vault with no warm cache).
@@ -161,12 +179,16 @@ fn pending_note_rename(
     }
 }
 
-fn rename_existing_note(command: PendingNoteRenameCommand) -> Result<RenameResult, String> {
+fn rename_existing_note(
+    command: PendingNoteRenameCommand,
+) -> Result<(RenameResult, PendingWikilinkRewrite), String> {
     let request = RequestedNotePath::new(&command.vault_path, &command.old_path);
     with_note_path_in_vault(request, |note| command.args.run(note))
 }
 
-fn rename_public_note(args: PublicNoteRenameCommandArgs) -> Result<RenameResult, String> {
+fn rename_public_note(
+    args: PublicNoteRenameCommandArgs,
+) -> Result<(RenameResult, PendingWikilinkRewrite), String> {
     let command = match args {
         PublicNoteRenameCommandArgs::Title(args) => pending_note_rename(
             args.vault_path,
@@ -188,16 +210,36 @@ fn rename_public_note(args: PublicNoteRenameCommandArgs) -> Result<RenameResult,
 }
 
 #[tauri::command]
-pub fn rename_note(args: RenameNoteCommandArgs) -> Result<RenameResult, String> {
-    rename_public_note(PublicNoteRenameCommandArgs::Title(args))
+pub async fn rename_note(
+    app: tauri::AppHandle,
+    args: RenameNoteCommandArgs,
+) -> Result<RenameResult, String> {
+    let (result, pending) = tokio::task::spawn_blocking(move || {
+        rename_public_note(PublicNoteRenameCommandArgs::Title(args))
+    })
+    .await
+    .map_err(|e| format!("Rename task panicked: {e}"))??;
+    spawn_wikilink_rewrite(app, pending);
+    Ok(result)
 }
 
 #[tauri::command]
-pub fn rename_note_filename(args: RenameNoteFilenameCommandArgs) -> Result<RenameResult, String> {
-    rename_public_note(PublicNoteRenameCommandArgs::Filename(args))
+pub async fn rename_note_filename(
+    app: tauri::AppHandle,
+    args: RenameNoteFilenameCommandArgs,
+) -> Result<RenameResult, String> {
+    let (result, pending) = tokio::task::spawn_blocking(move || {
+        rename_public_note(PublicNoteRenameCommandArgs::Filename(args))
+    })
+    .await
+    .map_err(|e| format!("Rename task panicked: {e}"))??;
+    spawn_wikilink_rewrite(app, pending);
+    Ok(result)
 }
 
-fn run_folder_move(args: MoveNoteToFolderCommandArgs) -> Result<RenameResult, String> {
+fn run_folder_move(
+    args: MoveNoteToFolderCommandArgs,
+) -> Result<(RenameResult, PendingWikilinkRewrite), String> {
     let request = RequestedNotePath::new(&args.vault_path, &args.old_path);
     with_note_path_in_vault(request, |note| {
         let trimmed_folder_path = args.folder_path.trim();
@@ -230,14 +272,20 @@ fn run_folder_move(args: MoveNoteToFolderCommandArgs) -> Result<RenameResult, St
 }
 
 #[tauri::command]
-pub fn move_note_to_folder(args: MoveNoteToFolderCommandArgs) -> Result<RenameResult, String> {
-    run_folder_move(args)
+pub async fn move_note_to_folder(
+    app: tauri::AppHandle,
+    args: MoveNoteToFolderCommandArgs,
+) -> Result<RenameResult, String> {
+    let (result, pending) = tokio::task::spawn_blocking(move || run_folder_move(args))
+        .await
+        .map_err(|e| format!("Move task panicked: {e}"))??;
+    spawn_wikilink_rewrite(app, pending);
+    Ok(result)
 }
 
-#[tauri::command]
-pub fn move_note_to_workspace(
+fn run_workspace_move(
     args: MoveNoteToWorkspaceCommandArgs,
-) -> Result<RenameResult, String> {
+) -> Result<(RenameResult, PendingWikilinkRewrite), String> {
     let request = RequestedNotePath::new(&args.source_vault_path, &args.old_path);
     with_note_path_in_vault(request, |note| {
         let source_root_path = Path::new(note.vault_path);
@@ -266,9 +314,20 @@ pub fn move_note_to_workspace(
 }
 
 #[tauri::command]
-pub fn auto_rename_untitled(
+pub async fn move_note_to_workspace(
+    app: tauri::AppHandle,
+    args: MoveNoteToWorkspaceCommandArgs,
+) -> Result<RenameResult, String> {
+    let (result, pending) = tokio::task::spawn_blocking(move || run_workspace_move(args))
+        .await
+        .map_err(|e| format!("Move task panicked: {e}"))??;
+    spawn_wikilink_rewrite(app, pending);
+    Ok(result)
+}
+
+fn run_auto_rename_untitled(
     args: AutoRenameUntitledCommandArgs,
-) -> Result<Option<RenameResult>, String> {
+) -> Result<Option<(RenameResult, PendingWikilinkRewrite)>, String> {
     with_existing_path_in_requested_vault(
         &args.vault_path,
         &args.note_path,
@@ -279,6 +338,21 @@ pub fn auto_rename_untitled(
             })
         },
     )
+}
+
+#[tauri::command]
+pub async fn auto_rename_untitled(
+    app: tauri::AppHandle,
+    args: AutoRenameUntitledCommandArgs,
+) -> Result<Option<RenameResult>, String> {
+    let outcome = tokio::task::spawn_blocking(move || run_auto_rename_untitled(args))
+        .await
+        .map_err(|e| format!("Rename task panicked: {e}"))??;
+    let Some((result, pending)) = outcome else {
+        return Ok(None);
+    };
+    spawn_wikilink_rewrite(app, pending);
+    Ok(Some(result))
 }
 
 #[tauri::command]
@@ -300,6 +374,44 @@ mod tests {
     use super::*;
     use std::fs;
     use tempfile::TempDir;
+
+    /// Test-only: resolves a rename's deferred wikilink rewrite immediately
+    /// and merges it back into a single RenameResult, so tests below can
+    /// assert on the pre-decoupling synchronous shape without needing an
+    /// AppHandle (the real commands need one only to emit the completion
+    /// event — see `spawn_wikilink_rewrite`).
+    fn resolve(outcome: (RenameResult, PendingWikilinkRewrite)) -> RenameResult {
+        let (result, pending) = outcome;
+        let completed = pending.run();
+        RenameResult {
+            updated_files: completed.updated_files,
+            failed_updates: completed.failed_updates,
+            updated_paths: completed.updated_paths,
+            ..result
+        }
+    }
+
+    fn rename_note_sync(args: RenameNoteCommandArgs) -> Result<RenameResult, String> {
+        rename_public_note(PublicNoteRenameCommandArgs::Title(args)).map(resolve)
+    }
+
+    fn rename_note_filename_sync(args: RenameNoteFilenameCommandArgs) -> Result<RenameResult, String> {
+        rename_public_note(PublicNoteRenameCommandArgs::Filename(args)).map(resolve)
+    }
+
+    fn move_note_to_folder_sync(args: MoveNoteToFolderCommandArgs) -> Result<RenameResult, String> {
+        run_folder_move(args).map(resolve)
+    }
+
+    fn move_note_to_workspace_sync(args: MoveNoteToWorkspaceCommandArgs) -> Result<RenameResult, String> {
+        run_workspace_move(args).map(resolve)
+    }
+
+    fn auto_rename_untitled_sync(
+        args: AutoRenameUntitledCommandArgs,
+    ) -> Result<Option<RenameResult>, String> {
+        Ok(run_auto_rename_untitled(args)?.map(resolve))
+    }
 
     fn vault_path(dir: &TempDir) -> String {
         dir.path().to_string_lossy().into_owned()
@@ -325,7 +437,7 @@ mod tests {
         );
         let linked_path = write_note(&dir, "linked.md", "See [[Old Title]].\n");
 
-        let result = rename_note(RenameNoteCommandArgs {
+        let result = rename_note_sync(RenameNoteCommandArgs {
             vault_path: vault.clone(),
             old_path: old_path.clone(),
             new_title: "New Title".to_string(),
@@ -352,7 +464,7 @@ mod tests {
             "---\ntitle: Draft Title\n---\n# Draft Title\n",
         );
 
-        let renamed = rename_note_filename(RenameNoteFilenameCommandArgs {
+        let renamed = rename_note_filename_sync(RenameNoteFilenameCommandArgs {
             vault_path: vault.clone(),
             old_path,
             new_filename_stem: "custom-name".to_string(),
@@ -361,7 +473,7 @@ mod tests {
         assert!(renamed.new_path.ends_with("custom-name.md"));
 
         fs::create_dir(dir.path().join("Projects")).unwrap();
-        let moved = move_note_to_folder(MoveNoteToFolderCommandArgs {
+        let moved = move_note_to_folder_sync(MoveNoteToFolderCommandArgs {
             vault_path: vault.clone(),
             old_path: renamed.new_path.clone(),
             folder_path: "Projects".to_string(),
@@ -387,7 +499,7 @@ mod tests {
         );
         let linked_path = write_note(&source, "linked.md", "See [[Draft Title]].\n");
 
-        let moved = move_note_to_workspace(MoveNoteToWorkspaceCommandArgs {
+        let moved = move_note_to_workspace_sync(MoveNoteToWorkspaceCommandArgs {
             source_vault_path: source_vault,
             destination_vault_path: destination_vault.clone(),
             old_path: old_path.clone(),
@@ -412,7 +524,7 @@ mod tests {
         let vault = vault_path(&dir);
         let untitled = write_note(&dir, "untitled-note-123.md", "# Project Plan\n");
 
-        let auto = auto_rename_untitled(AutoRenameUntitledCommandArgs {
+        let auto = auto_rename_untitled_sync(AutoRenameUntitledCommandArgs {
             vault_path: vault.clone(),
             note_path: untitled,
         })
@@ -454,7 +566,7 @@ mod tests {
         let vault = vault_path(&dir);
         let note = write_note(&dir, "note.md", "# Note\n");
 
-        let error = move_note_to_folder(MoveNoteToFolderCommandArgs {
+        let error = move_note_to_folder_sync(MoveNoteToFolderCommandArgs {
             vault_path: vault,
             old_path: note,
             folder_path: "  ".to_string(),

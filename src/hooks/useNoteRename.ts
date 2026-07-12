@@ -409,15 +409,7 @@ function moveNoteErrorMessage(err: unknown): string {
 export interface NoteRenameConfig {
   entries: VaultEntry[]
   setToastMessage: (msg: string | null) => void
-  reloadVault?: () => Promise<unknown>
   onPathRenamed?: (oldPath: string, newPath: string) => void
-  /** Refresh just the given notes in memory (re-parse from disk). Used after a
-   *  rename to update the few notes whose wikilinks changed, instead of
-   *  rescanning the whole vault. */
-  refreshEntries?: (paths: string[]) => void | Promise<Array<VaultEntry | null> | void>
-  /** Reports whether a tab has unsaved edits, so the post-rename wikilink
-   *  refresh doesn't overwrite in-memory content that's newer than disk. */
-  isPathUnsaved?: (path: string) => boolean
 }
 
 interface RenameTabDeps {
@@ -440,8 +432,8 @@ function useRenameResultApplier(
   config: NoteRenameConfig,
   tabDeps: RenameTabDeps,
 ) {
-  const { entries, setToastMessage, reloadVault, onPathRenamed, refreshEntries, isPathUnsaved } = config
-  const { setTabs, activeTabPathRef, handleSwitchTab, updateTabContent } = tabDeps
+  const { entries, setToastMessage, onPathRenamed } = config
+  const { setTabs, activeTabPathRef, handleSwitchTab } = tabDeps
 
   const tabsRef = useRef(tabDeps.tabs)
   // eslint-disable-next-line react-hooks/refs
@@ -464,9 +456,6 @@ function useRenameResultApplier(
       : undefined
     const newContent = openTabContent ?? await loadNoteContent({ path: result.new_path })
     const newEntry = buildEntry(entry, result.new_path)
-    const otherTabPaths = currentTabs
-      .filter((tab) => !notePathsMatch(tab.entry.path, oldPath) && !notePathsMatch(tab.entry.path, result.new_path))
-      .map((tab) => tab.entry.path)
     if (!notePathsMatch(oldPath, result.new_path)) {
       // Migrate the editor's cache old→new before the active path changes so the
       // path change reads as a rename (no re-sync, cursor and focus preserved).
@@ -480,23 +469,16 @@ function useRenameResultApplier(
     setTabs((prev) => prev.map((tab) => notePathsMatch(tab.entry.path, oldPath) ? { entry: newEntry, content: newContent } : tab))
     if (notePathsMatch(activeTabPathRef.current, oldPath)) handleSwitchTab(result.new_path)
     onEntryRenamed(oldPath, newEntry, newContent)
-    await reloadTabsAfterRename({ tabPaths: otherTabPaths, updateTabContent, isPathUnsaved })
-    // The renamed note is already updated in memory. Refresh only the other
-    // notes whose wikilinks were rewritten (re-parse those few from disk)
-    // instead of rescanning the whole vault — a full re-scan re-derives every
-    // entry (incl. git dates) and is what made renames feel slow. Fall back to
-    // a background full reload when incremental refresh isn't wired.
-    if (refreshEntries) {
-      void refreshEntries(result.updated_paths ?? [])
-    } else {
-      void reloadVaultAfterRename(reloadVault)
-    }
+    // result.updated_files/updated_paths are always 0/empty here — the
+    // vault-wide wikilink rewrite for other notes runs afterward as a
+    // background job and reports its own result once it's done (see
+    // useWikilinkRewriteNotifications), so there's nothing to refresh yet.
     const successMessage = options?.successMessage
       ? options.successMessage(result)
       : renameToastMessage(result.updated_files, result.failed_updates ?? 0)
     setToastMessage(successMessage)
     return result
-  }, [entries, setTabs, activeTabPathRef, handleSwitchTab, updateTabContent, reloadVault, setToastMessage, onPathRenamed, refreshEntries, isPathUnsaved])
+  }, [entries, setTabs, activeTabPathRef, handleSwitchTab, onPathRenamed, setToastMessage])
 
   return {
     tabsRef,

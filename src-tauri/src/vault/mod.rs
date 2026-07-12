@@ -45,8 +45,8 @@ pub use rename::{
     auto_rename_untitled, detect_renames, move_note_to_folder, move_note_to_folder_with_links,
     move_note_to_workspace, rename_note, rename_note_filename, rename_note_filename_with_links,
     rename_note_with_links, update_wikilinks_for_renames, AutoRenameUntitledRequest,
-    DetectedRename, MoveNoteToFolderRequest, MoveNoteToWorkspaceRequest, RenameNoteFilenameRequest,
-    RenameNoteRequest, RenameResult,
+    DetectedRename, MoveNoteToFolderRequest, MoveNoteToWorkspaceRequest, PendingWikilinkRewrite,
+    RenameNoteFilenameRequest, RenameNoteRequest, RenameResult, WikilinkRewriteCompleted,
 };
 pub use title_sync::{sync_title_on_open, SyncAction};
 pub use trash::{batch_delete_notes, delete_note};

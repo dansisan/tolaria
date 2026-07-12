@@ -703,7 +703,7 @@ The vault backend (`src-tauri/src/vault/`) is split into focused submodules:
 | `cache.rs` | Git-based incremental vault caching (`scan_vault_cached`), git helpers |
 | `ignored.rs` | Gitignored-content visibility filtering via batched, pipe-safe `git check-ignore` |
 | `filename_rules.rs` | Cross-platform validation for note filenames, folder names, and custom view filenames |
-| `rename.rs` | `rename_note` / `rename_note_filename` / `move_note_to_folder` — stage crash-safe file moves, update `title` frontmatter when needed, recover unfinished rename transactions, and report backlink rewrite failures |
+| `rename.rs` | `rename_note` / `rename_note_filename` / `move_note_to_folder` — stage crash-safe file moves, update `title` frontmatter when needed, and recover unfinished rename transactions. Each returns a `PendingWikilinkRewrite` alongside the immediate result; the vault-wide backlink rewrite (and its failure counts) runs afterward via `PendingWikilinkRewrite::run`, not as part of the rename itself |
 | `image.rs` | `save_image` / `copy_image_to_vault` — save editor image attachments with sanitized filenames; `delete_attachment` — remove an orphaned attachment file (guarded to the `attachments/` directory); `rename_attachment_via_command` — rename a pasted image using an external naming command |
 | `migration.rs` | `flatten_vault`, `vault_health_check`, `migrate_is_a_to_type` |
 | `config_seed.rs` | Maintains vault AI guidance (`AGENTS.md`, `CLAUDE.md`, and optional `GEMINI.md` shims), migrates legacy `config/agents.md`, and repairs missing root type scaffolding such as `type.md` and `note.md` |
@@ -738,8 +738,8 @@ The vault backend (`src-tauri/src/vault/`) is split into focused submodules:
 | `get_note_content` | Read note file content |
 | `save_note_content` | Write note content to disk; returns attachment links dropped vs. the previous on-disk version so the renderer can prune orphaned images |
 | `delete_note` | Permanently delete note from disk (with confirm dialog) |
-| `rename_note` | Crash-safe note rename + `title` frontmatter update + cross-vault wikilinks + failed backlink counts |
-| `move_note_to_folder` | Crash-safe folder move that preserves the filename, reloads the moved note, and rewrites path-based wikilinks |
+| `rename_note` | Crash-safe note rename + `title` frontmatter update; async, returns as soon as the file move lands. Cross-vault wikilink rewrite + failed backlink counts run afterward in the background and are reported via `wikilinks-rewrite-completed` |
+| `move_note_to_folder` | Crash-safe folder move that preserves the filename and reloads the moved note; async for the same reason as `rename_note` — the path-based wikilink rewrite is deferred and reported via `wikilinks-rewrite-completed` |
 | `create_vault_folder` | Create a folder relative to the active vault root |
 | `list_vault_folders` | Build the folder tree on the blocking Tokio pool, then apply Gitignored-content visibility → `Vec<FolderNode>` |
 | `rename_vault_folder` | Rename a folder relative to the active vault root and return old/new relative paths |
@@ -871,7 +871,8 @@ No Redux or global context. State lives in the root `App.tsx` and custom hooks:
 | `useGitFileWorkflows` | git diff/history/discard callbacks | Resolves note-scoped repository paths and owns deleted-file preview and queued diff side effects |
 | `useVaultRenameDetection` | detected rename banner state | Detects external Git renames on focus and owns the wikilink update callback |
 | `useNoteCreation` | — | Note/type creation with optimistic persistence |
-| `useNoteRename` | — | Note renaming and folder moves with wikilink update |
+| `useNoteRename` | — | Note renaming and folder moves; the vault-wide wikilink update is deferred and handled by `useWikilinkRewriteNotifications`, not this hook |
+| `useWikilinkRewriteNotifications` | — | Listens for `wikilinks-rewrite-completed` and refreshes open tabs/entries among the notes whose backlinks were just rewritten |
 | `useNoteRetargeting` | — | Shared note retargeting logic for drag/drop and command-palette actions |
 | `useDeepLinks` | Deep-link listener and copy actions | Resolves `tolaria://` links into known vault navigation and clipboard URLs |
 | `useTauriDragDropEvent` | — | Shared native window drag/drop event subscription and cleanup |

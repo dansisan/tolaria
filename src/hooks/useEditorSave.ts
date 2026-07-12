@@ -4,6 +4,7 @@ import { AUTO_SAVE_DEBOUNCE_MS } from './editorSaveTiming'
 import { useSaveNote } from './useSaveNote'
 import { createTranslator, type AppLocale } from '../lib/i18n'
 import { canWritePathToVault } from '../utils/vaultPathContainment'
+import { notePathsMatch } from '../utils/notePathIdentity'
 
 interface Tab {
   entry: { path: string }
@@ -20,9 +21,9 @@ interface EditorSaveConfig {
   onBeforePersist?: (path: string) => void
   /** Called after content is persisted — used to clear unsaved state and live-reload themes. */
   onNotePersisted?: (path: string, content: string) => void
-  /** Resolve stale paths (for example after a note rename) before persisting buffered content. */
-  resolvePath?: (path: string) => string
-  /** Wait for an in-flight path change to settle before persisting buffered content. */
+  /** Awaits an in-flight rename of this exact path before persisting, so a
+   *  buffered write never races ahead of a rename's own file move. Resolves
+   *  to the path to actually persist to (the rename's new path, if any). */
   resolvePathBeforeSave?: (path: string) => Promise<string>
   /** False when editor state is present but no vault is available to receive writes. */
   canPersist?: boolean
@@ -58,7 +59,6 @@ interface PersistPendingContentParams {
   saveNote: (path: string, content: string) => Promise<void>
   onBeforePersist?: EditorSaveConfig['onBeforePersist']
   onNotePersisted?: EditorSaveConfig['onNotePersisted']
-  resolvePath?: EditorSaveConfig['resolvePath']
   resolvePathBeforeSave?: EditorSaveConfig['resolvePathBeforeSave']
   persistenceScopeRef: MutableRefObject<string | readonly string[] | undefined>
 }
@@ -67,7 +67,6 @@ interface ReusableInFlightSaveParams {
   inFlightSave: InFlightPendingSave | null
   pending: PendingContent
   pathFilter?: string
-  resolvePath?: EditorSaveConfig['resolvePath']
 }
 
 interface EditorSaveCommandsParams {
@@ -80,7 +79,6 @@ interface EditorSaveCommandsParams {
   onAfterSaveRef: MutableRefObject<() => void>
   onBeforePersist?: EditorSaveConfig['onBeforePersist']
   onNotePersisted?: EditorSaveConfig['onNotePersisted']
-  resolvePath?: EditorSaveConfig['resolvePath']
   resolvePathBeforeSave?: EditorSaveConfig['resolvePathBeforeSave']
   canPersistRef: MutableRefObject<boolean>
   persistenceScopeRef: MutableRefObject<string | readonly string[] | undefined>
@@ -115,55 +113,47 @@ function useLatestValueRef<T>(value: T): MutableRefObject<T> {
   return ref
 }
 
-function resolveBufferedPath(path: string, resolvePath?: EditorSaveConfig['resolvePath']): string {
-  return resolvePath?.(path) ?? path
-}
-
 async function resolvePersistPath(
   path: string,
-  resolvePath?: EditorSaveConfig['resolvePath'],
   resolvePathBeforeSave?: EditorSaveConfig['resolvePathBeforeSave'],
 ): Promise<string> {
-  const currentPath = resolveBufferedPath(path, resolvePath)
-  return resolvePathBeforeSave ? resolvePathBeforeSave(currentPath) : currentPath
+  return resolvePathBeforeSave ? resolvePathBeforeSave(path) : path
 }
 
 function matchesPendingPath(
   pending: PendingContent | null,
   pathFilter?: string,
-  resolvePath?: EditorSaveConfig['resolvePath'],
 ): pending is PendingContent {
   if (!pending) return false
   if (!pathFilter) return true
-  return resolveBufferedPath(pending.path, resolvePath) === resolveBufferedPath(pathFilter, resolvePath)
+  // Alias-tolerant: the same file can arrive as different path strings (e.g.
+  // macOS /tmp vs /private/tmp), independent of any rename bookkeeping.
+  return notePathsMatch(pending.path, pathFilter)
 }
 
 function matchesPendingContent(
   pending: PendingContent | null,
   path: string,
   content: string,
-  resolvePath?: EditorSaveConfig['resolvePath'],
 ): pending is PendingContent {
-  return matchesPendingPath(pending, path, resolvePath) && pending.content === content
+  return matchesPendingPath(pending, path) && pending.content === content
 }
 
 function matchesPendingSnapshot(
   pending: PendingContent,
   snapshot: PendingContent,
-  resolvePath?: EditorSaveConfig['resolvePath'],
 ): boolean {
-  return matchesPendingContent(pending, snapshot.path, snapshot.content, resolvePath)
+  return matchesPendingContent(pending, snapshot.path, snapshot.content)
 }
 
 function reusableInFlightSave({
   inFlightSave,
   pending,
   pathFilter,
-  resolvePath,
 }: ReusableInFlightSaveParams): Promise<boolean> | null {
   if (!inFlightSave) return null
-  if (!matchesPendingPath(inFlightSave.pending, pathFilter, resolvePath)) return null
-  if (!matchesPendingSnapshot(inFlightSave.pending, pending, resolvePath)) return null
+  if (!matchesPendingPath(inFlightSave.pending, pathFilter)) return null
+  if (!matchesPendingSnapshot(inFlightSave.pending, pending)) return null
   return inFlightSave.promise
 }
 
@@ -172,7 +162,6 @@ async function persistResolvedContent({
   content,
   saveNote,
   onBeforePersist,
-  resolvePath,
   resolvePathBeforeSave,
   persistenceScopeRef,
 }: {
@@ -180,11 +169,10 @@ async function persistResolvedContent({
   content: string
   saveNote: (path: string, content: string) => Promise<void>
   onBeforePersist?: EditorSaveConfig['onBeforePersist']
-  resolvePath?: EditorSaveConfig['resolvePath']
   resolvePathBeforeSave?: EditorSaveConfig['resolvePathBeforeSave']
   persistenceScopeRef: MutableRefObject<string | readonly string[] | undefined>
 }): Promise<string | null> {
-  const targetPath = await resolvePersistPath(path, resolvePath, resolvePathBeforeSave)
+  const targetPath = await resolvePersistPath(path, resolvePathBeforeSave)
   if (!canWritePathToVault(targetPath, persistenceScopeRef.current ?? '')) return null
   onBeforePersist?.(targetPath)
   await saveNote(targetPath, content)
@@ -214,7 +202,6 @@ async function persistPendingContent({
   saveNote,
   onBeforePersist,
   onNotePersisted,
-  resolvePath,
   resolvePathBeforeSave,
   persistenceScopeRef,
 }: PersistPendingContentParams): Promise<boolean> {
@@ -224,7 +211,6 @@ async function persistPendingContent({
     content,
     saveNote,
     onBeforePersist,
-    resolvePath,
     resolvePathBeforeSave,
     persistenceScopeRef,
   })
@@ -232,7 +218,12 @@ async function persistPendingContent({
     if (pendingContentRef.current === pending) pendingContentRef.current = null
     return false
   }
-  if (!matchesPendingContent(pendingContentRef.current, targetPath, content, resolvePath)) {
+  // Compare against targetPath, not the pre-resolution `pending.path`: a
+  // rename may have legitimately remapped pendingContentRef's path to
+  // targetPath while this save was in flight (see useRemapPendingContentPath)
+  // — that's not a newer edit superseding this one, just the same edit
+  // catching up to its note's current path.
+  if (!matchesPendingContent(pendingContentRef.current, targetPath, content)) {
     return false
   }
   pendingContentRef.current = null
@@ -276,7 +267,6 @@ function usePendingContentFlush({
   saveNote,
   onBeforePersist,
   onNotePersisted,
-  resolvePath,
   resolvePathBeforeSave,
   canPersistRef,
   persistenceScopeRef,
@@ -285,7 +275,6 @@ function usePendingContentFlush({
   saveNote: (path: string, content: string) => Promise<void>
   onBeforePersist?: EditorSaveConfig['onBeforePersist']
   onNotePersisted?: EditorSaveConfig['onNotePersisted']
-  resolvePath?: EditorSaveConfig['resolvePath']
   resolvePathBeforeSave?: EditorSaveConfig['resolvePathBeforeSave']
   canPersistRef: MutableRefObject<boolean>
   persistenceScopeRef: MutableRefObject<string | readonly string[] | undefined>
@@ -294,14 +283,13 @@ function usePendingContentFlush({
 
   return useCallback(async (pathFilter?: string): Promise<boolean> => {
     const pending = pendingContentRef.current
-    if (!matchesPendingPath(pending, pathFilter, resolvePath)) return false
+    if (!matchesPendingPath(pending, pathFilter)) return false
     if (!canPersistRef.current) return false
 
     const inFlightSave = reusableInFlightSave({
       inFlightSave: inFlightSaveRef.current,
       pending,
       pathFilter,
-      resolvePath,
     })
     if (inFlightSave) return inFlightSave
 
@@ -311,7 +299,6 @@ function usePendingContentFlush({
       saveNote,
       onBeforePersist,
       onNotePersisted,
-      resolvePath,
       resolvePathBeforeSave,
       persistenceScopeRef,
     })
@@ -324,7 +311,7 @@ function usePendingContentFlush({
         inFlightSaveRef.current = null
       }
     }
-  }, [canPersistRef, onBeforePersist, onNotePersisted, pendingContentRef, persistenceScopeRef, resolvePath, resolvePathBeforeSave, saveNote])
+  }, [canPersistRef, onBeforePersist, onNotePersisted, pendingContentRef, persistenceScopeRef, resolvePathBeforeSave, saveNote])
 }
 
 function useCancelAutoSave(autoSaveTimerRef: MutableRefObject<ReturnType<typeof setTimeout> | null>) {
@@ -362,7 +349,6 @@ async function persistUnsavedFallback({
   saveNote,
   onBeforePersist,
   onNotePersisted,
-  resolvePath,
   resolvePathBeforeSave,
   persistenceScopeRef,
 }: {
@@ -370,7 +356,6 @@ async function persistUnsavedFallback({
   saveNote: (path: string, content: string) => Promise<void>
   onBeforePersist?: EditorSaveConfig['onBeforePersist']
   onNotePersisted?: EditorSaveConfig['onNotePersisted']
-  resolvePath?: EditorSaveConfig['resolvePath']
   resolvePathBeforeSave?: EditorSaveConfig['resolvePathBeforeSave']
   persistenceScopeRef: MutableRefObject<string | readonly string[] | undefined>
 }): Promise<boolean> {
@@ -380,7 +365,6 @@ async function persistUnsavedFallback({
     content: unsavedFallback.content,
     saveNote,
     onBeforePersist,
-    resolvePath,
     resolvePathBeforeSave,
     persistenceScopeRef,
   })
@@ -416,7 +400,6 @@ async function persistImmediateSave({
   saveNote,
   onBeforePersist,
   onNotePersisted,
-  resolvePath,
   resolvePathBeforeSave,
   persistenceScopeRef,
   setToastMessage,
@@ -428,7 +411,6 @@ async function persistImmediateSave({
   saveNote: (path: string, content: string) => Promise<void>
   onBeforePersist?: EditorSaveConfig['onBeforePersist']
   onNotePersisted?: EditorSaveConfig['onNotePersisted']
-  resolvePath?: EditorSaveConfig['resolvePath']
   resolvePathBeforeSave?: EditorSaveConfig['resolvePathBeforeSave']
   persistenceScopeRef: MutableRefObject<string | readonly string[] | undefined>
   setToastMessage: EditorSaveConfig['setToastMessage']
@@ -442,7 +424,6 @@ async function persistImmediateSave({
       saveNote,
       onBeforePersist,
       onNotePersisted,
-      resolvePath,
       resolvePathBeforeSave,
       persistenceScopeRef,
     })
@@ -465,7 +446,6 @@ function useImmediateSaveCommands({
   saveNote,
   onBeforePersist,
   onNotePersisted,
-  resolvePath,
   resolvePathBeforeSave,
   persistenceScopeRef,
   canPersistRef,
@@ -480,7 +460,6 @@ function useImmediateSaveCommands({
   saveNote: (path: string, content: string) => Promise<void>
   onBeforePersist?: EditorSaveConfig['onBeforePersist']
   onNotePersisted?: EditorSaveConfig['onNotePersisted']
-  resolvePath?: EditorSaveConfig['resolvePath']
   resolvePathBeforeSave?: EditorSaveConfig['resolvePathBeforeSave']
   persistenceScopeRef: MutableRefObject<string | readonly string[] | undefined>
   canPersistRef: MutableRefObject<boolean>
@@ -504,14 +483,13 @@ function useImmediateSaveCommands({
       saveNote,
       onBeforePersist,
       onNotePersisted,
-      resolvePath,
       resolvePathBeforeSave,
       persistenceScopeRef,
       setToastMessage,
       onAfterSave,
       t,
     })
-  }, [canPersistRef, cancelAutoSave, disabledSaveMessage, flushPending, onAfterSave, onBeforePersist, onNotePersisted, pendingContentRef, persistenceScopeRef, resolvePath, resolvePathBeforeSave, saveNote, setToastMessage, t])
+  }, [canPersistRef, cancelAutoSave, disabledSaveMessage, flushPending, onAfterSave, onBeforePersist, onNotePersisted, pendingContentRef, persistenceScopeRef, resolvePathBeforeSave, saveNote, setToastMessage, t])
 
   const savePendingForPath = useCallback(
     (path: string): Promise<boolean> => {
@@ -539,7 +517,6 @@ function useContentChangeCommand({
   onAfterSaveRef,
   canPersistRef,
   persistenceScopeRef,
-  resolvePath,
   t,
 }: {
   pendingContentRef: MutableRefObject<PendingContent | null>
@@ -551,18 +528,29 @@ function useContentChangeCommand({
   onAfterSaveRef: MutableRefObject<() => void>
   canPersistRef: MutableRefObject<boolean>
   persistenceScopeRef: MutableRefObject<string | readonly string[] | undefined>
-  resolvePath?: EditorSaveConfig['resolvePath']
   t: Translator
 }) {
   return useCallback((path: string, content: string) => {
-    const currentPath = resolveBufferedPath(path, resolvePath)
-    if (!canWritePathToVault(currentPath, persistenceScopeRef.current ?? '')) return
-    pendingContentRef.current = { path: currentPath, content }
-    applyTabContent(setTabs, currentPath, content)
+    if (!canWritePathToVault(path, persistenceScopeRef.current ?? '')) return
+    pendingContentRef.current = { path, content }
+    applyTabContent(setTabs, path, content)
     cancelAutoSave()
     if (!canPersistRef.current) return
     scheduleAutoSave({ autoSaveTimerRef, flushPending, onAfterSaveRef, setToastMessage, t })
-  }, [autoSaveTimerRef, canPersistRef, cancelAutoSave, flushPending, onAfterSaveRef, pendingContentRef, persistenceScopeRef, resolvePath, setTabs, setToastMessage, t])
+  }, [autoSaveTimerRef, canPersistRef, cancelAutoSave, flushPending, onAfterSaveRef, pendingContentRef, persistenceScopeRef, setTabs, setToastMessage, t])
+}
+
+/**
+ * Retargets buffered-but-not-yet-saved content when the note it belongs to
+ * gets renamed. Content is tracked by path (there's no separate stable note
+ * ID), so a rename that lands while an edit is still buffered would otherwise
+ * leave that edit pointed at a path that no longer exists.
+ */
+function useRemapPendingContentPath(pendingContentRef: MutableRefObject<PendingContent | null>) {
+  return useCallback((oldPath: string, newPath: string) => {
+    const pending = pendingContentRef.current
+    if (pending && notePathsMatch(pending.path, oldPath)) pendingContentRef.current = { ...pending, path: newPath }
+  }, [pendingContentRef])
 }
 
 function useEditorSaveCommands({
@@ -575,7 +563,6 @@ function useEditorSaveCommands({
   onAfterSaveRef,
   onBeforePersist,
   onNotePersisted,
-  resolvePath,
   resolvePathBeforeSave,
   canPersistRef,
   persistenceScopeRef,
@@ -588,7 +575,6 @@ function useEditorSaveCommands({
     saveNote,
     onBeforePersist,
     onNotePersisted,
-    resolvePath,
     resolvePathBeforeSave,
     canPersistRef,
     persistenceScopeRef,
@@ -604,7 +590,6 @@ function useEditorSaveCommands({
     saveNote,
     onBeforePersist,
     onNotePersisted,
-    resolvePath,
     resolvePathBeforeSave,
     persistenceScopeRef,
     canPersistRef,
@@ -621,11 +606,11 @@ function useEditorSaveCommands({
     onAfterSaveRef,
     canPersistRef,
     persistenceScopeRef,
-    resolvePath,
     t,
   })
+  const remapPendingContentPath = useRemapPendingContentPath(pendingContentRef)
 
-  return { handleSave, handleContentChange, savePendingForPath, savePending }
+  return { handleSave, handleContentChange, savePendingForPath, savePending, remapPendingContentPath }
 }
 
 export function useEditorSave({
@@ -635,7 +620,6 @@ export function useEditorSave({
   onAfterSave = noop,
   onBeforePersist,
   onNotePersisted,
-  resolvePath,
   resolvePathBeforeSave,
   canPersist = true,
   persistenceScope,
@@ -652,13 +636,13 @@ export function useEditorSave({
   const updateTabAndContent = useCallback((path: string, content: string) => {
     if (
       pendingContentRef.current
-      && !matchesPendingContent(pendingContentRef.current, path, content, resolvePath)
+      && !matchesPendingContent(pendingContentRef.current, path, content)
     ) {
       return
     }
     updateVaultContent(path, content)
     applyTabContent(setTabs, path, content)
-  }, [resolvePath, updateVaultContent, setTabs])
+  }, [updateVaultContent, setTabs])
 
   const { saveNote } = useSaveNote(updateTabAndContent)
   const onAfterSaveRef = useOnAfterSaveRef(onAfterSave)
@@ -673,7 +657,6 @@ export function useEditorSave({
     onAfterSaveRef,
     onBeforePersist,
     onNotePersisted,
-    resolvePath,
     resolvePathBeforeSave,
     canPersistRef,
     persistenceScopeRef,

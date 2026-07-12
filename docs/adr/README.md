@@ -188,3 +188,4 @@ proposed → active → superseded
 | [0134](0134-direct-shiki-language-registrations.md) | Direct Shiki language registrations for code blocks | active |
 | [0135](0135-single-newline-line-break-convention.md) | Single newline renders as a line break (notes-markdown convention) | active |
 | [0136](0136-wider-autosave-idle-window.md) | Wider autosave idle window | active |
+| [0137](0137-deferred-wikilink-rewrite-after-rename.md) | Deferred vault-wide wikilink rewrite after rename | active |
