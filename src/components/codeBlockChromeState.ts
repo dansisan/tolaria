@@ -269,7 +269,20 @@ export function useActiveCodeBlockFence(
     updateFenceTarget()
   }, [updateFenceTarget])
 
-  return { beginFenceEditing, endFenceEditing, fenceTarget }
+  /**
+   * Force-drops the target outside the normal onChange/onSelectionChange
+   * flow. Needed because some editor-content swaps (e.g. the cached-doc
+   * fast path, which installs a fresh EditorState directly) never fire
+   * those callbacks, so a stale target would otherwise survive into
+   * whatever note opens next.
+   */
+  const clearFenceTarget = useCallback(() => {
+    editingFenceRef.current = false
+    fenceTargetRef.current = null
+    setFenceTarget(null)
+  }, [])
+
+  return { beginFenceEditing, clearFenceTarget, endFenceEditing, fenceTarget }
 }
 
 export function fenceLineText({ language, nowrap }: { language: string; nowrap: boolean }): string {

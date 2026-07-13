@@ -649,4 +649,33 @@ describe('useActiveCodeBlockFence', () => {
     act(() => result.current.endFenceEditing())
     expect(result.current.fenceTarget).toBeNull()
   })
+
+  it('exposes clearFenceTarget so a note switch can force-clear a stale target', () => {
+    // Regression: the cached-doc note-swap fast path (applyCachedDocState)
+    // installs a fresh EditorState via view.updateState directly, which never
+    // fires onChange/onSelectionChange. Without an explicit clear, the fence
+    // line from the previously open note (e.g. "```gradle") stays rendered at
+    // its old position, bleeding into whatever note is opened next.
+    const { container } = buildCodeBlockDom()
+    const containerRef = { current: container as HTMLDivElement }
+    const listeners: Array<() => void> = []
+    const editor: CodeBlockChromeEditor = {
+      getTextCursorPosition: () => ({
+        block: { id: 'block-1', type: 'codeBlock', props: { language: 'gradle', nowrap: false } },
+      }),
+      onSelectionChange: (callback) => {
+        listeners.push(callback)
+        return () => {}
+      },
+    }
+
+    const { result } = renderHook(() => useActiveCodeBlockFence(editor, containerRef, true))
+    act(() => listeners.forEach((listener) => listener()))
+    expect(result.current.fenceTarget).toMatchObject({ blockId: 'block-1', language: 'gradle' })
+
+    // Simulate a note switch that never dispatches a transaction: nothing
+    // else runs, so only an explicit clear can drop the stale target.
+    act(() => result.current.clearFenceTarget())
+    expect(result.current.fenceTarget).toBeNull()
+  })
 })

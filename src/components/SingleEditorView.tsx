@@ -1298,13 +1298,22 @@ export function SingleEditorView({ editor, entries, onNavigateWikilink, onChange
     handleFocus: handleCodeBlockCopyFocus,
     handleMouseMove: handleCodeBlockCopyMouseMove,
   } = useCodeBlockChromeTarget(containerRef)
-  const { beginFenceEditing, endFenceEditing, fenceTarget } = useActiveCodeBlockFence(editor, containerRef, editable)
+  const { beginFenceEditing, clearFenceTarget, endFenceEditing, fenceTarget } = useActiveCodeBlockFence(editor, containerRef, editable)
   useBlockNoteSideMenuHoverGuard(containerRef)
   useEditorLinkActivation(containerRef, onNavigateWikilink, vaultPath, onClickTag)
 
   useEffect(() => {
     _wikilinkEntriesRef.current = entries
   }, [entries])
+
+  // Some note-content swaps (the cached-doc fast path) install a fresh
+  // EditorState directly and never fire onChange/onSelectionChange, so the
+  // hover/fence overlays for the previously open note's code block would
+  // otherwise survive into this one at their old screen position.
+  useEffect(() => {
+    clearChromeTarget()
+    clearFenceTarget()
+  }, [sourceEntry?.path, clearChromeTarget, clearFenceTarget])
 
   useEffect(() => {
     const container = containerRef.current
