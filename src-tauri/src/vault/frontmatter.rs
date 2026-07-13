@@ -536,23 +536,25 @@ fn parse_fm_date_secs(value: &serde_json::Value) -> Option<u64> {
     }
 }
 
+/// (frontmatter, relationships, custom properties, parsed creation timestamp in seconds since epoch)
+pub(crate) type FrontmatterExtraction = (
+    Frontmatter,
+    HashMap<String, Vec<String>>,
+    HashMap<String, serde_json::Value>,
+    Option<u64>,
+);
+
 /// Extract frontmatter, relationships, and custom properties from parsed gray_matter data.
 /// When gray_matter fails to parse YAML (e.g. malformed quotes from Notion exports),
 /// `raw_content` is used as a fallback: simple key:value pairs are extracted line-by-line
 /// so that critical fields like Trashed, Archived, type are not silently lost.
 ///
 /// `fm_created_key` is the frontmatter key to read a creation timestamp from.
-/// Returns a fourth value: the parsed creation timestamp in seconds since epoch, if found.
 pub(crate) fn extract_fm_and_rels(
     data: Option<gray_matter::Pod>,
     raw_content: &str,
     fm_created_key: &str,
-) -> (
-    Frontmatter,
-    HashMap<String, Vec<String>>,
-    HashMap<String, serde_json::Value>,
-    Option<u64>,
-) {
+) -> FrontmatterExtraction {
     let json_map = match data {
         Some(gray_matter::Pod::Hash(map)) => {
             map.into_iter().map(|(k, v)| (k, pod_to_json(v))).collect()

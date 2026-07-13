@@ -954,10 +954,8 @@ mod macos_impl {
     }
 
     fn decode_numeric_entity(entity: &str) -> Option<char> {
-        let code = match entity.strip_prefix('#') {
-            Some(rest) => parse_numeric_code(rest)?,
-            None => return None,
-        };
+        let rest = entity.strip_prefix('#')?;
+        let code = parse_numeric_code(rest)?;
         char::from_u32(code)
     }
 
