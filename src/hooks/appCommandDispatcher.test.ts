@@ -141,7 +141,7 @@ describe('appCommandDispatcher', () => {
     expect(findShortcutCommandId('command-or-ctrl', '\\')).toBe(APP_COMMAND_IDS.editToggleRawEditor)
     expect(findShortcutCommandId('command-or-ctrl-shift', '¬', 'KeyL')).toBe(APP_COMMAND_IDS.viewToggleAiChat)
     expect(findShortcutCommandId('command-or-ctrl-shift', 'T', 'KeyT')).toBe(APP_COMMAND_IDS.viewToggleTableOfContents)
-    expect(findShortcutCommandId('command-or-ctrl-shift', 'v', 'KeyV')).toBe(APP_COMMAND_IDS.editPastePlainText)
+    expect(findShortcutCommandId('command-or-ctrl-alt', 'v', 'KeyV')).toBe(APP_COMMAND_IDS.editPastePlainText)
   })
 
   it('maps Cmd+Shift+S to the bulk-select toggle and dispatches the handler', () => {
@@ -219,7 +219,7 @@ describe('appCommandDispatcher', () => {
     expectShortcutEventCommand({ key: 'ArrowRight', code: 'ArrowRight', metaKey: true }, APP_COMMAND_IDS.viewGoForward)
     expectShortcutEventCommand({ key: 'l', code: 'KeyL', ctrlKey: true, shiftKey: true }, APP_COMMAND_IDS.viewToggleAiChat)
     expectShortcutEventCommand({ key: 'T', code: 'KeyT', metaKey: true, shiftKey: true }, APP_COMMAND_IDS.viewToggleTableOfContents)
-    expectShortcutEventCommand({ key: 'V', code: 'KeyV', metaKey: true, shiftKey: true }, APP_COMMAND_IDS.editPastePlainText)
+    expectShortcutEventCommand({ key: 'V', code: 'KeyV', metaKey: true, altKey: true }, APP_COMMAND_IDS.editPastePlainText)
     expectShortcutEventCommand({ key: 'z', code: 'KeyZ', metaKey: true }, APP_COMMAND_IDS.editUndo)
     expectShortcutEventCommand({ key: 'z', code: 'KeyZ', metaKey: true, shiftKey: true }, APP_COMMAND_IDS.editRedo)
   })

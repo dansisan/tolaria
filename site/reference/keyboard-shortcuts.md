@@ -8,7 +8,7 @@
 | `Cmd+S` / `Ctrl+S` | Save current note. |
 | `Cmd+F` / `Ctrl+F` | Find in the current note. |
 | `Cmd+Shift+F` / `Ctrl+Shift+F` | Search the vault. |
-| `Cmd+Shift+V` / `Ctrl+Shift+V` | Paste without formatting. |
+| `Option+Cmd+V` / `Ctrl+Alt+V` | Paste without formatting. |
 | `Cmd+\` / `Ctrl+\` | Toggle raw Markdown mode. |
 | `Cmd+Shift+T` / `Ctrl+Shift+T` | Toggle table of contents. |
 | `Cmd+Shift+I` / `Ctrl+Shift+I` | Toggle Properties panel. |

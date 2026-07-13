@@ -41,7 +41,7 @@ describe('LinuxMenuButton', () => {
     render(<LinuxMenuButton />)
 
     await openSubmenu('Edit')
-    expect(screen.getByText('Ctrl+Shift+V')).toBeInTheDocument()
+    expect(screen.getByText('Ctrl+Alt+V')).toBeInTheDocument()
     fireEvent.click(await screen.findByText('Paste without Formatting'))
     expect(invoke).toHaveBeenCalledWith('trigger_menu_command', { id: 'edit-paste-plain-text' })
 

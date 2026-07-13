@@ -784,7 +784,7 @@ describe('useCommandRegistry', () => {
     expect(command).toMatchObject({
       label: 'Paste without formatting',
       group: 'Note',
-      shortcut: formatShortcutDisplay({ display: '⌘⇧V' }),
+      shortcut: formatShortcutDisplay({ display: '⌥⌘V' }),
       enabled: true,
     })
 

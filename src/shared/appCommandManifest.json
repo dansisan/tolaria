@@ -153,11 +153,11 @@
       "route": { "kind": "handler", "handler": "onPastePlainText" },
       "menuOwned": true,
       "shortcut": {
-        "combo": "command-or-ctrl-shift",
+        "combo": "command-or-ctrl-alt",
         "key": "v",
         "code": "KeyV",
-        "display": "⌘⇧V",
-        "accelerator": "CmdOrCtrl+Shift+V",
+        "display": "⌥⌘V",
+        "accelerator": "CmdOrCtrl+Alt+V",
         "requiresManualNativeAcceleratorQa": true
       }
     },
