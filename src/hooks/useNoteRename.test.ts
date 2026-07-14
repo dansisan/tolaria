@@ -156,6 +156,28 @@ describe('useNoteRename hook', () => {
     expect(handleSwitchTab).toHaveBeenCalledWith('/tmp/vault/new.md')
   })
 
+  it('marks both the old and new path as internal writes so the vault watcher does not redundantly rescan after a filename rename', async () => {
+    const entry = makeEntry({ path: '/vault/old-name.md', filename: 'old-name.md' })
+    vi.mocked(mockInvoke).mockImplementation(async (cmd: string) => {
+      if (cmd === 'rename_note_filename') return { new_path: '/vault/new-name.md', updated_files: 0, failed_updates: 0 }
+      if (cmd === 'get_note_content') return '# New\n'
+      return ''
+    })
+    const onInternalVaultWrite = vi.fn()
+
+    const { result } = renderHook(() => useNoteRename(
+      { entries: [entry], setToastMessage, onInternalVaultWrite },
+      { tabs: [], setTabs, activeTabPathRef, handleSwitchTab, updateTabContent },
+    ))
+
+    await act(async () => {
+      await result.current.handleRenameFilename('/vault/old-name.md', 'new-name', '/vault', vi.fn())
+    })
+
+    expect(onInternalVaultWrite).toHaveBeenCalledWith('/vault/old-name.md')
+    expect(onInternalVaultWrite).toHaveBeenCalledWith('/vault/new-name.md')
+  })
+
   it('handleRenameFilename renames the file while preserving the existing title', async () => {
     const entry = makeEntry({ path: '/vault/old-name.md', filename: 'old-name.md', title: 'Project Kickoff' })
     vi.mocked(mockInvoke).mockImplementation(async (cmd: string) => {
@@ -411,6 +433,30 @@ describe('useNoteRename hook', () => {
     expect(setToastMessage).toHaveBeenCalledWith('Moved to "active"')
   })
 
+  it('marks both the old and new path as internal writes so the vault watcher does not redundantly rescan after a folder move', async () => {
+    const entry = makeEntry({ path: '/vault/notes/project-kickoff.md', filename: 'project-kickoff.md', title: 'Project Kickoff' })
+    vi.mocked(mockInvoke).mockImplementation(async (cmd: string) => {
+      if (cmd === 'move_note_to_folder') {
+        return { new_path: '/vault/projects/project-kickoff.md', updated_files: 0, failed_updates: 0 }
+      }
+      if (cmd === 'get_note_content') return '# Project Kickoff\n'
+      return ''
+    })
+    const onInternalVaultWrite = vi.fn()
+
+    const { result } = renderHook(() => useNoteRename(
+      { entries: [entry], setToastMessage, onInternalVaultWrite },
+      { tabs: [], setTabs, activeTabPathRef, handleSwitchTab, updateTabContent },
+    ))
+
+    await act(async () => {
+      await result.current.handleMoveNoteToFolder('/vault/notes/project-kickoff.md', 'projects', '/vault', vi.fn())
+    })
+
+    expect(onInternalVaultWrite).toHaveBeenCalledWith('/vault/notes/project-kickoff.md')
+    expect(onInternalVaultWrite).toHaveBeenCalledWith('/vault/projects/project-kickoff.md')
+  })
+
   it('handleMoveNoteToWorkspace moves the note to a different workspace', async () => {
     const sourceWorkspace = makeWorkspace('/personal', 'personal')
     const destinationWorkspace = makeWorkspace('/team', 'team')
@@ -464,5 +510,41 @@ describe('useNoteRename hook', () => {
       '# Project Kickoff\n',
     )
     expect(setToastMessage).toHaveBeenCalledWith('Moved to "Team" and updated 1 note')
+  })
+
+  it('marks both the old and new path as internal writes so the vault watcher does not redundantly rescan after a workspace move', async () => {
+    const sourceWorkspace = makeWorkspace('/personal', 'personal')
+    const destinationWorkspace = makeWorkspace('/team', 'team')
+    const entry = makeEntry({
+      path: '/personal/notes/project-kickoff.md',
+      filename: 'project-kickoff.md',
+      title: 'Project Kickoff',
+      workspace: sourceWorkspace,
+    })
+    vi.mocked(mockInvoke).mockImplementation(async (cmd: string) => {
+      if (cmd === 'move_note_to_workspace') {
+        return { new_path: '/team/notes/project-kickoff.md', updated_files: 0, failed_updates: 0 }
+      }
+      if (cmd === 'get_note_content') return '# Project Kickoff\n'
+      return ''
+    })
+    const onInternalVaultWrite = vi.fn()
+
+    const { result } = renderHook(() => useNoteRename(
+      { entries: [entry], setToastMessage, onInternalVaultWrite },
+      { tabs: [], setTabs, activeTabPathRef, handleSwitchTab, updateTabContent },
+    ))
+
+    await act(async () => {
+      await result.current.handleMoveNoteToWorkspace(
+        '/personal/notes/project-kickoff.md',
+        destinationWorkspace,
+        '/personal',
+        vi.fn(),
+      )
+    })
+
+    expect(onInternalVaultWrite).toHaveBeenCalledWith('/personal/notes/project-kickoff.md')
+    expect(onInternalVaultWrite).toHaveBeenCalledWith('/team/notes/project-kickoff.md')
   })
 })

@@ -103,18 +103,11 @@ fn run_filename_rename(
 ) -> Result<(RenameResult, PendingWikilinkRewrite), String> {
     let request = RequestedNotePath::new(&args.vault_path, &args.old_path);
     with_note_path_in_vault(request, |note| {
-        // Use the parsed link sets to update only the notes that actually link
-        // this one, instead of reading every file. Falls back to a full scan when
-        // the index is unavailable (e.g. non-git vault with no warm cache).
-        let entries = vault::scan_vault_cached(Path::new(note.vault_path)).ok();
-        vault::rename_note_filename_with_links(
-            vault::RenameNoteFilenameRequest {
-                vault_path: note.vault_path,
-                old_path: note.note_path,
-                new_filename_stem: &args.new_filename_stem,
-            },
-            entries.as_deref(),
-        )
+        vault::rename_note_filename(vault::RenameNoteFilenameRequest {
+            vault_path: note.vault_path,
+            old_path: note.note_path,
+            new_filename_stem: &args.new_filename_stem,
+        })
     })
 }
 
@@ -150,15 +143,11 @@ fn run_folder_move(
                 if !validated_folder.is_dir() {
                     return Err(format!("Folder does not exist: {}", trimmed_folder_path));
                 }
-                let entries = vault::scan_vault_cached(Path::new(note.vault_path)).ok();
-                vault::move_note_to_folder_with_links(
-                    vault::MoveNoteToFolderRequest {
-                        vault_path: note.vault_path,
-                        old_path: note.note_path,
-                        destination_folder_path: validated_folder_path,
-                    },
-                    entries.as_deref(),
-                )
+                vault::move_note_to_folder(vault::MoveNoteToFolderRequest {
+                    vault_path: note.vault_path,
+                    old_path: note.note_path,
+                    destination_folder_path: validated_folder_path,
+                })
             },
         )
     })

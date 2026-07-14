@@ -374,6 +374,10 @@ export interface NoteRenameConfig {
   entries: VaultEntry[]
   setToastMessage: (msg: string | null) => void
   onPathRenamed?: (oldPath: string, newPath: string) => void
+  /** Marks a path as a known-recent internal write so the vault file watcher's
+   *  generic "unknown path changed" fallback doesn't redundantly rescan the
+   *  whole vault a moment after a rename we already know about. */
+  onInternalVaultWrite?: (path: string) => void
 }
 
 interface RenameTabDeps {
@@ -396,7 +400,7 @@ function useRenameResultApplier(
   config: NoteRenameConfig,
   tabDeps: RenameTabDeps,
 ) {
-  const { entries, setToastMessage, onPathRenamed } = config
+  const { entries, setToastMessage, onPathRenamed, onInternalVaultWrite } = config
   const { setTabs, activeTabPathRef, handleSwitchTab } = tabDeps
 
   const tabsRef = useRef(tabDeps.tabs)
@@ -439,6 +443,8 @@ function useRenameResultApplier(
         }))
       }
       onPathRenamed?.(oldPath, result.new_path)
+      onInternalVaultWrite?.(oldPath)
+      onInternalVaultWrite?.(result.new_path)
     }
     setTabs((prev) => prev.map((tab) => notePathsMatch(tab.entry.path, oldPath) ? { entry: newEntry, content: newContent } : tab))
     if (notePathsMatch(activeTabPathRef.current, oldPath)) handleSwitchTab(result.new_path)
@@ -452,7 +458,7 @@ function useRenameResultApplier(
       : renameToastMessage(result.updated_files, result.failed_updates ?? 0)
     setToastMessage(successMessage)
     return result
-  }, [entries, setTabs, activeTabPathRef, handleSwitchTab, onPathRenamed, setToastMessage])
+  }, [entries, setTabs, activeTabPathRef, handleSwitchTab, onPathRenamed, onInternalVaultWrite, setToastMessage])
 
   return {
     tabsRef,

@@ -48,13 +48,14 @@ pub struct WikilinkRewriteCompleted {
 /// Everything needed to run a rename's vault-wide wikilink rewrite later, on a
 /// background thread, after the caller already has the fast RenameResult in
 /// hand. Holds owned data (not borrowed from the request) so it can move into
-/// a spawned task.
+/// a spawned task. The candidate-narrowing vault scan is deferred to `run`
+/// too — it exists only to speed up this background rewrite, so it must never
+/// run on the rename's synchronous path (see ADR-0137).
 pub struct PendingWikilinkRewrite {
     vault_path: std::path::PathBuf,
     old_targets: Vec<String>,
     new_target: String,
     exclude_path: std::path::PathBuf,
-    entries: Option<Vec<VaultEntry>>,
     old_path: String,
     new_path: String,
     /// Move-to-workspace touches both the source and destination vaults when
@@ -69,24 +70,25 @@ impl PendingWikilinkRewrite {
             old_targets: Vec::new(),
             new_target: String::new(),
             exclude_path: std::path::PathBuf::new(),
-            entries: None,
             old_path: old_path.to_string(),
             new_path: new_path.to_string(),
             additional_vault_path: None,
         }
     }
 
-    /// Runs the vault-wide wikilink rewrite. Blocking (file I/O across
-    /// potentially every note in the vault) — call from a blocking-safe
-    /// context (e.g. `tokio::task::spawn_blocking`), not an async task.
+    /// Runs the vault-wide wikilink rewrite. Blocking (a vault scan to narrow
+    /// candidates, plus file I/O across potentially every note in the vault)
+    /// — call from a blocking-safe context (e.g. `tokio::task::spawn_blocking`),
+    /// not an async task.
     pub fn run(self) -> WikilinkRewriteCompleted {
+        let entries = super::scan_vault_cached(&self.vault_path).ok();
         let old_targets: Vec<&str> = self.old_targets.iter().map(String::as_str).collect();
         let mut summary = update_wikilinks_in_vault(
             &self.vault_path,
             &old_targets,
             &self.new_target,
             &self.exclude_path,
-            self.entries.as_deref(),
+            entries.as_deref(),
         );
         if let Some(additional_vault_path) = &self.additional_vault_path {
             let additional = update_wikilinks_in_vault(
@@ -342,7 +344,6 @@ fn finalize_rename(
     old_path: &str,
     old_targets: &[&str],
     new_file: &Path,
-    entries: Option<&[VaultEntry]>,
 ) -> (RenameResult, PendingWikilinkRewrite) {
     let new_path = new_file.to_string_lossy().to_string();
     let new_path_stem = to_path_stem(new_file, vault);
@@ -351,7 +352,6 @@ fn finalize_rename(
         old_targets: old_targets.iter().map(|target| target.to_string()).collect(),
         new_target: new_path_stem,
         exclude_path: new_file.to_path_buf(),
-        entries: entries.map(|entries| entries.to_vec()),
         old_path: old_path.to_string(),
         new_path: new_path.clone(),
         additional_vault_path: None,
@@ -425,17 +425,10 @@ fn ensure_existing_note(old_file: &Path) -> Result<(), String> {
 }
 
 /// Rename only the file path stem while preserving title/frontmatter content.
+/// The vault-wide wikilink update runs later, on a background thread — see
+/// [`PendingWikilinkRewrite`].
 pub fn rename_note_filename(
     request: RenameNoteFilenameRequest<'_>,
-) -> Result<(RenameResult, PendingWikilinkRewrite), String> {
-    rename_note_filename_with_links(request, None)
-}
-
-/// Like [`rename_note_filename`] but narrows the vault-wide wikilink update to the
-/// notes in `entries` that actually link this note. Pass `None` to scan every file.
-pub fn rename_note_filename_with_links(
-    request: RenameNoteFilenameRequest<'_>,
-    entries: Option<&[VaultEntry]>,
 ) -> Result<(RenameResult, PendingWikilinkRewrite), String> {
     let vault = Path::new(request.vault_path);
     let old_file = Path::new(request.old_path);
@@ -488,22 +481,14 @@ pub fn rename_note_filename_with_links(
         request.old_path,
         &old_targets,
         committed.new_file(),
-        entries,
     ))
 }
 
 /// Move a note into a different folder while preserving its filename and content.
+/// The vault-wide wikilink update runs later, on a background thread — see
+/// [`PendingWikilinkRewrite`].
 pub fn move_note_to_folder(
     request: MoveNoteToFolderRequest<'_>,
-) -> Result<(RenameResult, PendingWikilinkRewrite), String> {
-    move_note_to_folder_with_links(request, None)
-}
-
-/// Like [`move_note_to_folder`] but narrows the vault-wide wikilink update to the
-/// notes in `entries` that actually link this note. Pass `None` to scan every file.
-pub fn move_note_to_folder_with_links(
-    request: MoveNoteToFolderRequest<'_>,
-    entries: Option<&[VaultEntry]>,
 ) -> Result<(RenameResult, PendingWikilinkRewrite), String> {
     let vault = Path::new(request.vault_path);
     let old_file = Path::new(request.old_path);
@@ -551,7 +536,6 @@ pub fn move_note_to_folder_with_links(
         request.old_path,
         &old_targets,
         committed.new_file(),
-        entries,
     ))
 }
 
@@ -607,7 +591,6 @@ pub fn move_note_to_workspace(
         old_targets: old_targets.iter().map(|target| target.to_string()).collect(),
         new_target: replacement_target,
         exclude_path: new_file.to_path_buf(),
-        entries: None,
         old_path: request.old_path.to_string(),
         new_path: new_path.clone(),
         additional_vault_path: if source_vault == destination_vault {
@@ -714,13 +697,6 @@ mod tests {
 
     fn rename_note_filename_sync(request: RenameNoteFilenameRequest<'_>) -> Result<RenameResult, String> {
         resolve(rename_note_filename(request))
-    }
-
-    fn rename_note_filename_with_links_sync(
-        request: RenameNoteFilenameRequest<'_>,
-        entries: Option<&[VaultEntry]>,
-    ) -> Result<RenameResult, String> {
-        resolve(rename_note_filename_with_links(request, entries))
     }
 
     fn move_note_to_folder_sync(request: MoveNoteToFolderRequest<'_>) -> Result<RenameResult, String> {
@@ -1100,40 +1076,51 @@ mod tests {
         crate::vault::scan_vault(vault, &std::collections::HashMap::new(), "created").unwrap()
     }
 
+    /// `rename_note_filename` no longer takes or computes an `entries` list — the
+    /// candidate-narrowing vault scan moved into `PendingWikilinkRewrite::run` (see
+    /// ADR-0137) so it never runs on the rename's synchronous path. This test guards
+    /// the correctness side of that move: narrowing driven by a scan taken *after*
+    /// the rename, inside `run`, must still resolve to the exact same rewrite a
+    /// brute-force walk would produce.
     #[test]
-    fn test_rename_filename_with_links_matches_full_walk() {
+    fn test_rename_filename_narrowed_scan_matches_full_walk() {
         let narrowed = TempDir::new().unwrap();
         let full = TempDir::new().unwrap();
         build_wikilink_fixture(narrowed.path());
         build_wikilink_fixture(full.path());
-        let entries = scan_fixture(narrowed.path());
 
-        let narrowed_result = rename_note_filename_with_links_sync(
-            RenameNoteFilenameRequest {
-                vault_path: narrowed.path().to_str().unwrap(),
-                old_path: narrowed.path().join("note/weekly-review.md").to_str().unwrap(),
-                new_filename_stem: "sprint-retro",
-            },
-            Some(&entries),
-        )
+        let (result, pending) = rename_note_filename(RenameNoteFilenameRequest {
+            vault_path: narrowed.path().to_str().unwrap(),
+            old_path: narrowed.path().join("note/weekly-review.md").to_str().unwrap(),
+            new_filename_stem: "sprint-retro",
+        })
         .unwrap();
-        let full_result = rename_note_filename_with_links_sync(
-            RenameNoteFilenameRequest {
-                vault_path: full.path().to_str().unwrap(),
-                old_path: full.path().join("note/weekly-review.md").to_str().unwrap(),
-                new_filename_stem: "sprint-retro",
-            },
+        // Confirms the deferred rewrite (not the rename call above) is what performs
+        // the scan/narrowing — `result` alone carries no rewrite counts yet.
+        assert_eq!(result.updated_files, 0);
+        let narrowed_completed = pending.run();
+
+        let old_targets = collect_legacy_wikilink_targets("Weekly Review", "note/weekly-review");
+        let full_summary = update_wikilinks_in_vault(
+            full.path(),
+            &old_targets,
+            "note/sprint-retro",
+            &full.path().join("note/weekly-review.md"),
             None,
+        );
+        fs::rename(
+            full.path().join("note/weekly-review.md"),
+            full.path().join("note/sprint-retro.md"),
         )
         .unwrap();
 
         // The link-narrowed rewrite must update exactly the same files, and the
         // resulting vault must be byte-identical to the brute-force walk.
-        assert_eq!(narrowed_result.updated_files, full_result.updated_files);
+        assert_eq!(narrowed_completed.updated_files, full_summary.updated_files);
         assert!(
-            narrowed_result.updated_files >= 2,
+            narrowed_completed.updated_files >= 2,
             "expected body + frontmatter refs, got {}",
-            narrowed_result.updated_files
+            narrowed_completed.updated_files
         );
         assert_eq!(read_vault_md(narrowed.path()), read_vault_md(full.path()));
     }

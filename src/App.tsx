@@ -1006,8 +1006,6 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
       )
       if (!result) return
 
-      markRecentVaultWrite(entry.path)
-      markRecentVaultWrite(result.new_path)
       await refreshGitModifiedFiles()
     } catch (err) {
       console.error('Failed to change note workspace:', err)
@@ -1018,7 +1016,6 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     effectiveSelection,
     flushEditorStateBeforeAction,
     handleSetSelection,
-    markRecentVaultWrite,
     notes,
     refreshGitModifiedFiles,
     resolvedPath,

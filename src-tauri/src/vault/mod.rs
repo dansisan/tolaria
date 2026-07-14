@@ -41,10 +41,10 @@ pub use image::{copy_image_to_vault, delete_attachment, rename_attachment_via_co
 pub(crate) use image::{prepare_attachment_payload, stored_attachment_name};
 pub use migration::migrate_is_a_to_type;
 pub use rename::{
-    detect_renames, move_note_to_folder, move_note_to_folder_with_links, move_note_to_workspace,
-    rename_note_filename, rename_note_filename_with_links, update_wikilinks_for_renames,
-    DetectedRename, MoveNoteToFolderRequest, MoveNoteToWorkspaceRequest, PendingWikilinkRewrite,
-    RenameNoteFilenameRequest, RenameResult, WikilinkRewriteCompleted,
+    detect_renames, move_note_to_folder, move_note_to_workspace, rename_note_filename,
+    update_wikilinks_for_renames, DetectedRename, MoveNoteToFolderRequest,
+    MoveNoteToWorkspaceRequest, PendingWikilinkRewrite, RenameNoteFilenameRequest, RenameResult,
+    WikilinkRewriteCompleted,
 };
 pub use trash::{batch_delete_notes, delete_note};
 pub use views::{

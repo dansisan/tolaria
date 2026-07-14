@@ -769,7 +769,12 @@ export function useNoteActions(config: NoteActionsConfig) {
   const creation = useNoteCreation(config, { openTabWithContent })
   const isPathUnsaved = useCallback((path: string) => config.unsavedPaths?.has(path) ?? false, [config.unsavedPaths])
   const rename = useNoteRename(
-    { entries, setToastMessage, onPathRenamed: handlePathRenamed },
+    {
+      entries,
+      setToastMessage,
+      onPathRenamed: handlePathRenamed,
+      onInternalVaultWrite: config.onInternalVaultWrite,
+    },
     { tabs: tabMgmt.tabs, setTabs, activeTabPathRef, handleSwitchTab, updateTabContent },
   )
   useWikilinkRewriteNotifications({
