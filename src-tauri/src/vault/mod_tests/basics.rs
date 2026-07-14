@@ -11,7 +11,7 @@ fn test_reload_entry_returns_fresh_data() {
         "---\ntitle: My Note\nStatus: Active\n---\n# My Note\n\nOriginal.",
     );
     let entry = reload_entry(&dir.path().join("my-note.md")).unwrap();
-    assert_eq!(entry.title, "My Note");
+    assert_eq!(entry.title, "my-note");
     assert_eq!(entry.status, Some("Active".to_string()));
 
     create_test_file(
@@ -84,7 +84,7 @@ fn test_parse_empty_frontmatter() {
             entry.belongs_to.is_empty(),
             entry.status.as_deref(),
         ),
-        ("Just a Title", true, true, None)
+        ("just-a-title", true, true, None)
     );
 }
 
@@ -95,7 +95,7 @@ fn test_parse_no_frontmatter() {
     create_test_file(dir.path(), "a-note-without-frontmatter.md", content);
 
     let entry = parse_md_file(&dir.path().join("a-note-without-frontmatter.md"), None, "created").unwrap();
-    assert_eq!(entry.title, "A Note Without Frontmatter");
+    assert_eq!(entry.title, "a-note-without-frontmatter");
 }
 
 #[test]

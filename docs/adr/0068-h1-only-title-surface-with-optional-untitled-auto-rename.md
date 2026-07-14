@@ -2,9 +2,10 @@
 type: ADR
 id: "0068"
 title: "H1-only title surface with optional untitled auto-rename"
-status: active
+status: superseded
 date: 2026-04-17
 supersedes: "0055"
+superseded_by: "0138"
 ---
 
 ## Context

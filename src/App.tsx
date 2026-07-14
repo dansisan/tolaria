@@ -965,14 +965,13 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
   })
 
   const appSave = useAppSave({
-    updateEntry: vault.updateEntry, setTabs: notes.setTabs, handleSwitchTab: notes.handleSwitchTab, setToastMessage,
+    updateEntry: vault.updateEntry, setTabs: notes.setTabs, setToastMessage,
     loadModifiedFiles: refreshGitModifiedFiles, reloadViews: async () => { await vault.reloadViews() },
     trackUnsaved: vault.trackUnsaved, clearUnsaved: vault.clearUnsaved, unsavedPaths: vault.unsavedPaths,
     tabs: notes.tabs, activeTabPath: notes.activeTabPath,
-    handleRenameNote: notes.handleRenameNote, handleRenameFilename: notes.handleRenameFilename,
+    handleRenameFilename: notes.handleRenameFilename,
     replaceEntry: vault.replaceEntry, resolvedPath,
     writableVaultPaths,
-    initialH1AutoRenameEnabled: settings.initial_h1_auto_rename_enabled !== false,
     onInternalVaultWrite: markRecentVaultWrite,
     refreshEntries: refreshVaultEntries,
     locale: appLocale,

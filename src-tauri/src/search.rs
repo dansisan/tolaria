@@ -349,7 +349,9 @@ mod tests {
     }
 
     #[test]
-    fn test_search_vault_uses_h1_for_result_title() {
+    fn test_search_vault_uses_filename_for_note_result_title() {
+        // Notes always title by filename — H1 is not a title source for the
+        // default "Note" type (see ADR superseding 0068).
         let dir = Builder::new()
             .prefix("search-vault-")
             .tempdir_in(std::env::current_dir().unwrap())
@@ -358,6 +360,26 @@ mod tests {
         fs::write(
             &note_path,
             "# Updated Display Title\n\nThe body contains keyword for search.",
+        )
+        .unwrap();
+
+        let response =
+            search_vault(dir.path().to_str().unwrap(), "keyword", "keyword", 10).unwrap();
+
+        assert_eq!(response.results.len(), 1);
+        assert_eq!(response.results[0].title, "legacy-name");
+    }
+
+    #[test]
+    fn test_search_vault_uses_h1_for_type_instance_result_title() {
+        let dir = Builder::new()
+            .prefix("search-vault-")
+            .tempdir_in(std::env::current_dir().unwrap())
+            .unwrap();
+        let note_path = dir.path().join("legacy-name.md");
+        fs::write(
+            &note_path,
+            "---\ntype: Person\n---\n# Updated Display Title\n\nThe body contains keyword for search.",
         )
         .unwrap();
 
@@ -400,7 +422,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(hidden.results.len(), 1);
-        assert_eq!(hidden.results[0].title, "Visible");
+        assert_eq!(hidden.results[0].title, "visible");
         assert_eq!(shown.results.len(), 2);
     }
 
@@ -441,6 +463,6 @@ mod tests {
         .unwrap();
 
         assert_eq!(response.results.len(), 1);
-        assert_eq!(response.results[0].title, "Body Match");
+        assert_eq!(response.results[0].title, "body-match");
     }
 }

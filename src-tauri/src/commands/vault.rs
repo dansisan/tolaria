@@ -96,7 +96,7 @@ mod tests {
         let agents = std::fs::read_to_string(vault_path.join("AGENTS.md")).unwrap();
         let claude = std::fs::read_to_string(vault_path.join("CLAUDE.md")).unwrap();
 
-        assert!(agents.contains("Use the first H1 as the note title."));
+        assert!(agents.contains("A plain note's (`type: Note`, or no `type:` set) filename is its title"));
         assert!(agents.contains("Tolaria reads notes recursively from all folders"));
         assert!(agents.contains("views/*.yml"));
         assert!(claude.starts_with("---\ntype: Note\n_organized: true\n---"));
@@ -135,7 +135,7 @@ mod tests {
         std::fs::write(&note, "---\ntitle: Test\nStatus: Active\n---\n# Test\n").unwrap();
 
         let entry = reload_vault_entry(note.clone(), vault_path_arg(dir.path())).unwrap();
-        assert_eq!(entry.title, "Test");
+        assert_eq!(entry.title, "test");
         assert_eq!(entry.status, Some("Active".to_string()));
 
         std::fs::write(&note, "---\ntitle: Test\nStatus: Done\n---\n# Test\n").unwrap();

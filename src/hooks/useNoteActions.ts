@@ -7,15 +7,16 @@ import {
   type GitignoredVisibilityAppliedEvent,
 } from '../lib/gitignoredVisibilityEvents'
 import { resolveEntry } from '../utils/wikilink'
-import { useNoteCreation } from './useNoteCreation'
+import { useNoteCreation, slugify } from './useNoteCreation'
 import {
   useNoteRename,
-  performRename, loadNoteContent, renameToastMessage,
+  performFilenameRename, loadNoteContent, renameToastMessage,
 } from './useNoteRename'
 import { runFrontmatterAndApply, type FrontmatterOpOptions } from './frontmatterOps'
 import { findByNotePath, notePathFilename, notePathsMatch } from '../utils/notePathIdentity'
 import type { VaultOption } from '../components/status-bar/types'
 import { canonicalFrontmatterKey } from '../utils/systemMetadata'
+import { isDefaultNoteType } from '../utils/noteTitle'
 import { useActionHistory, type ActionHistoryController, type ActionHistoryEntry } from './useActionHistory'
 import { useWikilinkRewriteNotifications } from './useWikilinkRewriteNotifications'
 
@@ -170,9 +171,8 @@ async function applyTitleRenamePathChange({
 }
 
 async function renameAfterTitleChange({ path, newTitle, deps }: RenameAfterTitleChangeParams): Promise<void> {
-  const oldTitle = deps.tabsRef.current.find(t => notePathsMatch(t.entry.path, path))?.entry.title
   deps.onInternalVaultWrite?.(path)
-  const result = await performRename({ path, newTitle, vaultPath: deps.vaultPath, oldTitle })
+  const result = await performFilenameRename({ path, newFilenameStem: slugify(newTitle), vaultPath: deps.vaultPath })
   if (!notePathsMatch(result.new_path, path)) {
     await applyTitleRenamePathChange({ path, newPath: result.new_path, newTitle, deps })
   }
@@ -246,6 +246,10 @@ async function maybeRenameAfterFrontmatterUpdate({
   deps,
 }: MaybeRenameAfterFrontmatterUpdateParams): Promise<void> {
   if (!shouldRenameOnTitleUpdate(key, value)) return
+  // Notes title by filename alone — only structured Type instances (whose
+  // frontmatter title is their real name) rename their file to follow a title edit.
+  const entryIsA = deps.tabsRef.current.find(t => notePathsMatch(t.entry.path, path))?.entry.isA
+  if (isDefaultNoteType(entryIsA)) return
   try {
     await renameAfterTitleChange({ path, newTitle: value, deps })
   } catch (err) {
@@ -719,7 +723,6 @@ function buildNoteActionsResult({
     handleUpdateFrontmatter: frontmatterActions.handleUpdateFrontmatter,
     handleDeleteProperty: frontmatterActions.handleDeleteProperty,
     handleAddProperty: frontmatterActions.handleAddProperty,
-    handleRenameNote: rename.handleRenameNote,
     handleRenameFilename: rename.handleRenameFilename,
     handleMoveNoteToFolder: rename.handleMoveNoteToFolder,
     handleMoveNoteToWorkspace: rename.handleMoveNoteToWorkspace,

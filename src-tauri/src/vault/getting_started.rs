@@ -313,7 +313,7 @@ Keep this file focused on vault-specific conventions. For general Tolaria behavi
 ## Core conventions
 
 - Notes are Markdown files.
-- Use the first H1 as the note title. Tolaria uses this title in the note list, wikilinks, search, and other display surfaces.
+- A plain note's (`type: Note`, or no `type:` set) filename is its title — do not add a `title:` frontmatter field or rely on an H1 heading for the title. Renaming the file is the only way to retitle a note. This does not apply to type instances (see Types below), which may still use a frontmatter `title:` or H1 as their display name.
 - Store note type in the `type:` frontmatter field.
 - Use wikilinks in body text and frontmatter fields to connect notes.
 - Prefer types and relationships for organization. Folder structure is optional and should not be treated as the primary source of meaning.
@@ -332,14 +332,12 @@ status: Active
 url: https://example.com
 ---
 
-# Example note
-
-Body content in Markdown.
+Body content in Markdown. The filename (e.g. `example-note.md`) is the title — no H1 or `title:` needed.
 ```
 
 ## Types
 
-Types are regular notes with `type: Type`. They define how notes of that type appear and which properties or relationships should be suggested for new notes.
+Types are regular notes with `type: Type`. They define how notes of that type appear and which properties or relationships should be suggested for new notes. Unlike plain notes, instances of a type (e.g. `type: Project`) may use a frontmatter `title:` field or H1 heading as their display name distinct from their filename.
 
 ```yaml
 ---
@@ -369,7 +367,7 @@ Use quoted wikilinks for scalar frontmatter values and YAML lists for multi-valu
 
 ## Wikilinks
 
-- `[[filename]]` or `[[Note Title]]` for normal links
+- `[[filename]]` for normal links (a type instance's `[[Title]]` also resolves if it differs from its filename)
 - `[[filename|display text]]` for custom display text
 - Works in frontmatter values and Markdown body
 
@@ -408,11 +406,11 @@ View rules that matter when creating or editing files:
 
 ## Filenames
 
-Use kebab-case: `my-note-title.md`. One note per file.
+Use kebab-case: `my-note-title.md`. One note per file. For plain notes the filename is the title, so name the file what you want the note to be called.
 
 ## What agents should do
 
-- Create and edit notes using the frontmatter and H1 conventions above.
+- Create and edit notes using the conventions above.
 - Create and edit type documents when the user asks for note categories or defaults.
 - Add or modify relationships without breaking existing wikilinks.
 - Create and edit saved views in `views/`.
@@ -847,7 +845,7 @@ Saved filters live in `views/` as `.view.json` files:
     fn test_agents_template_matches_current_tolaria_vault_conventions() {
         assert!(AGENTS_MD.starts_with("---\ntype: Note\n_organized: true\n---\n"));
         assert!(AGENTS_MD.contains("# AGENTS.md — Tolaria Vault"));
-        assert!(AGENTS_MD.contains("Use the first H1 as the note title."));
+        assert!(AGENTS_MD.contains("A plain note's (`type: Note`, or no `type:` set) filename is its title"));
         assert!(AGENTS_MD.contains("Store note type in the `type:` frontmatter field."));
         assert!(AGENTS_MD.contains("Tolaria reads notes recursively from all folders"));
         assert!(AGENTS_MD.contains("Search the bundled Tolaria docs"));

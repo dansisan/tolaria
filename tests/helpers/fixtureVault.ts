@@ -259,13 +259,6 @@ async function installFixtureVaultInitScript({ page, vaultPath, isGitRepo, folde
       )
     }
 
-    const renameNoteRequest = (payload: Record<string, unknown>) =>
-      readJson('/api/vault/rename', {
-        method: 'POST',
-        headers: jsonHeaders,
-        body: JSON.stringify(payload),
-      })
-
     const readNestedCommandArgs = (commandArgs: FixtureCommandArgs) => {
       const nestedArgs = commandArgs?.args
       return nestedArgs && typeof nestedArgs === 'object'
@@ -399,13 +392,6 @@ async function installFixtureVaultInitScript({ page, vaultPath, isGitRepo, folde
           readCommandString(commandArgs, 'path'),
           (content) => removeFrontmatterEntry(content, readCommandString(commandArgs, 'key')),
         ),
-      rename_note: (commandArgs?: FixtureCommandArgs) =>
-        renameNoteRequest({
-          vault_path: readCommandValue(commandArgs, 'vaultPath', resolvedVaultPath),
-          old_path: readCommandValue(commandArgs, 'oldPath'),
-          new_title: readCommandValue(commandArgs, 'newTitle'),
-          old_title: readCommandValue(commandArgs, 'oldTitle', null),
-        }),
       rename_note_filename: (commandArgs?: FixtureCommandArgs) =>
         readJson('/api/vault/rename-filename', {
           method: 'POST',
@@ -416,19 +402,6 @@ async function installFixtureVaultInitScript({ page, vaultPath, isGitRepo, folde
             new_filename_stem: readCommandValue(commandArgs, 'newFilenameStem'),
           }),
         }),
-      auto_rename_untitled: async (commandArgs?: FixtureCommandArgs) => {
-        const notePath = readCommandString(commandArgs, 'notePath')
-        const contentData = await readJson(
-          `/api/vault/content?path=${encodeURIComponent(notePath)}`,
-        ) as { content: string }
-        const match = contentData.content.match(/^#\s+(.+)$/m)
-        if (!match) return null
-        return renameNoteRequest({
-          vault_path: readCommandValue(commandArgs, 'vaultPath', resolvedVaultPath),
-          old_path: notePath,
-          new_title: match[1].trim(),
-        })
-      },
     })
 
     const applyFixtureVaultOverrides = (

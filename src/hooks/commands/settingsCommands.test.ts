@@ -22,10 +22,6 @@ function expectOpenSettingsCommand(id: string, label: string) {
 }
 
 describe('buildSettingsCommands', () => {
-  it('adds a discoverable H1 auto-rename settings command', () => {
-    expectOpenSettingsCommand('open-h1-auto-rename-setting', 'Open H1 Auto-Rename Setting')
-  })
-
   it('keeps the general settings command available', () => {
     const onOpenSettings = vi.fn()
 

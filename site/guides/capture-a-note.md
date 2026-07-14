@@ -5,13 +5,13 @@ Use capture when you need to get an idea into the vault before you know where it
 ## Steps
 
 1. Press `Cmd+N` on macOS or `Ctrl+N` on Windows and Linux.
-2. Write a clear H1.
+2. Rename the file to something clear once you know what the note is about — the filename is the title.
 3. Add the rough content.
 4. Leave structure for later if you are still thinking.
 
 ## Capture Well
 
-Prefer a useful title over a perfect taxonomy. You can add type, status, and relationships during inbox review.
+Prefer a useful filename over a perfect taxonomy. You can add type, status, and relationships during inbox review.
 
 ## When To Add Structure Immediately
 

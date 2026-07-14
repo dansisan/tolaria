@@ -131,12 +131,16 @@ describe('buildNoteContent', () => {
     vi.useRealTimers()
   })
 
-  it('generates frontmatter with title and status', () => {
-    expect(buildNoteContent({ title: 'My Note', type: 'Note', status: 'Active' })).toBe(`---\ntitle: My Note\ntype: Note\nstatus: Active\n${DATE_FIELDS}\n---\n`)
+  it('generates frontmatter with title and status for structured Types', () => {
+    expect(buildNoteContent({ title: 'P', type: 'Project', status: 'Active' })).toBe(`---\ntitle: P\ntype: Project\nstatus: Active\n${DATE_FIELDS}\n---\n`)
   })
 
   it('omits title when null', () => {
     expect(buildNoteContent({ title: null, type: 'Note', status: 'Active' })).toBe(`---\ntype: Note\nstatus: Active\n${DATE_FIELDS}\n---\n`)
+  })
+
+  it('omits frontmatter title for the default Note type even when a title is provided (filename is the title)', () => {
+    expect(buildNoteContent({ title: 'My Note', type: 'Note', status: 'Active' })).toBe(`---\ntype: Note\nstatus: Active\n${DATE_FIELDS}\n---\n`)
   })
 
   it('omits status when null', () => {
@@ -148,52 +152,15 @@ describe('buildNoteContent', () => {
     expect(content).toContain('## Objective')
   })
 
-  it('prepends an empty H1 when requested for untitled-note flows', () => {
-    expect(buildNoteContent({ title: null, type: 'Note', status: 'Active', initialEmptyHeading: true })).toBe(`---\ntype: Note\nstatus: Active\n${DATE_FIELDS}\n---\n\n# \n\n`)
-  })
-
-  it('keeps the empty H1 before any template content', () => {
-    const content = buildNoteContent({
-      title: null,
-      type: 'Project',
-      status: 'Active',
-      template: '## Objective\n\n',
-      initialEmptyHeading: true,
-    })
-    expect(content).toBe(`---\ntype: Project\nstatus: Active\n${DATE_FIELDS}\n---\n\n# \n\n## Objective\n\n`)
-  })
-
-  it('skips the empty H1 when the template already starts with one', () => {
-    const content = buildNoteContent({
-      title: null,
-      type: 'Weekly',
-      status: null,
-      template: '# Woche 2026.21\n\nWochennotiz\n',
-      initialEmptyHeading: true,
-    })
-    expect(content).toBe(`---\ntype: Weekly\n${DATE_FIELDS}\n---\n\n# Woche 2026.21\n\nWochennotiz\n`)
-  })
-
-  it('skips the empty H1 when the template starts with an H1 after leading whitespace', () => {
-    const content = buildNoteContent({
-      title: null,
-      type: 'Weekly',
-      status: null,
-      template: '\n\n# Woche 2026.21\n',
-      initialEmptyHeading: true,
-    })
-    expect(content).toBe(`---\ntype: Weekly\n${DATE_FIELDS}\n---\n\n\n\n# Woche 2026.21\n`)
-  })
-
   it('backdates created/dayCreated to a chosen date while keeping modified at the real save time', () => {
     const content = buildNoteContent({
       title: 'Backdated',
-      type: 'Note',
+      type: 'Project',
       status: null,
       createdDate: new Date('2026-01-10T09:00:00'),
     })
     expect(content).toBe(
-      '---\ntitle: Backdated\ntype: Note\ncreated: "2026-01-10 09:00:00"\ndayCreated: Sat\nmodified: "2026-01-15 12:30:45"\n---\n',
+      '---\ntitle: Backdated\ntype: Project\ncreated: "2026-01-10 09:00:00"\ndayCreated: Sat\nmodified: "2026-01-15 12:30:45"\n---\n',
     )
   })
 })
@@ -390,7 +357,7 @@ describe('useNoteCreation hook', () => {
     expect(createdEntry.title).toBe('Test Note')
     expect(createdEntry.isA).toBe('Note')
     expect(createdEntry.status).toBeNull()
-    expect(openTabWithContent.mock.calls[0][1]).toMatch(/^---\ntitle: Test Note\ntype: Note\ncreated: "[^"]+"\ndayCreated: \w+\nmodified: "[^"]+"\n---\n$/)
+    expect(openTabWithContent.mock.calls[0][1]).toMatch(/^---\ntype: Note\ncreated: "[^"]+"\ndayCreated: \w+\nmodified: "[^"]+"\n---\n$/)
   })
 
   it('handleCreateNoteImmediate generates timestamp-based title', async () => {

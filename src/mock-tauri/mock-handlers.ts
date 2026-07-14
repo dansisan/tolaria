@@ -139,7 +139,6 @@ let mockSettings: Settings = {
   image_rename_mode: null,
   image_rename_command: null,
   sidebar_type_pluralization_enabled: null,
-  initial_h1_auto_rename_enabled: null,
   ai_features_enabled: null,
   default_ai_agent: 'claude_code',
   default_ai_target: null,
@@ -217,21 +216,6 @@ function canonicalRenameTargets({ oldTitle, oldPathStem }: { oldTitle: string; o
   return [...new Set([oldTitle, oldPathStem, oldFilenameStem].filter(Boolean))]
 }
 
-function slugifyMockTitle({ title }: { title: string }) {
-  return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-}
-
-function buildRenamedMockPath({ oldPath, newTitle }: { oldPath: string; newTitle: string }) {
-  const parentDir = oldPath.replace(/\/[^/]+$/, '')
-  return `${parentDir}/${slugifyMockTitle({ title: newTitle })}.md`
-}
-
-function replaceMockTitleFrontmatter({ content, newTitle }: { content: string; newTitle: string }) {
-  return /^title:\s*/m.test(content)
-    ? content.replace(/^title:\s*.*$/m, `title: ${newTitle}`)
-    : content
-}
-
 function replaceRenamedWikilinks({ content, oldTargets, newPathStem }: {
   content: string
   oldTargets: string[]
@@ -289,28 +273,6 @@ function updateMockRenameReferences({ newPath, newPathStem, oldTargets }: {
     updatedFiles += 1
   }
   return updatedFiles
-}
-
-function handleRenameNote(args: { vault_path: string; old_path: string; new_title: string; old_title?: string | null }) {
-  const oldEntry = MOCK_ENTRIES.find(e => e.path === args.old_path)
-  const oldTitle = args.old_title ?? oldEntry?.title ?? ''
-  const oldContent = readMockContent({ path: args.old_path })
-  const newPath = buildRenamedMockPath({ oldPath: args.old_path, newTitle: args.new_title })
-  const oldPathStem = relativePathStem({ path: args.old_path, vaultPath: args.vault_path })
-  const newPathStem = relativePathStem({ path: newPath, vaultPath: args.vault_path })
-
-  if (oldTitle === args.new_title && newPath === args.old_path) {
-    return { new_path: args.old_path, updated_files: 0, failed_updates: 0 }
-  }
-
-  const newContent = replaceMockTitleFrontmatter({ content: oldContent, newTitle: args.new_title })
-  deleteMockContent({ path: args.old_path })
-  writeMockContent({ path: newPath, content: newContent })
-  const oldTargets = canonicalRenameTargets({ oldTitle, oldPathStem })
-  const updatedFiles = updateMockRenameReferences({ newPath, newPathStem, oldTargets })
-
-  syncWindowContent()
-  return { new_path: newPath, updated_files: updatedFiles, failed_updates: 0 }
 }
 
 function handleRenameNoteFilename(args: {
@@ -441,7 +403,6 @@ export const mockHandlers: Record<string, (args: any) => any> = {
   delete_view_cmd: () => {},
   reload_vault: () => MOCK_ENTRIES,
   reload_vault_entry: (args: { path: string }) => MOCK_ENTRIES.find(e => e.path === args.path) ?? { path: args.path, title: 'Unknown', filename: 'unknown.md', aliases: [], belongsTo: [], relatedTo: [], archived: false, snippet: '', wordCount: 0, fileSize: 0, relationships: {}, outgoingLinks: [], properties: {} },
-  sync_note_title: () => false,
   get_note_content: (args: { path: string }) => MOCK_CONTENT[args.path] ?? '',
   validate_note_content: (args: { path: string; content: string }) => (MOCK_CONTENT[args.path] ?? '') === args.content,
   get_all_content: () => MOCK_CONTENT,
@@ -562,7 +523,6 @@ export const mockHandlers: Record<string, (args: any) => any> = {
       image_rename_mode: s.image_rename_mode ?? null,
       image_rename_command: s.image_rename_command ?? null,
       sidebar_type_pluralization_enabled: s.sidebar_type_pluralization_enabled ?? null,
-      initial_h1_auto_rename_enabled: s.initial_h1_auto_rename_enabled ?? null,
       ai_features_enabled: s.ai_features_enabled ?? null,
       default_ai_agent: s.default_ai_agent ?? null,
       default_ai_target: s.default_ai_target ?? null,
@@ -578,7 +538,6 @@ export const mockHandlers: Record<string, (args: any) => any> = {
   },
   load_vault_list: () => ({ ...mockVaultList, vaults: [...mockVaultList.vaults] }),
   save_vault_list: (args: { list: typeof mockVaultList }) => { mockVaultList = { ...args.list }; return null },
-  rename_note: handleRenameNote,
   rename_note_filename: handleRenameNoteFilename,
   move_note_to_folder: handleMoveNoteToFolder,
   move_note_to_workspace: handleMoveNoteToWorkspace,

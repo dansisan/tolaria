@@ -14,7 +14,6 @@ mod parsing;
 pub(crate) mod path_identity;
 mod rename;
 mod rename_transaction;
-mod title_sync;
 mod trash;
 mod view_date_filters;
 mod view_migration;
@@ -42,13 +41,11 @@ pub use image::{copy_image_to_vault, delete_attachment, rename_attachment_via_co
 pub(crate) use image::{prepare_attachment_payload, stored_attachment_name};
 pub use migration::migrate_is_a_to_type;
 pub use rename::{
-    auto_rename_untitled, detect_renames, move_note_to_folder, move_note_to_folder_with_links,
-    move_note_to_workspace, rename_note, rename_note_filename, rename_note_filename_with_links,
-    rename_note_with_links, update_wikilinks_for_renames, AutoRenameUntitledRequest,
+    detect_renames, move_note_to_folder, move_note_to_folder_with_links, move_note_to_workspace,
+    rename_note_filename, rename_note_filename_with_links, update_wikilinks_for_renames,
     DetectedRename, MoveNoteToFolderRequest, MoveNoteToWorkspaceRequest, PendingWikilinkRewrite,
-    RenameNoteFilenameRequest, RenameNoteRequest, RenameResult, WikilinkRewriteCompleted,
+    RenameNoteFilenameRequest, RenameResult, WikilinkRewriteCompleted,
 };
-pub use title_sync::{sync_title_on_open, SyncAction};
 pub use trash::{batch_delete_notes, delete_note};
 pub use views::{
     delete_view, evaluate_view, save_view, scan_views, FilterCondition, FilterGroup, FilterNode,
@@ -77,10 +74,21 @@ fn preferred_relationship_refs(
         .unwrap_or_default()
 }
 
+/// Notes (no `type:`/`Is A:` frontmatter, or an explicit "Note" type) title by
+/// filename alone — H1 and frontmatter `title:` are not title sources for them.
+/// Structured Types keep the H1 -> frontmatter title -> filename priority chain.
+fn is_default_note_type(is_a: &Option<String>) -> bool {
+    is_a.is_none() || is_a.as_deref() == Some("Note")
+}
+
 pub(crate) fn derive_markdown_title_from_content(content: &str, filename: &str) -> String {
     let matter = Matter::<YAML>::new();
     let parsed = matter.parse(content);
     let (frontmatter, _, _, _) = extract_fm_and_rels(parsed.data, content, "created");
+    let is_a = resolve_is_a(frontmatter.is_a.clone());
+    if is_default_note_type(&is_a) {
+        return filename.strip_suffix(".md").unwrap_or(filename).to_string();
+    }
     extract_title(frontmatter.title.as_deref(), content, filename)
 }
 
@@ -117,8 +125,9 @@ pub fn parse_md_file(path: &Path, git_dates: Option<(u64, u64)>, fm_created_key:
     let (frontmatter, mut relationships, properties, fm_created_at) =
         extract_fm_and_rels(parsed.data, &content, fm_created_key);
 
+    let is_a = resolve_is_a(frontmatter.is_a);
     let title = derive_markdown_title_from_content(&content, &filename);
-    let has_h1 = parsing::extract_h1_title(&content).is_some();
+    let has_h1 = !is_default_note_type(&is_a) && parsing::extract_h1_title(&content).is_some();
     let snippet = extract_snippet(&content);
     let word_count = count_body_words(&content);
     let outgoing_links = extract_outgoing_links(&parsed.content);
@@ -136,7 +145,6 @@ pub fn parse_md_file(path: &Path, git_dates: Option<(u64, u64)>, fm_created_key:
     let (fs_modified, fs_created, file_size) = read_file_metadata(path)?;
     let (modified_at, fs_or_git_created) = resolve_entry_dates(fs_modified, fs_created, git_dates);
     let created_at = fm_created_at.or(fs_or_git_created);
-    let is_a = resolve_is_a(frontmatter.is_a);
 
     // Add "Type" relationship: isA becomes a navigable link to the type document.
     // Skip for type documents themselves (isA == "Type") to avoid self-referential links.

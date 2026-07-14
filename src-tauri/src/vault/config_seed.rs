@@ -625,7 +625,7 @@ mod tests {
 
         let content = read_root_agents(&vault);
         assert!(content.contains("Do not add `title:` frontmatter."));
-        assert!(!content.contains("Use the first H1 as the note title."));
+        assert!(!content.contains("A plain note's (`type: Note`, or no `type:` set) filename is its title"));
     }
 
     #[test]

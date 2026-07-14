@@ -83,36 +83,6 @@ pub(super) struct RenameOperation<'a> {
 }
 
 impl<'a> RenameOperation<'a> {
-    pub(super) fn rename_with_candidates(
-        &self,
-        staged: NamedTempFile,
-        desired_filename: &str,
-        parent_dir: &Path,
-    ) -> Result<CommittedRename, String> {
-        let mut staged = staged;
-        for attempt in 0.. {
-            let candidate = parent_dir.join(candidate_filename(desired_filename, attempt));
-            self.prepare(&candidate)?;
-
-            match staged.persist_noclobber(&candidate) {
-                Ok(_) => return Ok(self.committed(candidate)),
-                Err(err) if err.error.kind() == ErrorKind::AlreadyExists => {
-                    staged = err.file;
-                    self.rollback()?;
-                }
-                Err(err) => {
-                    self.rollback()?;
-                    return Err(format!(
-                        "Failed to create {}: {}",
-                        candidate.display(),
-                        err.error
-                    ));
-                }
-            }
-        }
-        unreachable!()
-    }
-
     pub(super) fn rename_exact(
         &self,
         staged: NamedTempFile,
@@ -197,20 +167,6 @@ impl<'a> RenameOperation<'a> {
     }
 }
 
-fn candidate_filename(filename: &str, attempt: usize) -> String {
-    let stem = Path::new(filename)
-        .file_stem()
-        .map(|s| s.to_string_lossy().to_string())
-        .unwrap_or_default();
-    let ext = Path::new(filename)
-        .extension()
-        .map(|s| format!(".{}", s.to_string_lossy()))
-        .unwrap_or_default();
-    if attempt == 0 {
-        return filename.to_string();
-    }
-    format!("{}-{}{}", stem, attempt + 1, ext)
-}
 
 fn transaction_dir(vault: &Path) -> PathBuf {
     vault.join(".tolaria-rename-txn")

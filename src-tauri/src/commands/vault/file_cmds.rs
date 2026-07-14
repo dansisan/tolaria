@@ -256,23 +256,6 @@ fn scan_visible_vault_folders(vault_path: &Path) -> Result<Vec<FolderNode>, Stri
     ))
 }
 
-/// Sync the `title` frontmatter field with the filename on note open.
-/// Returns `true` if the file was modified (title was absent or desynced).
-#[tauri::command]
-pub fn sync_note_title(path: PathBuf, vault_path: Option<PathBuf>) -> Result<bool, String> {
-    use vault::SyncAction;
-
-    with_note_path(
-        path.as_path(),
-        vault_path.as_deref(),
-        ValidatedPathMode::Existing,
-        |validated_path| {
-            let action = vault::sync_title_on_open(validated_path)?;
-            Ok(matches!(action, SyncAction::Updated { .. }))
-        },
-    )
-}
-
 #[tauri::command]
 pub fn save_image(
     app_handle: tauri::AppHandle,
@@ -413,19 +396,10 @@ mod tests {
         )
         .await
         .unwrap();
-        assert!(!sync_note_title(note.clone(), Some(root.clone())).unwrap());
-
-        save_note_content(
-            note.clone(),
-            "# Updated Command Note\n".to_string(),
-            Some(root.clone()),
-        )
-        .await
-        .unwrap();
-        assert!(sync_note_title(note.clone(), Some(root.clone())).unwrap());
-        assert!(get_note_content(note, Some(root))
-            .unwrap()
-            .contains("title: Command Note"));
+        assert_eq!(
+            get_note_content(note, Some(root)).unwrap(),
+            "---\ntitle: Command Note\n---\n# Command Note\nBody\n"
+        );
     }
 
     #[tokio::test]

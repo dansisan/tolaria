@@ -37,8 +37,6 @@ interface VaultContentSettingsSectionProps {
   setImageRenameCommand: (value: string) => void
   sidebarTypePluralizationEnabled: boolean
   setSidebarTypePluralizationEnabled: (value: boolean) => void
-  initialH1AutoRename: boolean
-  setInitialH1AutoRename: (value: boolean) => void
   hideGitignoredFiles: boolean
   setHideGitignoredFiles: (value: boolean) => void
   allNotesFileVisibility: AllNotesFileVisibility
@@ -119,8 +117,6 @@ export function VaultContentSettingsSection({
   setImageRenameCommand,
   sidebarTypePluralizationEnabled,
   setSidebarTypePluralizationEnabled,
-  initialH1AutoRename,
-  setInitialH1AutoRename,
   hideGitignoredFiles,
   setHideGitignoredFiles,
   allNotesFileVisibility,
@@ -242,14 +238,6 @@ export function VaultContentSettingsSection({
           checked={sidebarTypePluralizationEnabled}
           onChange={setSidebarTypePluralizationEnabled}
           testId="settings-sidebar-type-pluralization"
-        />
-
-        <SettingsSwitchRow
-          label={t('settings.titles.autoRename')}
-          description={t('settings.titles.autoRenameDescription')}
-          checked={initialH1AutoRename}
-          onChange={setInitialH1AutoRename}
-          testId="settings-initial-h1-auto-rename"
         />
 
         <SettingsSwitchRow

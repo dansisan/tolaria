@@ -14,7 +14,7 @@ These frontmatter field names have special meaning in Tolaria's UI:
 
 | Field | Meaning | UI behavior |
 |---|---|---|
-| `title:` | Legacy display-title fallback for older notes | Used only when a note has no H1; new notes do not write it automatically |
+| `title:` | Legacy display-title fallback; ignored entirely for plain Notes (their filename is the title, ADR-0138) | Still read for structured Type instances (`type:` other than `Note`) when they have no H1; new Notes never write it automatically |
 | `type:` | Entity type (Project, Person, Quarter…) | Type chip in note list + sidebar grouping |
 | `status:` | Lifecycle stage (active, done, blocked…) | Colored chip in note list + editor header |
 | `icon:` | Per-note icon (emoji, Phosphor name, or HTTP/HTTPS image URL) | Rendered on note title surfaces; editable from the Properties panel |
@@ -131,7 +131,7 @@ classDiagram
 interface VaultEntry {
   path: string              // Absolute file path
   filename: string          // Just the filename
-  title: string             // From first # heading, or filename fallback
+  title: string             // Filename for plain Notes; first # heading or frontmatter `title:` for structured Type instances (ADR-0138)
   isA: string | null        // Entity type: Project, Procedure, Person, etc. (from frontmatter `type:` field)
   aliases: string[]         // Alternative names for wikilink resolution
   belongsTo: string[]       // Parent relationships (wikilinks)
@@ -320,27 +320,27 @@ All `[[wikilinks]]` in the note body (not frontmatter) are extracted by regex an
 
 ### Title / Filename Sync
 
-Tolaria separates **display title** from the file identifier:
+Title resolution is gated on entry type (`is_default_note_type` in `vault/mod.rs`, mirrored by `isDefaultNoteType` in `src/utils/noteTitle.ts`) — see ADR-0138:
 
-- **Display title resolution** (`extract_title` in `vault/parsing.rs`): first `# H1` on the first non-empty body line, then legacy frontmatter `title:`, then slug-to-title from the filename stem.
-- **Opening a note is read-only**: selecting a note does not inject or auto-correct `title:` frontmatter.
-- **Explicit filename actions** (`rename_note`): breadcrumb rename/sync actions stage crash-safe note renames through a hidden `.tolaria-rename-txn/` transaction directory and recover unfinished renames on the next vault scan. The editor body remains the title editing surface.
-- **The file move and the vault-wide wikilink rewrite are decoupled.** `rename_note` / `rename_note_filename` / `move_note_to_folder` / `move_note_to_workspace` / `auto_rename_untitled` move the file and return the new path immediately with a `PendingWikilinkRewrite` describing the rest of the work; the command handler runs that rewrite afterward in a `tokio::task::spawn_blocking` and emits `wikilinks-rewrite-completed` (`old_path`, `new_path`, `updated_files`, `failed_updates`, `updated_paths`) once it's done. The immediate `RenameResult` a caller gets back always reports zero updated/failed files — renaming a file is fast and shouldn't have to wait on scanning every other note in the vault for backlinks. `useWikilinkRewriteNotifications` listens for the event, reloads just the open tabs among `updated_paths` (skipping any with unsaved edits), calls `refreshEntries`/`reloadVault` to pick up the rewritten notes, and surfaces the real updated/failed counts as a toast.
-- **Content-preserving renames keep the live editor session.** Filename renames and folder/workspace moves don't change the note body, so `applyRenameResult` reuses the open tab's in-memory content (no disk re-read) and emits `laputa:note-path-renamed`. `useEditorTabSwap` listens and remaps its path refs and content cache old→new (`useNotePathRenameMigration`) *before* `activeTabPath` changes, so the swap engine treats the rename as the same note — no document re-sync, and the cursor and editor focus survive the rename. (Title renames, which do change the body, still re-sync.)
-- **Unicode-aware note stems** (`src/utils/noteSlug.ts`, `vault/rename.rs`): frontend and backend slugging preserve Unicode letters/digits in note filenames, untitled-rename detection, and fallback wikilink targets while still collapsing symbol-only titles to `untitled`.
+- **Plain Notes** (no `type:`/`Is A:`, or `type: Note`): the filename is the only title source. H1 and frontmatter `title:` are never read as a title, never stamped into new note content, and never drive a rename. Retitling means renaming the file.
+- **Structured Type instances** (`type: Project`, `type: Person`, etc.) keep the legacy chain from ADR-0044: `extract_title` in `vault/parsing.rs` resolves first `# H1` on the first non-empty body line, then frontmatter `title:`, then slug-to-title from the filename stem. Editing a Type instance's `title` frontmatter property still renames its file to match (`renameAfterTitleChange` in `useNoteActions.ts`, using `rename_note_filename` with a client-slugified stem).
+- **Opening a note is read-only**: selecting a note never injects or auto-corrects frontmatter.
+- **Explicit filename actions** (`rename_note_filename`): breadcrumb rename actions stage crash-safe note renames through a hidden `.tolaria-rename-txn/` transaction directory and recover unfinished renames on the next vault scan. This is the only rename operation in the app.
+- **The file move and the vault-wide wikilink rewrite are decoupled.** `rename_note_filename` / `move_note_to_folder` / `move_note_to_workspace` move the file and return the new path immediately with a `PendingWikilinkRewrite` describing the rest of the work; the command handler runs that rewrite afterward in a `tokio::task::spawn_blocking` and emits `wikilinks-rewrite-completed` (`old_path`, `new_path`, `updated_files`, `failed_updates`, `updated_paths`) once it's done. The immediate `RenameResult` a caller gets back always reports zero updated/failed files — renaming a file is fast and shouldn't have to wait on scanning every other note in the vault for backlinks. `useWikilinkRewriteNotifications` listens for the event, reloads just the open tabs among `updated_paths` (skipping any with unsaved edits), calls `refreshEntries`/`reloadVault` to pick up the rewritten notes, and surfaces the real updated/failed counts as a toast.
+- **Renames are always content-preserving and keep the live editor session.** Every rename (including a Type instance's title-triggered rename) is a filename rename that never touches the note body, so `applyRenameResult` reuses the open tab's in-memory content (no disk re-read) and emits `laputa:note-path-renamed`. `useEditorTabSwap` listens and remaps its path refs and content cache old→new (`useNotePathRenameMigration`) *before* `activeTabPath` changes, so the swap engine treats the rename as the same note — no document re-sync, and the cursor and editor focus survive the rename.
+- **Unicode-aware note stems** (`src/utils/noteSlug.ts`, `vault/rename.rs`): frontend and backend slugging preserve Unicode letters/digits in note filenames and fallback wikilink targets while still collapsing symbol-only titles to `untitled`.
 - **Path identity rules** (`src/utils/notePathIdentity.ts`, `vault/path_identity.rs`): note creation, tab selection, rename bookkeeping, pull refresh, git history, and vault cache updates normalize path separators and macOS `/private/tmp` aliases through one owner. Case folding is reserved for collision/deduplication checks; active-note identity remains case-sensitive.
 - **Portable filename validation** (`vault/filename_rules.rs`): note filenames, folder names, and custom view filenames all reject Windows-reserved device names, invalid characters, and trailing dot/space suffixes so a vault created on macOS/Linux still clones and syncs cleanly on Windows.
 - **Recoverable save failures** (`useEditorSave`, `vault/file.rs`): invalid platform path syntax is reported as a clear retryable save error, while transient access-denied writes are retried briefly before surfacing failure. The editor keeps the unsaved buffer intact for another attempt.
-- **Untitled drafts** start as `untitled-*.md` and are auto-renamed on save once the note gains an H1.
 
 ### Title Surface (UI)
 
-The BlockNote body is the only title editing surface:
+The BlockNote body is the only title editing surface, and only for structured Type instances:
 
-- The first H1 is the canonical display title.
-- There is no separate title row above the editor, even when a note has no H1.
-- Notes without an H1 show the editor body and placeholder only.
-- Legacy no-H1 notes whose display title differs from the filename show that title as read-only breadcrumb context beside the editable filename, so referenced notes remain identifiable without raw mode.
+- Plain Notes have no title editing surface at all — the breadcrumb filename is the only place a Note's name lives, and H1 is a plain heading like any other.
+- For a Type instance, the first H1 is the canonical display title; there is no separate title row above the editor, even when the instance has no H1.
+- Type instances without an H1 show the editor body and placeholder only.
+- A Type instance whose display title differs from its filename shows that title as read-only breadcrumb context beside the editable filename, so referenced notes remain identifiable without raw mode. Notes never show this — filename is always the title.
 - Filename changes are explicit breadcrumb actions, not a dedicated title-input side effect.
 
 ### Sidebar Selection
@@ -415,7 +415,7 @@ Domain command builders still own context-sensitive command-palette entries, ava
 3. For each `.md` file, calls `parse_md_file()`:
    - Reads content with `fs::read_to_string()`
    - Parses frontmatter with `gray_matter::Matter::<YAML>`
-   - Extracts title from first `#` heading
+   - Extracts title: filename stem for plain Notes; first `#` heading (then frontmatter `title:`) for structured Type instances (ADR-0138)
    - Reads entity type from `type:` frontmatter field (`Is A:` accepted as legacy alias); type is never inferred from folder
    - Parses dates as ISO 8601 to Unix timestamps
    - Extracts relationships, outgoing links, custom properties, word count, snippet

@@ -15,8 +15,7 @@ That action is what removes the note from Inbox. If auto-advance is enabled in S
 
 ## Review Checklist
 
-- Rename unclear notes.
-- Add or correct the first H1.
+- Rename unclear notes — the filename is the title.
 - Set `type`.
 - Add `status` for actionable notes.
 - Add `belongs_to`, `related_to`, or other relationship fields when useful.

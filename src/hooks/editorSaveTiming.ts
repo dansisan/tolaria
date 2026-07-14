@@ -18,10 +18,3 @@ function autoSaveIdleOverrideMs(): number | null {
  * is only a crash/quit backstop. Note: app quit does NOT flush.
  */
 export const AUTO_SAVE_DEBOUNCE_MS = autoSaveIdleOverrideMs() ?? 30_000
-
-/**
- * Must exceed the autosave idle window: the untitled H1 auto-rename reads the
- * note's H1 from disk, so a pending rename that outlives its buffered save
- * would act on stale content and rename to an outdated title.
- */
-export const UNTITLED_RENAME_DEBOUNCE_MS = AUTO_SAVE_DEBOUNCE_MS + 1_000

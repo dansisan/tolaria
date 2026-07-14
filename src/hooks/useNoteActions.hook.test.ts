@@ -701,64 +701,6 @@ describe('useNoteActions hook', () => {
   })
 
   describe('rename note updates wikilinks', () => {
-    it('handleRenameNote passes entry title as old_title to rename_note', async () => {
-      const entry = makeEntry({
-        path: '/test/vault/weekly-review.md',
-        filename: 'weekly-review.md',
-        title: 'Weekly Review',
-      })
-      const replaceEntry = vi.fn()
-      const config = makeConfig([entry])
-      config.replaceEntry = replaceEntry
-
-      vi.mocked(mockInvoke).mockImplementation(async (cmd: string) => {
-        if (cmd === 'rename_note') return { new_path: '/test/vault/sprint-retro.md', updated_files: 2 }
-        if (cmd === 'get_note_content') return '---\nIs A: Note\n---\n# Sprint Retro\n'
-        return ''
-      })
-
-      const { result } = renderHook(() => useNoteActions(config))
-
-      await act(async () => {
-        await result.current.handleRenameNote(
-          '/test/vault/weekly-review.md',
-          'Sprint Retro',
-          '/test/vault',
-          replaceEntry,
-        )
-      })
-
-      expect(mockInvoke).toHaveBeenCalledWith('rename_note', expect.objectContaining({
-        vault_path: '/test/vault',
-        old_path: '/test/vault/weekly-review.md',
-        new_title: 'Sprint Retro',
-        old_title: 'Weekly Review',
-      }))
-      expect(setToastMessage).toHaveBeenCalledWith('Updated 2 notes')
-    })
-
-    it('handleRenameNote passes null old_title when entry not found', async () => {
-      const config = makeConfig([])
-
-      vi.mocked(mockInvoke).mockImplementation(async (cmd: string) => {
-        if (cmd === 'rename_note') return { new_path: '/test/vault/new.md', updated_files: 0 }
-        if (cmd === 'get_note_content') return '# New\n'
-        return ''
-      })
-
-      const { result } = renderHook(() => useNoteActions(config))
-
-      await act(async () => {
-        await result.current.handleRenameNote(
-          '/test/vault/old.md', 'New', '/test/vault', vi.fn(),
-        )
-      })
-
-      expect(mockInvoke).toHaveBeenCalledWith('rename_note', expect.objectContaining({
-        old_title: null,
-      }))
-    })
-
     it('exposes the workspace move handler from composed note actions', async () => {
       const sourceWorkspace = makeWorkspace('/test/vault', 'personal')
       const destinationWorkspace = makeWorkspace('/team/vault', 'team')
@@ -856,11 +798,14 @@ describe('useNoteActions hook', () => {
       expect(updateEntry).toHaveBeenCalledWith(destinationPath, expect.objectContaining({ status: 'Done' }))
     })
 
-    it('handleUpdateFrontmatter triggers rename when title key is changed', async () => {
+    it('handleUpdateFrontmatter triggers rename when title key is changed for a structured Type instance', async () => {
+      // Notes title by filename alone and never rename their file in response
+      // to a frontmatter title edit — only structured Type instances do.
       const entry = makeEntry({
         path: '/test/vault/old-name.md',
         filename: 'old-name.md',
         title: 'Old Name',
+        isA: 'Person',
       })
       const onPathRenamed = vi.fn()
       const replaceEntry = vi.fn()
@@ -869,7 +814,7 @@ describe('useNoteActions hook', () => {
       config.replaceEntry = replaceEntry
 
       vi.mocked(mockInvoke).mockImplementation(async (cmd: string) => {
-        if (cmd === 'rename_note') return { new_path: '/test/vault/new-name.md', updated_files: 1 }
+        if (cmd === 'rename_note_filename') return { new_path: '/test/vault/new-name.md', updated_files: 1 }
         if (cmd === 'get_note_content') return '---\ntitle: New Name\n---\n# New Name\n'
         return ''
       })
@@ -883,16 +828,40 @@ describe('useNoteActions hook', () => {
         await result.current.handleUpdateFrontmatter('/test/vault/old-name.md', 'title', 'New Name')
       })
 
-      expect(mockInvoke).toHaveBeenCalledWith('rename_note', expect.objectContaining({
+      expect(mockInvoke).toHaveBeenCalledWith('rename_note_filename', expect.objectContaining({
         old_path: '/test/vault/old-name.md',
-        new_title: 'New Name',
-        old_title: 'Old Name',
+        new_filename_stem: 'new-name',
       }))
       expect(replaceEntry).toHaveBeenCalledWith(
         '/test/vault/old-name.md',
         expect.objectContaining({ path: '/test/vault/new-name.md', title: 'New Name' }),
       )
       expect(onPathRenamed).toHaveBeenCalledWith('/test/vault/old-name.md', '/test/vault/new-name.md')
+    })
+
+    it('does not rename a Note when its title frontmatter is edited', async () => {
+      const entry = makeEntry({
+        path: '/test/vault/old-name.md',
+        filename: 'old-name.md',
+        title: 'Old Name',
+        isA: 'Note',
+      })
+      const config = makeConfig([entry])
+
+      vi.mocked(mockInvoke).mockImplementation(async (cmd: string) => {
+        if (cmd === 'rename_note_filename') return { new_path: '/test/vault/new-name.md', updated_files: 1 }
+        if (cmd === 'get_note_content') return '---\ntitle: New Name\n---\n# New Name\n'
+        return ''
+      })
+
+      const { result } = renderHook(() => useNoteActions(config))
+      await act(async () => { result.current.handleSelectNote(entry) })
+
+      await act(async () => {
+        await result.current.handleUpdateFrontmatter('/test/vault/old-name.md', 'title', 'New Name')
+      })
+
+      expect(mockInvoke).not.toHaveBeenCalledWith('rename_note_filename', expect.anything())
     })
 
     it('handleUpdateFrontmatter does not trigger rename for non-title keys', async () => {

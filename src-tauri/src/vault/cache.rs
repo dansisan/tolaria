@@ -909,7 +909,7 @@ mod tests {
 
         let entries = scan_vault_cached(dir.path()).unwrap();
         assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].title, "Note");
+        assert_eq!(entries[0].title, "note");
         assert_eq!(entries[0].snippet, "Content here.");
     }
 
@@ -935,7 +935,7 @@ mod tests {
         // Second call: uses cache (same HEAD)
         let entries2 = scan_vault_cached(vault).unwrap();
         assert_eq!(entries2.len(), 1);
-        assert_eq!(entries2[0].title, "Note");
+        assert_eq!(entries2[0].title, "note");
     }
 
     #[test]
@@ -997,8 +997,8 @@ mod tests {
         let entries2 = scan_vault_cached(vault).unwrap();
         assert_eq!(entries2.len(), 2);
         let titles: Vec<&str> = entries2.iter().map(|e| e.title.as_str()).collect();
-        assert!(titles.contains(&"First"));
-        assert!(titles.contains(&"Second"));
+        assert!(titles.contains(&"first"));
+        assert!(titles.contains(&"second"));
     }
 
     #[test]
@@ -1067,8 +1067,8 @@ mod tests {
         let entries2 = scan_vault_cached(vault).unwrap();
         assert_eq!(entries2.len(), 2);
         let titles: Vec<&str> = entries2.iter().map(|e| e.title.as_str()).collect();
-        assert!(titles.contains(&"Existing"));
-        assert!(titles.contains(&"New Note"));
+        assert!(titles.contains(&"existing"));
+        assert!(titles.contains(&"new-note"));
     }
 
     #[test]
@@ -1107,7 +1107,7 @@ mod tests {
             "must pick up files in new untracked subdirectory"
         );
         let titles: Vec<&str> = entries2.iter().map(|e| e.title.as_str()).collect();
-        assert!(titles.contains(&"Existing"));
+        assert!(titles.contains(&"existing"));
         assert!(titles.contains(&"Default Theme"));
         assert!(titles.contains(&"Dark Theme"));
     }
@@ -1171,7 +1171,7 @@ mod tests {
         // Rescan — deleted file must be pruned
         let entries2 = scan_vault_cached(vault).unwrap();
         assert_eq!(entries2.len(), 1, "deleted file must be pruned on rescan");
-        assert_eq!(entries2[0].title, "Keep");
+        assert_eq!(entries2[0].title, "keep");
     }
 
     #[test]
@@ -1197,7 +1197,7 @@ mod tests {
             1,
             "deleted untracked file must be pruned on rescan"
         );
-        assert_eq!(entries2[0].title, "Tracked");
+        assert_eq!(entries2[0].title, "tracked");
     }
 
     #[test]

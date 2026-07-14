@@ -167,7 +167,7 @@ The Inbox workflow is optional. Turn it off in Settings > Workflow if you prefer
 
 When reviewing the Inbox:
 
-1. Give the note a clear H1.
+1. Rename the note to something clear — the filename is the title.
 2. Set its `type`.
 3. Add status, dates, or URL if useful.
 4. Add relationships with wikilinks or frontmatter fields.
@@ -186,34 +186,30 @@ URL: /concepts/notes
 
 # Notes
 
-A note is a Markdown file with optional YAML frontmatter. Tolaria reads the first H1 as the primary title and keeps the file on disk as the durable representation.
+A note is a Markdown file with optional YAML frontmatter, kept on disk as the durable representation.
 
 ## Anatomy
 
 ```md
 ---
-type: Project
+type: Note
 status: Active
 belongs_to:
   - "[[workspace]]"
 ---
-
-# Launch Documentation
 
 Draft the public Tolaria docs and keep them close to code changes.
 ```
 
 ## Titles
 
-The first H1 is the note title. Tolaria uses that title wherever the note is displayed: note lists, search results, wikilink suggestions, relationship pickers, tabs, and window titles.
+A note's filename is its title. Tolaria uses that filename wherever the note is displayed: note lists, search results, wikilink suggestions, relationship pickers, tabs, and window titles. There's no separate title field to keep in sync — rename the file (via the breadcrumb, or in Finder/Explorer) to retitle the note.
 
-The title is separate from the filename. The filename stays visible in the breadcrumb so you can see the file on disk, and you can rename it independently when needed.
-
-Use the breadcrumb action to rename the file to match the title. New untitled notes can also auto-rename from the first H1 the first time they get a real title. Turn this behavior off in Settings > Vault Content > Titles & Filenames if you prefer filenames to stay unchanged until you rename them manually.
+Structured [Types](/concepts/types) are the one exception: an instance of a type (for example a `Project` or `Person` record) may still carry a frontmatter `title:` field or a first-H1 heading as a display name distinct from its filename, since those records often aren't free-form prose.
 
 ## Body Links
 
-Use `[[wikilinks]]` to connect notes from the body. Tolaria shows autocomplete suggestions while you type, and links can resolve by filename or title.
+Use `[[wikilinks]]` to connect notes from the body. Tolaria shows autocomplete suggestions while you type, and links resolve by filename (or by title, for structured Types whose title differs from their filename).
 
 ## Frontmatter
 

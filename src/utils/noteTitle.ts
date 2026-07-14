@@ -17,6 +17,15 @@ interface DisplayTitleState {
   hasH1: boolean
 }
 
+/**
+ * Notes (no `type:`/`Is A:` frontmatter, or an explicit "Note" type) title by
+ * filename alone — H1 and frontmatter `title:` are not title sources for them.
+ * Structured Types keep the H1 -> frontmatter title -> filename priority chain.
+ */
+export function isDefaultNoteType(isA: string | null | undefined): boolean {
+  return isA == null || isA === 'Note'
+}
+
 function replaceWikilinkAliases(text: string): string {
   return text.replace(/\[\[[^|\]]+\|([^\]]+)\]\]/g, '$1')
 }
@@ -68,6 +77,24 @@ export function extractFrontmatterTitleFromContent(content: string): string | nu
   return trimmed || null
 }
 
+const FRONTMATTER_TITLE_LINE = /^(\s*["']?title["']?\s*:\s*)(.*)$/m
+
+/**
+ * When the frontmatter title exactly mirrors the old filename stem (e.g. notes
+ * created via the date-picker flow), keep it in sync with a filename rename —
+ * a plain filename rename otherwise leaves content untouched, so the stale
+ * creation-time title would keep shadowing the new name in the breadcrumb.
+ */
+export function syncFilenameDerivedFrontmatterTitle(content: string, oldStem: string, newStem: string): string {
+  if (oldStem === newStem) return content
+  if (extractFrontmatterTitleFromContent(content) !== oldStem) return content
+
+  const [frontmatter, body] = splitFrontmatter(content)
+  if (!frontmatter) return content
+  const updatedFrontmatter = frontmatter.replace(FRONTMATTER_TITLE_LINE, (_match, prefix: string) => `${prefix}${newStem}`)
+  return `${updatedFrontmatter}${body}`
+}
+
 function resolveContentTitle(content: string, frontmatterTitle?: string | null): ResolvedContentTitle | null {
   const h1Title = extractH1TitleFromContent(content)
   if (h1Title) {
@@ -80,10 +107,6 @@ function resolveContentTitle(content: string, frontmatterTitle?: string | null):
   }
 
   return null
-}
-
-export function contentDefinesDisplayTitle(content: string): boolean {
-  return resolveContentTitle(content) !== null
 }
 
 export function deriveDisplayTitleState({

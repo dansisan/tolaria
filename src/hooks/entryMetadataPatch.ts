@@ -1,6 +1,6 @@
 import { extractOutgoingLinks, extractAttachmentLinks, extractSnippet, countWords } from '../utils/wikilinks'
 import { deriveRawEditorEntryState } from './rawEditorEntryState'
-import { deriveDisplayTitleState } from '../utils/noteTitle'
+import { deriveDisplayTitleState, filenameStemToTitle, isDefaultNoteType } from '../utils/noteTitle'
 import { detectFrontmatterState } from '../utils/frontmatter'
 import type { VaultEntry } from '../types'
 
@@ -29,6 +29,14 @@ function withoutTitle(patch: Partial<VaultEntry>): Partial<VaultEntry> {
 }
 
 /**
+ * Defaults to Note when frontmatter can't be parsed yet (mid-edit), matching
+ * the "no type declared" case.
+ */
+function isDefaultNoteFrontmatter(frontmatter: Partial<VaultEntry> | null): boolean {
+  return !frontmatter || isDefaultNoteType(frontmatter.isA)
+}
+
+/**
  * Builds the full note-list/inspector metadata patch (outgoing links, attachment
  * links, snippet, word count, derived frontmatter state and display title) for a
  * note from its raw content.
@@ -41,9 +49,12 @@ export function buildEntryMetadataPatch(path: string, content: string): Partial<
   const filename = path.split('/').pop() ?? path
   const frontmatter = frontmatterEntryState(content)
   const frontmatterTitle = typeof frontmatter?.title === 'string' ? frontmatter.title : null
+  const displayTitleState = isDefaultNoteFrontmatter(frontmatter)
+    ? { title: filenameStemToTitle(filename), hasH1: false }
+    : deriveDisplayTitleState({ content, filename, frontmatterTitle })
   return {
     ...(frontmatter ? withoutTitle(frontmatter) : {}),
-    ...deriveDisplayTitleState({ content, filename, frontmatterTitle }),
+    ...displayTitleState,
     outgoingLinks: extractOutgoingLinks(content),
     attachmentLinks: extractAttachmentLinks(content),
     snippet: extractSnippet(content),

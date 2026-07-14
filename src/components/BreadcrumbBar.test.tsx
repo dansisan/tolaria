@@ -528,9 +528,10 @@ describe('BreadcrumbBar — title in breadcrumb (always rendered, CSS-toggled)',
 })
 
 describe('BreadcrumbBar — filename controls', () => {
-  it('shows a legacy display title while keeping the filename visible', () => {
+  it('shows a legacy display title for structured Type instances', () => {
     expectDisplayTitleState(
       {
+        isA: 'Person',
         title: 'Reference Planning Notes',
         filename: 'ref-570.md',
         hasH1: false,
@@ -539,16 +540,42 @@ describe('BreadcrumbBar — filename controls', () => {
     )
   })
 
-  it('uses opened content when stale metadata marks a legacy note as H1-titled', () => {
+  it('uses opened content when stale metadata marks a legacy Type instance as H1-titled', () => {
     expectDisplayTitleState(
       {
+        isA: 'Person',
         title: 'Reference Planning Notes',
         filename: 'ref-570.md',
         hasH1: true,
       },
       { displayTitle: 'Reference Planning Notes', filenameStem: 'ref-570' },
       {
-        content: '---\ntitle: Reference Planning Notes\ntype: Note\n---\n\nBody without an H1.',
+        content: '---\ntitle: Reference Planning Notes\ntype: Person\n---\n\nBody without an H1.',
+      },
+    )
+  })
+
+  it('never shows a display title chip for the default Note type, even when a legacy title diverges from the filename', () => {
+    expectDisplayTitleState(
+      {
+        title: 'Reference Planning Notes',
+        filename: 'ref-570.md',
+        hasH1: false,
+      },
+      { displayTitle: null, filenameStem: 'ref-570' },
+    )
+  })
+
+  it('never shows a display title chip for the default Note type, even with stale H1 metadata', () => {
+    expectDisplayTitleState(
+      {
+        title: 'Reference Planning Notes',
+        filename: 'ref-570.md',
+        hasH1: true,
+      },
+      { displayTitle: null, filenameStem: 'ref-570' },
+      {
+        content: '---\ntitle: Reference Planning Notes\ntype: Note\n---\n\n# Reference Planning Notes\n\nBody.',
       },
     )
   })

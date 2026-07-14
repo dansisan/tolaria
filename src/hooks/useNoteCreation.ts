@@ -117,7 +117,6 @@ export interface NoteContentParams {
   type: string
   status: string | null
   template?: string | null
-  initialEmptyHeading?: boolean
   defaults?: TypeInstanceDefault[]
   /** Backdate the note's `created`/`dayCreated` to this date. `modified` always stays the real save time. */
   createdDate?: Date
@@ -131,11 +130,7 @@ export interface TypeInstanceDefault {
   kind: 'property' | 'relationship'
 }
 
-function buildNoteBody({ template, initialEmptyHeading }: Pick<NoteContentParams, 'template' | 'initialEmptyHeading'>): string {
-  const templateStartsWithH1 = template?.trimStart().startsWith('# ') ?? false
-  if (initialEmptyHeading && !templateStartsWithH1) {
-    return template ? `\n# \n\n${template}` : '\n# \n\n'
-  }
+function buildNoteBody({ template }: Pick<NoteContentParams, 'template'>): string {
   return template ? `\n${template}` : ''
 }
 
@@ -252,14 +247,16 @@ function appendDefaultFrontmatterLines(lines: string[], defaults: TypeInstanceDe
   }
 }
 
-export function buildNoteContent({ title, type, status, template, initialEmptyHeading = false, defaults = [], createdDate }: NoteContentParams): string {
+export function buildNoteContent({ title, type, status, template, defaults = [], createdDate }: NoteContentParams): string {
   const now = new Date()
   const created = createdDate ?? now
   const createdDatetime = formatLocalISODatetime(created)
   const modifiedDatetime = formatLocalISODatetime(now)
   const day = formatShortDayOfWeek(created)
   const lines = ['---']
-  if (title) lines.push(`title: ${title}`)
+  // Notes title by filename alone — only stamp a frontmatter title for
+  // structured Type instances, which may have no free-form body to derive one from.
+  if (title && type !== 'Note') lines.push(`title: ${title}`)
   lines.push(`type: ${type}`)
   if (status) lines.push(`status: ${status}`)
   lines.push(`created: ${formatYamlScalar(createdDatetime)}`)
@@ -267,7 +264,7 @@ export function buildNoteContent({ title, type, status, template, initialEmptyHe
   lines.push(`modified: ${formatYamlScalar(modifiedDatetime)}`)
   appendDefaultFrontmatterLines(lines, defaults)
   lines.push('---')
-  const body = buildNoteBody({ template, initialEmptyHeading })
+  const body = buildNoteBody({ template })
   return `${lines.join('\n')}\n${body}`
 }
 

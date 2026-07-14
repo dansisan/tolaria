@@ -123,7 +123,7 @@ proposed → active → superseded
 | [0065](0065-root-managed-ai-guidance-files.md) | Root-managed AI guidance files with Claude shim | active |
 | [0066](0066-calendar-semver-versioning-for-alpha-and-stable-releases.md) | Calendar-semver versioning for alpha and stable releases | active |
 | [0067](0067-autogit-idle-and-inactive-checkpoints.md) | AutoGit idle and inactive checkpoints | active |
-| [0068](0068-h1-only-title-surface-with-optional-untitled-auto-rename.md) | H1-only title surface with optional untitled auto-rename | active |
+| [0068](0068-h1-only-title-surface-with-optional-untitled-auto-rename.md) | H1-only title surface with optional untitled auto-rename | superseded → [0138](0138-filename-is-the-title-for-notes.md) |
 | [0069](0069-neighborhood-mode-for-note-list-relationship-browsing.md) | Neighborhood mode for note-list relationship browsing | active |
 | [0070](0070-starter-vaults-local-first-with-explicit-remote-connection.md) | Starter vaults are local-first with explicit remote connection | active |
 | [0071](0071-external-vault-refresh-and-clean-tab-reopen.md) | External vault updates reload derived state and reopen the clean active note | superseded → [0111](0111-path-aware-external-vault-refresh-with-focused-editor-preservation.md) |
@@ -189,3 +189,4 @@ proposed → active → superseded
 | [0135](0135-single-newline-line-break-convention.md) | Single newline renders as a line break (notes-markdown convention) | active |
 | [0136](0136-wider-autosave-idle-window.md) | Wider autosave idle window | active |
 | [0137](0137-deferred-wikilink-rewrite-after-rename.md) | Deferred vault-wide wikilink rewrite after rename | active |
+| [0138](0138-filename-is-the-title-for-notes.md) | Filename is the title for Notes; Types keep H1/frontmatter title | active |

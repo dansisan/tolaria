@@ -17,7 +17,7 @@ The Inbox workflow is optional. Turn it off in Settings > Workflow if you prefer
 
 When reviewing the Inbox:
 
-1. Give the note a clear H1.
+1. Rename the note to something clear — the filename is the title.
 2. Set its `type`.
 3. Add status, dates, or URL if useful.
 4. Add relationships with wikilinks or frontmatter fields.

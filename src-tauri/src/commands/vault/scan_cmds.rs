@@ -271,7 +271,7 @@ mod tests {
 
         let entry = reload_vault_entry(note_path, Some(dir.path().to_path_buf())).unwrap();
 
-        assert_eq!(entry.title, "Reloaded Title");
+        assert_eq!(entry.title, "note");
     }
 
     #[tokio::test]
@@ -292,7 +292,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(response.results.len(), 1);
-        assert_eq!(response.results[0].title, "Searchable");
+        assert_eq!(response.results[0].title, "search");
         assert_eq!(response.mode, "keyword");
     }
 

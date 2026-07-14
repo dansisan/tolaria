@@ -22,7 +22,9 @@ function makeEntry(overrides: Partial<VaultEntry> = {}): VaultEntry {
     path: '/vault/old-name.md',
     filename: 'old-name.md',
     title: 'Old Name',
-    isA: 'Note',
+    // Structured Type instance — Notes title by filename alone and never
+    // rename their file in response to a frontmatter title edit.
+    isA: 'Person',
     aliases: [],
     belongsTo: [],
     relatedTo: [],
@@ -82,7 +84,7 @@ describe('useNoteActions title rename guard', () => {
     })
 
     vi.mocked(mockInvoke).mockImplementation(async (command: string) => {
-      if (command === 'rename_note') {
+      if (command === 'rename_note_filename') {
         events.push('rename')
         return { new_path: '/vault/new-name.md', updated_files: 0 }
       }
@@ -119,7 +121,7 @@ describe('useNoteActions title rename guard', () => {
       await result.current.handleUpdateFrontmatter(entry.path, 'title', 'New Name')
     })
 
-    expect(mockInvoke).not.toHaveBeenCalledWith('rename_note', expect.anything())
+    expect(mockInvoke).not.toHaveBeenCalledWith('rename_note_filename', expect.anything())
     expect(updateEntry).not.toHaveBeenCalledWith(entry.path, expect.objectContaining({ title: 'New Name' }))
   })
 })

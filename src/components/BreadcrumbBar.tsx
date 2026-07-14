@@ -3,7 +3,7 @@ import type { NoteWidthMode, VaultEntry } from '../types'
 import { cn } from '@/lib/utils'
 import { translate, type AppLocale } from '../lib/i18n'
 import { APP_COMMAND_IDS, formatShortcutDisplay, getAppCommandShortcutDisplay } from '../hooks/appCommandCatalog'
-import { extractFrontmatterTitleFromContent, extractH1TitleFromContent } from '../utils/noteTitle'
+import { extractFrontmatterTitleFromContent, extractH1TitleFromContent, isDefaultNoteType } from '../utils/noteTitle'
 import { EDIT_NOTE_TITLE_EVENT } from '../utils/editNoteTitleEvent'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -267,6 +267,7 @@ function deriveEntryDisplayTitleState(entry: VaultEntry): BreadcrumbDisplayTitle
 }
 
 function deriveBreadcrumbDisplayTitle(entry: VaultEntry, filenameStem: string, content?: string | null): string | null {
+  if (isDefaultNoteType(entry.isA)) return null
   const displayState = deriveContentDisplayTitleState(content) ?? deriveEntryDisplayTitleState(entry)
   const displayTitle = displayState.title.trim()
   if (!displayTitle || displayState.hasH1) return null

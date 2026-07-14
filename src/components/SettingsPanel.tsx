@@ -127,7 +127,6 @@ interface SettingsDraft {
   imageRenameMode: ImageRenameMode
   imageRenameCommand: string
   sidebarTypePluralizationEnabled: boolean
-  initialH1AutoRename: boolean
   frontmatterCreatedKey: string
   hideGitignoredFiles: boolean
   allNotesFileVisibility: AllNotesFileVisibility
@@ -188,8 +187,6 @@ interface SettingsBodyProps {
   setSidebarTypePluralizationEnabled: (value: boolean) => void
   locale: AppLocale
   systemLocale: AppLocale
-  initialH1AutoRename: boolean
-  setInitialH1AutoRename: (value: boolean) => void
   frontmatterCreatedKey: string
   setFrontmatterCreatedKey: (value: string) => void
   hideGitignoredFiles: boolean
@@ -251,7 +248,6 @@ function createSettingsDraft(
     imageRenameMode: normalizeImageRenameMode(settings.image_rename_mode),
     imageRenameCommand: settings.image_rename_command ?? DEFAULT_IMAGE_RENAME_COMMAND,
     sidebarTypePluralizationEnabled: settings.sidebar_type_pluralization_enabled ?? true,
-    initialH1AutoRename: settings.initial_h1_auto_rename_enabled ?? true,
     frontmatterCreatedKey: settings.frontmatter_created_key ?? 'created',
     hideGitignoredFiles: shouldHideGitignoredFiles(settings),
     allNotesFileVisibility: resolveAllNotesFileVisibility(settings),
@@ -305,7 +301,6 @@ function buildSettingsFromDraft(settings: Settings, draft: SettingsDraft): Setti
     image_rename_mode: draft.imageRenameMode,
     image_rename_command: draft.imageRenameCommand,
     sidebar_type_pluralization_enabled: draft.sidebarTypePluralizationEnabled,
-    initial_h1_auto_rename_enabled: draft.initialH1AutoRename,
     frontmatter_created_key: draft.frontmatterCreatedKey,
     ai_features_enabled: draft.aiFeaturesEnabled,
     default_ai_agent: draft.defaultAiAgent,
@@ -626,8 +621,6 @@ function SettingsBodyFromDraft({
       setImageRenameCommand={(value) => updateDraft('imageRenameCommand', value)}
       sidebarTypePluralizationEnabled={draft.sidebarTypePluralizationEnabled}
       setSidebarTypePluralizationEnabled={(value) => updateDraft('sidebarTypePluralizationEnabled', value)}
-      initialH1AutoRename={draft.initialH1AutoRename}
-      setInitialH1AutoRename={(value) => updateDraft('initialH1AutoRename', value)}
       frontmatterCreatedKey={draft.frontmatterCreatedKey}
       setFrontmatterCreatedKey={(value) => updateDraft('frontmatterCreatedKey', value)}
       hideGitignoredFiles={draft.hideGitignoredFiles}
@@ -770,8 +763,6 @@ function SettingsContentSections({
   setImageRenameCommand,
   sidebarTypePluralizationEnabled,
   setSidebarTypePluralizationEnabled,
-  initialH1AutoRename,
-  setInitialH1AutoRename,
   frontmatterCreatedKey,
   setFrontmatterCreatedKey,
   hideGitignoredFiles,
@@ -801,8 +792,6 @@ function SettingsContentSections({
         setImageRenameCommand={setImageRenameCommand}
         sidebarTypePluralizationEnabled={sidebarTypePluralizationEnabled}
         setSidebarTypePluralizationEnabled={setSidebarTypePluralizationEnabled}
-        initialH1AutoRename={initialH1AutoRename}
-        setInitialH1AutoRename={setInitialH1AutoRename}
         frontmatterCreatedKey={frontmatterCreatedKey}
         setFrontmatterCreatedKey={setFrontmatterCreatedKey}
         hideGitignoredFiles={hideGitignoredFiles}

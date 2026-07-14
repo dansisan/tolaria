@@ -21,10 +21,22 @@ describe('buildEntryMetadataPatch', () => {
     expect(patch).toMatchObject({ title: 'renamed-note', hasH1: false })
   })
 
-  it('derives the display title from the H1 heading', () => {
+  it('ignores an H1 heading for the default Note type (filename is the title)', () => {
     const patch = buildEntryMetadataPatch('/old-title.md', '# Renamed Note\n\nBody')
 
-    expect(patch).toMatchObject({ title: 'Renamed Note', hasH1: true })
+    expect(patch).toMatchObject({ title: 'old-title', hasH1: false })
+  })
+
+  it('still derives the display title from H1 for structured Type instances', () => {
+    const patch = buildEntryMetadataPatch('/person-record.md', '---\ntype: Person\n---\n# Jane Doe\n\nBio')
+
+    expect(patch).toMatchObject({ title: 'Jane Doe', hasH1: true })
+  })
+
+  it('still derives the display title from frontmatter title for Type instances without H1', () => {
+    const patch = buildEntryMetadataPatch('/person-record.md', '---\ntype: Person\ntitle: Jane Doe\n---\nBio')
+
+    expect(patch).toMatchObject({ title: 'Jane Doe', hasH1: false })
   })
 
   it('derives entry state from valid frontmatter', () => {
@@ -33,12 +45,12 @@ describe('buildEntryMetadataPatch', () => {
     expect(patch).toMatchObject({ isA: 'Project', status: 'Active' })
   })
 
-  it('does not surface a frontmatter title as an entry field', () => {
+  it('does not surface a frontmatter title as an entry field (Notes title by filename)', () => {
     const patch = buildEntryMetadataPatch('/note.md', '---\ntitle: From Frontmatter\n---\nBody')
 
     // The display title is derived separately; `title` must reflect that, and
     // the raw frontmatter title must not leak through as its own assignment.
-    expect(patch.title).toBe('From Frontmatter')
+    expect(patch.title).toBe('note')
   })
 
   it('syncs custom relationships and properties from frontmatter', () => {

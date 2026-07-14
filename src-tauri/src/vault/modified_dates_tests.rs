@@ -87,5 +87,5 @@ fn scan_vault_sorts_by_newer_of_git_and_filesystem_modified_time() {
     let entries = super::scan_vault(dir.path(), &git_dates, "created").unwrap();
     let titles: Vec<_> = entries.iter().map(|entry| entry.title.as_str()).collect();
 
-    assert_eq!(titles, vec!["Newer File", "Newer Git"]);
+    assert_eq!(titles, vec!["older-git-newer-file", "newer-git-older-file"]);
 }

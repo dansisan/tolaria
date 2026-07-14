@@ -2,7 +2,6 @@ import { useCallback, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { isTauri, mockInvoke } from '../mock-tauri'
 import type { VaultEntry, WorkspaceIdentity } from '../types'
-import { slugify } from './useNoteCreation'
 import {
   findByNotePath,
   normalizeVaultRelativePath,
@@ -12,6 +11,7 @@ import {
 } from '../utils/notePathIdentity'
 import { vaultPathForEntry } from '../utils/workspaces'
 import { relativePathStem } from '../utils/wikilink'
+import { syncFilenameDerivedFrontmatterTitle } from '../utils/noteTitle'
 
 interface RenameResult {
   new_path: string
@@ -19,15 +19,6 @@ interface RenameResult {
   failed_updates?: number
   /** Other notes whose wikilinks were rewritten — refresh just these in memory. */
   updated_paths?: string[]
-}
-
-export { slugify }
-
-interface RenameRequest {
-  path: string
-  newTitle: string
-  vaultPath: string
-  oldTitle?: string
 }
 
 interface FilenameRenameRequest {
@@ -59,7 +50,7 @@ interface ReloadTabsAfterRenameRequest {
   isPathUnsaved?: (path: string) => boolean
 }
 
-type RenameCommand = 'rename_note' | 'rename_note_filename' | 'move_note_to_folder' | 'move_note_to_workspace'
+type RenameCommand = 'rename_note_filename' | 'move_note_to_folder' | 'move_note_to_workspace'
 type NoteCommandExtra = Record<string, unknown>
 
 interface NoteCommandRequest {
@@ -86,28 +77,6 @@ const FOLDER_MOVE_COMMAND: SingleValueNoteCommand = {
   command: 'move_note_to_folder',
   mockKey: 'folder_path',
   tauriKey: 'folderPath',
-}
-
-/** Check if a note's filename doesn't match the slug of its current title. */
-export function needsRenameOnSave(title: string, filename: string): boolean {
-  if (!filename.toLowerCase().endsWith('.md')) return false
-  return `${slugify(title)}.md` !== filename
-}
-
-export async function performRename({
-  path,
-  newTitle,
-  vaultPath,
-  oldTitle,
-}: RenameRequest): Promise<RenameResult> {
-  const oldTitleArg = oldTitle ?? null
-  return invokeNoteCommand({
-    command: 'rename_note',
-    path,
-    vaultPath,
-    tauriExtra: { newTitle, oldTitle: oldTitleArg },
-    mockExtra: { new_title: newTitle, old_title: oldTitleArg },
-  })
 }
 
 function invokeRenameCommand(
@@ -230,11 +199,6 @@ export async function performMoveNoteToWorkspace({
       replacement_target: tauriReplacementTarget,
     },
   })
-}
-
-export function buildRenamedEntry(entry: VaultEntry, newTitle: string, newPath: string): VaultEntry {
-  const filename = notePathFilename(newPath)
-  return { ...entry, path: newPath, filename, title: newTitle }
 }
 
 export function buildFilenameRenamedEntry(entry: VaultEntry, newPath: string): VaultEntry {
@@ -454,7 +418,17 @@ function useRenameResultApplier(
     const openTabContent = options?.contentPreserved
       ? currentTabs.find((tab) => notePathsMatch(tab.entry.path, oldPath))?.content
       : undefined
-    const newContent = openTabContent ?? await loadNoteContent({ path: result.new_path })
+    // The backend already synced an in-content frontmatter title that mirrored
+    // the old filename stem (see rename_note_filename), but the reused in-memory
+    // tab content hasn't seen that write — apply the same sync here so the
+    // breadcrumb doesn't keep showing the pre-rename title until the tab reloads.
+    const newContent = openTabContent !== undefined
+      ? syncFilenameDerivedFrontmatterTitle(
+          openTabContent,
+          notePathFilename(oldPath).replace(/\.md$/i, ''),
+          notePathFilename(result.new_path).replace(/\.md$/i, ''),
+        )
+      : await loadNoteContent({ path: result.new_path })
     const newEntry = buildEntry(entry, result.new_path)
     if (!notePathsMatch(oldPath, result.new_path)) {
       // Migrate the editor's cache old→new before the active path changes so the
@@ -588,21 +562,6 @@ export function useNoteRename(config: NoteRenameConfig, tabDeps: RenameTabDeps) 
   const { entries, setToastMessage } = config
   const { tabsRef, applyRenameResult } = useRenameResultApplier(config, tabDeps)
 
-  const handleRenameNote = useCallback(async (path: string, newTitle: string, vaultPath: string, onEntryRenamed: (oldPath: string, newEntry: Partial<VaultEntry> & { path: string }, newContent: string) => void) => {
-    const entry = findRenameEntry(entries, tabsRef.current, path)
-    const renameVaultPath = resolveRenameVaultPath(entry, vaultPath)
-    await runRenameAction({
-      path,
-      perform: () => performRename({ path, newTitle, vaultPath: renameVaultPath, oldTitle: entry?.title }),
-      applyRenameResult,
-      buildEntry: (currentEntry, newPath) => buildRenamedEntry(currentEntry ?? ({} as VaultEntry), newTitle, newPath),
-      onEntryRenamed,
-      setToastMessage,
-      errorMessage: renameErrorMessage,
-      logLabel: 'Failed to rename note',
-    })
-  }, [entries, tabsRef, applyRenameResult, setToastMessage])
-
   const handleRenameFilename = useCallback(async (path: string, newFilenameStem: string, vaultPath: string, onEntryRenamed: (oldPath: string, newEntry: Partial<VaultEntry> & { path: string }, newContent: string) => void) => {
     const entry = findRenameEntry(entries, tabsRef.current, path)
     const renameVaultPath = resolveRenameVaultPath(entry, vaultPath)
@@ -645,5 +604,5 @@ export function useNoteRename(config: NoteRenameConfig, tabDeps: RenameTabDeps) 
     tabsRef,
   })
 
-  return { handleRenameNote, handleRenameFilename, handleMoveNoteToFolder, handleMoveNoteToWorkspace, tabsRef }
+  return { handleRenameFilename, handleMoveNoteToFolder, handleMoveNoteToWorkspace, tabsRef }
 }

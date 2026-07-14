@@ -71,15 +71,6 @@ pub struct MoveNoteToWorkspaceCommandArgs {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RenameNoteCommandArgs {
-    vault_path: String,
-    old_path: String,
-    new_title: String,
-    old_title: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct RenameNoteFilenameCommandArgs {
     vault_path: String,
     old_path: String,
@@ -96,13 +87,6 @@ pub struct MoveNoteToFolderCommandArgs {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AutoRenameUntitledCommandArgs {
-    vault_path: String,
-    note_path: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct VaultPathCommandArgs {
     vault_path: String,
 }
@@ -114,113 +98,24 @@ pub struct UpdateWikilinksForRenamesCommandArgs {
     renames: Vec<DetectedRename>,
 }
 
-enum NoteRenameCommandArgs {
-    Title {
-        new_title: String,
-        old_title: Option<String>,
-    },
-    Filename {
-        new_filename_stem: String,
-    },
-}
-
-impl NoteRenameCommandArgs {
-    fn run(self, note: ValidatedNotePath<'_>) -> Result<(RenameResult, PendingWikilinkRewrite), String> {
+fn run_filename_rename(
+    args: RenameNoteFilenameCommandArgs,
+) -> Result<(RenameResult, PendingWikilinkRewrite), String> {
+    let request = RequestedNotePath::new(&args.vault_path, &args.old_path);
+    with_note_path_in_vault(request, |note| {
         // Use the parsed link sets to update only the notes that actually link
         // this one, instead of reading every file. Falls back to a full scan when
         // the index is unavailable (e.g. non-git vault with no warm cache).
         let entries = vault::scan_vault_cached(Path::new(note.vault_path)).ok();
-        let entries = entries.as_deref();
-        match self {
-            Self::Title {
-                new_title,
-                old_title,
-            } => vault::rename_note_with_links(
-                vault::RenameNoteRequest {
-                    vault_path: note.vault_path,
-                    old_path: note.note_path,
-                    new_title: &new_title,
-                    old_title_hint: old_title.as_deref(),
-                },
-                entries,
-            ),
-            Self::Filename { new_filename_stem } => vault::rename_note_filename_with_links(
-                vault::RenameNoteFilenameRequest {
-                    vault_path: note.vault_path,
-                    old_path: note.note_path,
-                    new_filename_stem: &new_filename_stem,
-                },
-                entries,
-            ),
-        }
-    }
-}
-
-struct PendingNoteRenameCommand {
-    vault_path: String,
-    old_path: String,
-    args: NoteRenameCommandArgs,
-}
-
-enum PublicNoteRenameCommandArgs {
-    Title(RenameNoteCommandArgs),
-    Filename(RenameNoteFilenameCommandArgs),
-}
-
-fn pending_note_rename(
-    vault_path: String,
-    old_path: String,
-    args: NoteRenameCommandArgs,
-) -> PendingNoteRenameCommand {
-    PendingNoteRenameCommand {
-        vault_path,
-        old_path,
-        args,
-    }
-}
-
-fn rename_existing_note(
-    command: PendingNoteRenameCommand,
-) -> Result<(RenameResult, PendingWikilinkRewrite), String> {
-    let request = RequestedNotePath::new(&command.vault_path, &command.old_path);
-    with_note_path_in_vault(request, |note| command.args.run(note))
-}
-
-fn rename_public_note(
-    args: PublicNoteRenameCommandArgs,
-) -> Result<(RenameResult, PendingWikilinkRewrite), String> {
-    let command = match args {
-        PublicNoteRenameCommandArgs::Title(args) => pending_note_rename(
-            args.vault_path,
-            args.old_path,
-            NoteRenameCommandArgs::Title {
-                new_title: args.new_title,
-                old_title: args.old_title,
+        vault::rename_note_filename_with_links(
+            vault::RenameNoteFilenameRequest {
+                vault_path: note.vault_path,
+                old_path: note.note_path,
+                new_filename_stem: &args.new_filename_stem,
             },
-        ),
-        PublicNoteRenameCommandArgs::Filename(args) => pending_note_rename(
-            args.vault_path,
-            args.old_path,
-            NoteRenameCommandArgs::Filename {
-                new_filename_stem: args.new_filename_stem,
-            },
-        ),
-    };
-    rename_existing_note(command)
-}
-
-#[tauri::command]
-pub async fn rename_note(
-    app: tauri::AppHandle,
-    args: RenameNoteCommandArgs,
-) -> Result<RenameResult, String> {
-    let (result, pending) = tokio::task::spawn_blocking(move || {
-        rename_public_note(PublicNoteRenameCommandArgs::Title(args))
+            entries.as_deref(),
+        )
     })
-    .await
-    .map_err(|e| format!("Rename task panicked: {e}"))??;
-    spawn_wikilink_rewrite(app, pending);
-    Ok(result)
 }
 
 #[tauri::command]
@@ -228,11 +123,9 @@ pub async fn rename_note_filename(
     app: tauri::AppHandle,
     args: RenameNoteFilenameCommandArgs,
 ) -> Result<RenameResult, String> {
-    let (result, pending) = tokio::task::spawn_blocking(move || {
-        rename_public_note(PublicNoteRenameCommandArgs::Filename(args))
-    })
-    .await
-    .map_err(|e| format!("Rename task panicked: {e}"))??;
+    let (result, pending) = tokio::task::spawn_blocking(move || run_filename_rename(args))
+        .await
+        .map_err(|e| format!("Rename task panicked: {e}"))??;
     spawn_wikilink_rewrite(app, pending);
     Ok(result)
 }
@@ -325,36 +218,6 @@ pub async fn move_note_to_workspace(
     Ok(result)
 }
 
-fn run_auto_rename_untitled(
-    args: AutoRenameUntitledCommandArgs,
-) -> Result<Option<(RenameResult, PendingWikilinkRewrite)>, String> {
-    with_existing_path_in_requested_vault(
-        &args.vault_path,
-        &args.note_path,
-        |requested_root, validated_path| {
-            vault::auto_rename_untitled(vault::AutoRenameUntitledRequest {
-                vault_path: requested_root,
-                note_path: validated_path,
-            })
-        },
-    )
-}
-
-#[tauri::command]
-pub async fn auto_rename_untitled(
-    app: tauri::AppHandle,
-    args: AutoRenameUntitledCommandArgs,
-) -> Result<Option<RenameResult>, String> {
-    let outcome = tokio::task::spawn_blocking(move || run_auto_rename_untitled(args))
-        .await
-        .map_err(|e| format!("Rename task panicked: {e}"))??;
-    let Some((result, pending)) = outcome else {
-        return Ok(None);
-    };
-    spawn_wikilink_rewrite(app, pending);
-    Ok(Some(result))
-}
-
 #[tauri::command]
 pub fn detect_renames(args: VaultPathCommandArgs) -> Result<Vec<DetectedRename>, String> {
     let vault_path = expand_tilde(&args.vault_path);
@@ -391,12 +254,8 @@ mod tests {
         }
     }
 
-    fn rename_note_sync(args: RenameNoteCommandArgs) -> Result<RenameResult, String> {
-        rename_public_note(PublicNoteRenameCommandArgs::Title(args)).map(resolve)
-    }
-
     fn rename_note_filename_sync(args: RenameNoteFilenameCommandArgs) -> Result<RenameResult, String> {
-        rename_public_note(PublicNoteRenameCommandArgs::Filename(args)).map(resolve)
+        run_filename_rename(args).map(resolve)
     }
 
     fn move_note_to_folder_sync(args: MoveNoteToFolderCommandArgs) -> Result<RenameResult, String> {
@@ -405,12 +264,6 @@ mod tests {
 
     fn move_note_to_workspace_sync(args: MoveNoteToWorkspaceCommandArgs) -> Result<RenameResult, String> {
         run_workspace_move(args).map(resolve)
-    }
-
-    fn auto_rename_untitled_sync(
-        args: AutoRenameUntitledCommandArgs,
-    ) -> Result<Option<RenameResult>, String> {
-        Ok(run_auto_rename_untitled(args)?.map(resolve))
     }
 
     fn vault_path(dir: &TempDir) -> String {
@@ -424,34 +277,6 @@ mod tests {
         }
         fs::write(&path, content).unwrap();
         path.to_string_lossy().into_owned()
-    }
-
-    #[test]
-    fn rename_note_command_updates_title_file_and_links() {
-        let dir = TempDir::new().unwrap();
-        let vault = vault_path(&dir);
-        let old_path = write_note(
-            &dir,
-            "old-title.md",
-            "---\ntitle: Old Title\n---\n# Old Title\n",
-        );
-        let linked_path = write_note(&dir, "linked.md", "See [[Old Title]].\n");
-
-        let result = rename_note_sync(RenameNoteCommandArgs {
-            vault_path: vault.clone(),
-            old_path: old_path.clone(),
-            new_title: "New Title".to_string(),
-            old_title: None,
-        })
-        .unwrap();
-
-        assert!(result.new_path.ends_with("new-title.md"));
-        assert!(!Path::new(&old_path).exists());
-        assert!(Path::new(&result.new_path).exists());
-        assert!(fs::read_to_string(linked_path)
-            .unwrap()
-            .contains("[[new-title]]"));
-        assert_eq!(result.failed_updates, 0);
     }
 
     #[test]
@@ -519,18 +344,10 @@ mod tests {
     }
 
     #[test]
-    fn auto_rename_and_detected_rename_commands_route_through_vault() {
+    fn detected_rename_commands_route_through_vault() {
         let dir = TempDir::new().unwrap();
         let vault = vault_path(&dir);
-        let untitled = write_note(&dir, "untitled-note-123.md", "# Project Plan\n");
-
-        let auto = auto_rename_untitled_sync(AutoRenameUntitledCommandArgs {
-            vault_path: vault.clone(),
-            note_path: untitled,
-        })
-        .unwrap()
-        .unwrap();
-        assert!(auto.new_path.ends_with("project-plan.md"));
+        write_note(&dir, "project-plan.md", "# Project Plan\n");
 
         crate::git::init_repo(&vault).unwrap();
         let old_path = dir.path().join("project-plan.md");

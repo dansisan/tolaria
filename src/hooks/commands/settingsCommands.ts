@@ -58,14 +58,6 @@ function buildPrimarySettingsCommands({
       execute: onOpenSettings,
     },
     {
-      id: 'open-h1-auto-rename-setting',
-      label: t('command.openH1Setting'),
-      group: 'Settings',
-      keywords: ['h1', 'title', 'filename', 'rename', 'auto', 'untitled', 'sync', 'preference'],
-      enabled: true,
-      execute: onOpenSettings,
-    },
-    {
       id: 'open-contribute',
       label: t('command.contribute'),
       group: 'Settings',

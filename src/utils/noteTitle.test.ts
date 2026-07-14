@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
-  contentDefinesDisplayTitle,
   deriveDisplayTitleState,
   extractFrontmatterTitleFromContent,
   extractH1TitleFromContent,
   filenameStemToTitle,
+  syncFilenameDerivedFrontmatterTitle,
 } from './noteTitle'
 
 describe('filenameStemToTitle', () => {
@@ -53,17 +53,6 @@ describe('extractFrontmatterTitleFromContent', () => {
   })
 })
 
-describe('contentDefinesDisplayTitle', () => {
-  it('returns true when the document title comes from frontmatter', () => {
-    const content = '---\ntitle: Spring 2026\n---\n## Goals'
-    expect(contentDefinesDisplayTitle(content)).toBe(true)
-  })
-
-  it('returns false when title still comes from the filename', () => {
-    expect(contentDefinesDisplayTitle('Body only')).toBe(false)
-  })
-})
-
 describe('deriveDisplayTitleState', () => {
   it('prefers H1 over frontmatter title and filename', () => {
     const content = '---\ntitle: Legacy Title\n---\n# Updated Title\n\nBody'
@@ -102,5 +91,28 @@ describe('deriveDisplayTitleState', () => {
       title: '[26Q2] Tolaria MVP',
       hasH1: true,
     })
+  })
+})
+
+describe('syncFilenameDerivedFrontmatterTitle', () => {
+  it('rewrites a frontmatter title that mirrors the old filename stem', () => {
+    const content = '---\ntitle: 2026-07-13\ntype: Note\n---\n\nBody.\n'
+    expect(syncFilenameDerivedFrontmatterTitle(content, '2026-07-13', 'Team Standup Notes'))
+      .toBe('---\ntitle: Team Standup Notes\ntype: Note\n---\n\nBody.\n')
+  })
+
+  it('leaves an explicit title that differs from the old filename untouched', () => {
+    const content = '---\ntitle: Project Kickoff\ntype: Note\n---\n\nBody.\n'
+    expect(syncFilenameDerivedFrontmatterTitle(content, 'project-kickoff', 'manual-name')).toBe(content)
+  })
+
+  it('is a no-op when the stem does not change', () => {
+    const content = '---\ntitle: 2026-07-13\n---\n\nBody.\n'
+    expect(syncFilenameDerivedFrontmatterTitle(content, '2026-07-13', '2026-07-13')).toBe(content)
+  })
+
+  it('is a no-op when there is no frontmatter title', () => {
+    const content = 'Body only'
+    expect(syncFilenameDerivedFrontmatterTitle(content, 'old-stem', 'new-stem')).toBe(content)
   })
 })

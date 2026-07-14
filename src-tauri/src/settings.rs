@@ -101,7 +101,6 @@ pub struct Settings {
     pub image_rename_mode: Option<String>,
     pub image_rename_command: Option<String>,
     pub sidebar_type_pluralization_enabled: Option<bool>,
-    pub initial_h1_auto_rename_enabled: Option<bool>,
     pub ai_features_enabled: Option<bool>,
     pub default_ai_agent: Option<String>,
     pub default_ai_target: Option<String>,
@@ -260,7 +259,6 @@ fn normalize_settings(settings: Settings) -> Settings {
         image_rename_mode: normalize_image_rename_mode(settings.image_rename_mode.as_deref()),
         image_rename_command: normalize_optional_string(settings.image_rename_command),
         sidebar_type_pluralization_enabled: settings.sidebar_type_pluralization_enabled,
-        initial_h1_auto_rename_enabled: settings.initial_h1_auto_rename_enabled,
         ai_features_enabled: settings.ai_features_enabled,
         default_ai_agent: normalize_default_ai_agent(settings.default_ai_agent.as_deref()),
         default_ai_target: normalize_optional_string(settings.default_ai_target),
@@ -503,7 +501,6 @@ mod tests {
             image_rename_mode: Some("command".to_string()),
             image_rename_command: Some("name-image.sh".to_string()),
             sidebar_type_pluralization_enabled: Some(false),
-            initial_h1_auto_rename_enabled: Some(false),
             ai_features_enabled: Some(false),
             default_ai_agent: Some("codex".to_string()),
             default_ai_target: Some("agent:codex".to_string()),
@@ -550,7 +547,6 @@ mod tests {
             image_rename_mode: Some("command".to_string()),
             image_rename_command: Some("name-image.sh".to_string()),
             sidebar_type_pluralization_enabled: Some(false),
-            initial_h1_auto_rename_enabled: Some(false),
             ai_features_enabled: Some(false),
             default_ai_agent: Some("codex".to_string()),
             hide_gitignored_files: Some(false),
@@ -578,7 +574,6 @@ mod tests {
         assert_eq!(loaded.image_rename_mode.as_deref(), Some("command"));
         assert_eq!(loaded.image_rename_command.as_deref(), Some("name-image.sh"));
         assert_eq!(loaded.sidebar_type_pluralization_enabled, Some(false));
-        assert_eq!(loaded.initial_h1_auto_rename_enabled, Some(false));
         assert_eq!(loaded.ai_features_enabled, Some(false));
         assert_eq!(loaded.default_ai_agent.as_deref(), Some("codex"));
         assert_eq!(loaded.hide_gitignored_files, Some(false));
