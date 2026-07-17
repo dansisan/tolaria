@@ -4,6 +4,7 @@ import {
   clearDeletedFolderTabs,
   type ConfirmFolderDeleteState,
   type FolderTab,
+  folderAbsolutePath,
   folderLabel,
   invokeDeleteFolder,
   resetSelectionIfFolderDeleted,
@@ -13,6 +14,10 @@ interface UseFolderDeleteInput {
   activeTabPathRef: React.MutableRefObject<string | null>
   clearFolderRename: () => void
   closeAllTabs: () => void
+  /** Marks a path as a known-recent internal write so the vault file watcher's
+   *  generic "unknown path changed" fallback doesn't redundantly rescan the
+   *  whole vault a moment after a folder delete we already know about. */
+  onInternalVaultWrite?: (path: string) => void
   reloadFolders: () => Promise<unknown>
   reloadVault: () => Promise<VaultEntry[]>
   selection: SidebarSelection
@@ -26,6 +31,7 @@ export function useFolderDelete({
   activeTabPathRef,
   clearFolderRename,
   closeAllTabs,
+  onInternalVaultWrite,
   reloadFolders,
   reloadVault,
   selection,
@@ -55,6 +61,7 @@ export function useFolderDelete({
     try {
       setConfirmDeleteFolder(null)
       await invokeDeleteFolder({ vaultPath, folderPath })
+      onInternalVaultWrite?.(folderAbsolutePath({ vaultPath, folderPath }))
       clearDeletedFolderTabs({
         activeTabPathRef,
         closeAllTabs,
@@ -75,7 +82,7 @@ export function useFolderDelete({
     } catch (error) {
       setToastMessage(`Failed to delete folder: ${error}`)
     }
-  }, [activeTabPathRef, closeAllTabs, confirmDeleteFolder, reloadFolders, reloadVault, selection, setSelection, setTabs, setToastMessage, vaultPath])
+  }, [activeTabPathRef, closeAllTabs, confirmDeleteFolder, onInternalVaultWrite, reloadFolders, reloadVault, selection, setSelection, setTabs, setToastMessage, vaultPath])
 
   const deleteSelectedFolder = useCallback(() => {
     if (selection.kind !== 'folder' || !selection.path) return

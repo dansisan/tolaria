@@ -643,6 +643,35 @@ describe('useNoteCreation hook', () => {
     )
   })
 
+  it('handleCreateNoteImmediate marks the created path as an internal write so the vault watcher does not redundantly rescan', async () => {
+    vi.mocked(isTauri).mockReturnValue(true)
+    vi.mocked(invoke).mockResolvedValueOnce(undefined)
+    const onInternalVaultWrite = vi.fn()
+    const config = { ...makeConfig(), onInternalVaultWrite }
+    const { result } = renderHook(() => useNoteCreation(config, tabDeps))
+
+    await act(async () => {
+      result.current.handleCreateNoteImmediate()
+      await flushImmediateCreate()
+    })
+
+    expect(onInternalVaultWrite).toHaveBeenCalledWith(expect.stringMatching(/untitled-note-\d+\.md$/))
+  })
+
+  it('handleCreateNote marks the created path as an internal write so the vault watcher does not redundantly rescan', async () => {
+    vi.mocked(isTauri).mockReturnValue(true)
+    vi.mocked(invoke).mockResolvedValueOnce(undefined)
+    const onInternalVaultWrite = vi.fn()
+    const config = { ...makeConfig(), onInternalVaultWrite }
+    const { result } = renderHook(() => useNoteCreation(config, tabDeps))
+
+    await act(async () => {
+      await result.current.handleCreateNote('Test Note', 'Note')
+    })
+
+    expect(onInternalVaultWrite).toHaveBeenCalledWith('/test/vault/test-note.md')
+  })
+
   it('handleCreateNoteImmediate does not open an optimistic note when disk creation fails', async () => {
     vi.mocked(isTauri).mockReturnValue(true)
     vi.mocked(invoke).mockRejectedValueOnce(new Error('disk full'))

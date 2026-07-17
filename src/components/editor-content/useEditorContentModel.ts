@@ -48,6 +48,7 @@ export interface EditorContentProps {
   onArchiveNote?: (path: string) => void
   onUnarchiveNote?: (path: string) => void
   vaultPath?: string
+  onInternalVaultWrite?: (path: string) => void
   rawModeContent?: string | null
   findRequest?: RawEditorFindRequest | null
   onFindClose?: () => void

@@ -48,12 +48,14 @@ const folderEntry: VaultEntry = {
 function renderFolderActions({
   initialSelection,
   initialTabs = [{ entry: folderEntry, content: '# Note' }],
+  onInternalVaultWrite,
   reloadVault,
   reloadFolders,
   setToastMessage,
 }: {
   initialSelection: SidebarSelection
   initialTabs?: Array<{ entry: VaultEntry; content: string }>
+  onInternalVaultWrite?: ReturnType<typeof vi.fn>
   reloadVault: ReturnType<typeof vi.fn>
   reloadFolders: ReturnType<typeof vi.fn>
   setToastMessage: ReturnType<typeof vi.fn>
@@ -79,6 +81,7 @@ function renderFolderActions({
         setTabs([])
         setActiveTabPath(null)
       },
+      onInternalVaultWrite,
       reloadVault,
       reloadFolders,
       setToastMessage,
@@ -122,6 +125,27 @@ describe('useFolderActions', () => {
     expect(setToastMessage).toHaveBeenCalledWith('Renamed folder to "work"')
   })
 
+  it('marks both the old and new folder paths as internal writes so the vault watcher does not redundantly rescan after a folder rename', async () => {
+    reloadVault.mockResolvedValue([])
+    mockInvokeFn.mockResolvedValue({ old_path: 'projects', new_path: 'work' })
+    const onInternalVaultWrite = vi.fn()
+
+    const { result } = renderFolderActions({
+      initialSelection: { kind: 'folder', path: 'projects' },
+      onInternalVaultWrite,
+      reloadVault,
+      reloadFolders,
+      setToastMessage,
+    })
+
+    await act(async () => {
+      await result.current.actions.renameFolder('projects', 'work')
+    })
+
+    expect(onInternalVaultWrite).toHaveBeenCalledWith('/vault/projects')
+    expect(onInternalVaultWrite).toHaveBeenCalledWith('/vault/work')
+  })
+
   it('deletes a selected folder and clears the active note gracefully', async () => {
     reloadVault.mockResolvedValue([])
     mockInvokeFn.mockResolvedValue('projects')
@@ -145,5 +169,29 @@ describe('useFolderActions', () => {
     expect(result.current.tabs).toEqual([])
     expect(result.current.activeTabPath).toBeNull()
     expect(setToastMessage).toHaveBeenCalledWith('Deleted folder "projects"')
+  })
+
+  it('marks the deleted folder path as an internal write so the vault watcher does not redundantly rescan after a folder delete', async () => {
+    reloadVault.mockResolvedValue([])
+    mockInvokeFn.mockResolvedValue('projects')
+    const onInternalVaultWrite = vi.fn()
+
+    const { result } = renderFolderActions({
+      initialSelection: { kind: 'folder', path: 'projects' },
+      onInternalVaultWrite,
+      reloadVault,
+      reloadFolders,
+      setToastMessage,
+    })
+
+    act(() => {
+      result.current.actions.requestDeleteFolder('projects')
+    })
+
+    await act(async () => {
+      await result.current.actions.confirmDeleteSelectedFolder()
+    })
+
+    expect(onInternalVaultWrite).toHaveBeenCalledWith('/vault/projects')
   })
 })

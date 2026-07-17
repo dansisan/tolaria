@@ -164,13 +164,21 @@ export function useRecentVaultWrites({
     if (watchRootsRef.current.length === 0 || paths.length === 0) return paths
     const currentTime = now()
     pruneRecentWrites(recentWritesRef.current, currentTime)
+    if (recentWritesRef.current.size === 0) return paths
     return paths.filter((path) => {
       const resolvedPath = resolvePathForKnownRoots({
         path,
         fallbackRoot: vaultPathRef.current,
         roots: watchRootsRef.current,
       })
-      return !resolvedPath || !recentWritesRef.current.has(resolvedPath)
+      if (!resolvedPath) return true
+      // A recent write may be a folder (rename/delete touches every path beneath
+      // it without the OS reporting each one individually), so a changed path
+      // counts as internal when it's the marked path or a descendant of it.
+      for (const recentWrite of recentWritesRef.current.keys()) {
+        if (isSamePathOrChild({ path: resolvedPath, parent: recentWrite })) return false
+      }
+      return true
     })
   }, [now, vaultPathRef, watchRootsRef])
 

@@ -221,6 +221,9 @@ describe('DynamicRelationshipsPanel', () => {
   })
 
   it('prefixes selected cross-workspace relationship targets from the add form', () => {
+    // The note search dropdown is debounced (useNoteSearch); advance fake timers
+    // past the debounce window before asserting on its results.
+    vi.useFakeTimers()
     const personal = makeWorkspace('personal', '/personal', 'Personal')
     const team = makeWorkspace('team', '/team', 'Team')
     const source = makeEntry({
@@ -247,6 +250,7 @@ describe('DynamicRelationshipsPanel', () => {
     const noteInput = screen.getByPlaceholderText('Note title')
     fireEvent.focus(noteInput)
     fireEvent.change(noteInput, { target: { value: 'Remote' } })
+    act(() => { vi.advanceTimersByTime(200) })
     expect(screen.getByTestId('note-search-workspace-badge')).toHaveTextContent('TE')
     fireEvent.click(screen.getByText('Remote'))
     fireEvent.click(screen.getByTestId('submit-add-relationship'))
@@ -416,16 +420,24 @@ describe('DynamicRelationshipsPanel', () => {
       expect(screen.getByTestId('add-relation-ref-input')).toBeInTheDocument()
     })
 
+    // The inline search is debounced (useNoteSearch), so these tests advance fake
+    // timers past the debounce window before interacting with search results —
+    // the global setup.ts afterEach restores real timers for the next test.
+
     it('adds a note to an existing relationship via inline add', () => {
+      vi.useFakeTimers()
       renderEditableRelationships()
       const input = openInlineAdd('AI')
+      act(() => { vi.advanceTimersByTime(200) })
       fireEvent.keyDown(input, { key: 'Enter' })
       expect(onUpdateProperty).toHaveBeenCalledWith('Belongs to', ['[[project/my-project]]', '[[topic/ai]]'])
     })
 
     it('clicks a search result to add the relationship and close the inline editor', () => {
+      vi.useFakeTimers()
       renderEditableRelationships()
       openInlineAdd('AI')
+      act(() => { vi.advanceTimersByTime(200) })
       fireEvent.click(screen.getByText('AI'))
 
       expect(onUpdateProperty).toHaveBeenCalledWith('Belongs to', ['[[project/my-project]]', '[[topic/ai]]'])
@@ -433,6 +445,7 @@ describe('DynamicRelationshipsPanel', () => {
     })
 
     it('prefixes inline cross-workspace relationship targets with the target workspace alias', () => {
+      vi.useFakeTimers()
       const personal = makeWorkspace('personal', '/personal', 'Personal')
       const team = makeWorkspace('team', '/team', 'Team')
       const source = makeEntry({
@@ -454,14 +467,17 @@ describe('DynamicRelationshipsPanel', () => {
         vaultPath: '/personal',
       })
       const input = openInlineAdd('Remote')
+      act(() => { vi.advanceTimersByTime(200) })
       fireEvent.keyDown(input, { key: 'Enter' })
 
       expect(onUpdateProperty).toHaveBeenCalledWith('Belongs to', ['[[project/my-project]]', '[[team/topic/remote]]'])
     })
 
     it('does not add duplicate refs', () => {
+      vi.useFakeTimers()
       renderEditableRelationships({ frontmatter: { 'Belongs to': ['[[topic/ai]]'] } })
       const input = openInlineAdd('AI')
+      act(() => { vi.advanceTimersByTime(200) })
       fireEvent.keyDown(input, { key: 'Enter' })
       expect(onUpdateProperty).not.toHaveBeenCalled()
     })

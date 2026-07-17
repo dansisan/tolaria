@@ -65,21 +65,28 @@ describe('QuickOpenPalette', () => {
     expect(items[1].textContent).toBe('Beta Notes')
   })
 
-  it('filters entries by fuzzy search', () => {
+  it('filters entries by fuzzy search', async () => {
     render(<QuickOpenPalette open={true} entries={entries} onSelect={onSelect} onClose={onClose} />)
     const input = screen.getByPlaceholderText('Search notes...')
     fireEvent.change(input, { target: { value: 'alpha' } })
 
+    // Search results are debounced, so the fuzzy match settles a beat after the keystroke.
+    // "Alpha Project" is visible in both the pre-debounce recent list and the filtered
+    // result, so assert the debounce settled by waiting for "Beta Notes" to disappear.
+    await waitFor(() => {
+      expect(screen.queryByText('Beta Notes')).not.toBeInTheDocument()
+    })
     expect(screen.getByText('Alpha Project')).toBeInTheDocument()
-    expect(screen.queryByText('Beta Notes')).not.toBeInTheDocument()
   })
 
-  it('shows "No matching notes" when query has no results', () => {
+  it('shows "No matching notes" when query has no results', async () => {
     render(<QuickOpenPalette open={true} entries={entries} onSelect={onSelect} onClose={onClose} />)
     const input = screen.getByPlaceholderText('Search notes...')
     fireEvent.change(input, { target: { value: 'zzzzzzz' } })
 
-    expect(screen.getByText('No matching notes')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('No matching notes')).toBeInTheDocument()
+    })
   })
 
   it('creates a note from an unmatched query when pressing Enter', async () => {
@@ -95,7 +102,11 @@ describe('QuickOpenPalette', () => {
     )
     fireEvent.change(screen.getByPlaceholderText('Search notes...'), { target: { value: 'New Research Brief' } })
 
-    expect(screen.getByText('Create note "New Research Brief"')).toBeInTheDocument()
+    // Wait for the debounced search to settle (no match) before pressing Enter,
+    // same as a real user who pauses after typing before hitting Enter.
+    await waitFor(() => {
+      expect(screen.getByText('Create note "New Research Brief"')).toBeInTheDocument()
+    })
     fireEvent.keyDown(window, { key: 'Enter' })
 
     await waitFor(() => {
@@ -119,6 +130,10 @@ describe('QuickOpenPalette', () => {
       />,
     )
     fireEvent.change(screen.getByPlaceholderText('Search notes...'), { target: { value: 'Externally Created Note' } })
+
+    await waitFor(() => {
+      expect(screen.getByText('Create note "Externally Created Note"')).toBeInTheDocument()
+    })
     fireEvent.keyDown(window, { key: 'Enter' })
 
     await waitFor(() => {

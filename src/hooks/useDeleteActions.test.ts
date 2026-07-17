@@ -41,10 +41,14 @@ describe('useDeleteActions', () => {
     isTauriFn.mockReturnValue(false)
   })
 
-  function renderDeleteActions(options: { resolveVaultPathForPath?: (path: string) => string | null | undefined } = {}) {
+  function renderDeleteActions(options: {
+    resolveVaultPathForPath?: (path: string) => string | null | undefined
+    onInternalVaultWrite?: (path: string) => void
+  } = {}) {
     return renderHook(() =>
       useDeleteActions({
         onDeselectNote,
+        onInternalVaultWrite: options.onInternalVaultWrite,
         removeEntry,
         removeEntries,
         resolveVaultPathForPath: options.resolveVaultPathForPath,
@@ -288,6 +292,67 @@ describe('useDeleteActions', () => {
       })
 
       expect(invokeFn).not.toHaveBeenCalledWith('delete_attachment', expect.anything())
+    })
+  })
+
+  // --- internal write suppression ---
+
+  describe('internal write suppression', () => {
+    it('marks deleted note paths as internal writes so the vault watcher does not redundantly rescan after a delete', async () => {
+      mockInvokeFn.mockResolvedValue(['/vault/a.md', '/vault/b.md'])
+      const onInternalVaultWrite = vi.fn()
+      const { result } = renderDeleteActions({ onInternalVaultWrite })
+
+      act(() => {
+        result.current.handleBulkDeletePermanently(['/vault/a.md', '/vault/b.md'])
+      })
+      await confirmCurrentDelete(result)
+
+      expect(onInternalVaultWrite).toHaveBeenCalledWith('/vault/a.md')
+      expect(onInternalVaultWrite).toHaveBeenCalledWith('/vault/b.md')
+    })
+
+    it('does not mark paths as internal writes when the delete fails', async () => {
+      mockInvokeFn.mockRejectedValue(new Error('disk full'))
+      const onInternalVaultWrite = vi.fn()
+      const { result } = renderDeleteActions({ onInternalVaultWrite })
+
+      await act(async () => {
+        await result.current.deleteNoteFromDisk('/vault/a.md')
+      })
+
+      expect(onInternalVaultWrite).not.toHaveBeenCalled()
+    })
+
+    it('marks pruned orphaned attachment paths as internal writes too', async () => {
+      isTauriFn.mockReturnValue(true)
+      invokeFn.mockImplementation(async (command: string, args: { paths?: string[] }) =>
+        command === 'batch_delete_notes_async' ? args.paths : undefined,
+      )
+      const onInternalVaultWrite = vi.fn()
+      const entries = [
+        { path: '/vault/a.md', title: 'A', attachmentLinks: ['attachments/gone.png'] },
+      ] as VaultEntry[]
+
+      const { result } = renderHook(() =>
+        useDeleteActions({
+          onDeselectNote,
+          onInternalVaultWrite,
+          removeEntry,
+          removeEntries,
+          refreshModifiedFiles,
+          reloadVault,
+          setToastMessage,
+          entries,
+          vaultPath: '/vault',
+        }),
+      )
+
+      await act(async () => {
+        await result.current.deleteNoteFromDisk('/vault/a.md')
+      })
+
+      expect(onInternalVaultWrite).toHaveBeenCalledWith('attachments/gone.png')
     })
   })
 

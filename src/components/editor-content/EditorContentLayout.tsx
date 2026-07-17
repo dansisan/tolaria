@@ -395,6 +395,7 @@ function EditorCanvas({
   vaultPath,
   locale,
   onClickTag,
+  onInternalVaultWrite,
 }: Pick<
   EditorContentModel,
   | 'showEditor'
@@ -408,6 +409,7 @@ function EditorCanvas({
   | 'vaultPath'
   | 'locale'
   | 'onClickTag'
+  | 'onInternalVaultWrite'
 >) {
   if (!showEditor) return null
 
@@ -427,6 +429,7 @@ function EditorCanvas({
           editable={!isDeletedPreview}
           locale={locale}
           onClickTag={onClickTag}
+          onInternalVaultWrite={onInternalVaultWrite}
         />
       </div>
     </EditorFindScope>
@@ -503,6 +506,7 @@ export function EditorContentLayout(model: EditorContentModel) {
     locale,
     isVaultLoading,
     onClickTag,
+    onInternalVaultWrite,
   } = model
   const rootClassName = cn(
     'flex flex-1 flex-col min-w-0 min-h-0',
@@ -567,6 +571,7 @@ export function EditorContentLayout(model: EditorContentModel) {
             isDeletedPreview={isDeletedPreview}
             locale={locale}
             onClickTag={onClickTag}
+            onInternalVaultWrite={onInternalVaultWrite}
           />
         </>
       )}

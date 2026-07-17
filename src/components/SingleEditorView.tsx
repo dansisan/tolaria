@@ -1261,7 +1261,7 @@ function useRichEditorPlainTextPasteTarget(options: {
 }
 
 /** Single BlockNote editor view — content is swapped via replaceBlocks */
-export function SingleEditorView({ editor, entries, onNavigateWikilink, onChange, sourceEntry, vaultPath, editable = true, locale = 'en', onClickTag }: {
+export function SingleEditorView({ editor, entries, onNavigateWikilink, onChange, sourceEntry, vaultPath, editable = true, locale = 'en', onClickTag, onInternalVaultWrite }: {
   editor: ReturnType<typeof useCreateBlockNote>
   entries: VaultEntry[]
   onNavigateWikilink: (target: string) => void
@@ -1271,6 +1271,7 @@ export function SingleEditorView({ editor, entries, onNavigateWikilink, onChange
   editable?: boolean
   locale?: AppLocale
   onClickTag?: (tag: string) => void
+  onInternalVaultWrite?: (path: string) => void
 }) {
   const { cssVars } = useEditorTheme()
   const themeMode = useDocumentThemeMode()
@@ -1290,7 +1291,7 @@ export function SingleEditorView({ editor, entries, onNavigateWikilink, onChange
   })
   const handleEditorChange = useCompositionAwareEditorChange({ containerRef, onChange })
   const onImageUrl = useInsertImageCallback(editor)
-  const { isDragOver } = useImageDrop({ containerRef, onImageUrl, vaultPath })
+  const { isDragOver } = useImageDrop({ containerRef, onImageUrl, vaultPath, onInternalVaultWrite })
   const lightbox = useImageLightbox({ containerRef })
   const {
     clearChromeTarget,

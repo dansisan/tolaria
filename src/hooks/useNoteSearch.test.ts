@@ -47,6 +47,45 @@ describe('useNoteSearch', () => {
     expect(result.current.results[0].title).toBe('Alpha Project')
   })
 
+  describe('search debounce', () => {
+    it('does not re-run the fuzzy match synchronously on every keystroke', () => {
+      vi.useFakeTimers()
+      try {
+        const { result, rerender } = renderHook(({ query }) => useNoteSearch(entries, query), {
+          initialProps: { query: '' },
+        })
+
+        rerender({ query: 'alpha' })
+        // Immediately after the keystroke, the debounce hasn't elapsed yet — the
+        // recent-notes view (all 3 entries) should still be showing.
+        expect(result.current.results).toHaveLength(3)
+
+        act(() => { vi.advanceTimersByTime(180) })
+        expect(result.current.results).toHaveLength(1)
+        expect(result.current.results[0].title).toBe('Alpha Project')
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('clears the debounced query immediately when the query is cleared, with no lag', () => {
+      vi.useFakeTimers()
+      try {
+        const { result, rerender } = renderHook(({ query }) => useNoteSearch(entries, query), {
+          initialProps: { query: 'alpha' },
+        })
+        act(() => { vi.advanceTimersByTime(180) })
+        expect(result.current.results).toHaveLength(1)
+
+        rerender({ query: '' })
+        // No debounce delay when clearing — the recent-notes view returns instantly.
+        expect(result.current.results).toHaveLength(3)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+  })
+
   it('matches existing notes by normalized filename-shaped queries', () => {
     const alpha = makeEntry({
       path: '/vault/alpha-project.md',

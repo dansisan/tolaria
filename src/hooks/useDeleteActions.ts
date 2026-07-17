@@ -15,6 +15,10 @@ interface ConfirmDeleteState {
 interface UseDeleteActionsInput {
   /** Called to deselect the note if it is currently open. */
   onDeselectNote: (path: string) => void
+  /** Marks a path as a known-recent internal write so the vault file watcher's
+   *  generic "unknown path changed" fallback doesn't redundantly rescan the
+   *  whole vault a moment after a delete we already applied optimistically. */
+  onInternalVaultWrite?: (path: string) => void
   removeEntry: (path: string) => void
   removeEntries?: (paths: string[]) => void
   resolveVaultPathForPath?: (path: string) => string | null | undefined
@@ -97,6 +101,7 @@ function pruneOrphanedAttachments(
   deletedPaths: string[],
   entriesBeforeDelete: VaultEntry[],
   vaultPath: string | undefined,
+  onInternalVaultWrite?: (path: string) => void,
 ): void {
   if (!isTauri() || !vaultPath || deletedPaths.length === 0) return
   const orphans = orphanedImageAttachmentsForDeletedNotes({
@@ -106,6 +111,7 @@ function pruneOrphanedAttachments(
   if (orphans.length === 0) return
   trackEvent('attachment_pruned', { count: orphans.length })
   for (const attachmentPath of orphans) {
+    onInternalVaultWrite?.(attachmentPath)
     void invoke('delete_attachment', { vaultPath, attachmentPath }).catch(() => {
       // Best-effort cleanup: a failed delete just leaves an unused file behind.
     })
@@ -114,6 +120,7 @@ function pruneOrphanedAttachments(
 
 function useDeleteRunner({
   onDeselectNote,
+  onInternalVaultWrite,
   removeEntry,
   removeEntries,
   resolveVaultPathForPath,
@@ -161,7 +168,8 @@ function useDeleteRunner({
 
       if (deletedCount > 0) {
         trackEvent('note_deleted')
-        pruneOrphanedAttachments(deletedPaths, entriesBeforeDelete, vaultPath)
+        for (const path of deletedPaths) onInternalVaultWrite?.(path)
+        pruneOrphanedAttachments(deletedPaths, entriesBeforeDelete, vaultPath, onInternalVaultWrite)
       }
 
       if (deletedCount !== paths.length) {
@@ -180,7 +188,7 @@ function useDeleteRunner({
     } finally {
       setPendingDeleteCount((count) => Math.max(0, count - paths.length))
     }
-  }, [optimisticallyRemoveEntries, reconcileDeleteFailure, refreshModifiedFiles, resolveVaultPathForPath, setToastMessage, vaultPath])
+  }, [onInternalVaultWrite, optimisticallyRemoveEntries, reconcileDeleteFailure, refreshModifiedFiles, resolveVaultPathForPath, setToastMessage, vaultPath])
 
   const deleteNoteFromDisk = useCallback(async (path: string) => {
     const deletedCount = await deleteNotesFromDisk([path])
@@ -196,6 +204,7 @@ function useDeleteRunner({
 
 export function useDeleteActions({
   onDeselectNote,
+  onInternalVaultWrite,
   removeEntry,
   removeEntries,
   resolveVaultPathForPath,
@@ -212,6 +221,7 @@ export function useDeleteActions({
     pendingDeleteCount,
   } = useDeleteRunner({
     onDeselectNote,
+    onInternalVaultWrite,
     removeEntry,
     removeEntries,
     resolveVaultPathForPath,

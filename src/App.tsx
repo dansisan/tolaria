@@ -1110,6 +1110,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     activeTabPathRef: notes.activeTabPathRef,
     handleSwitchTab: notes.handleSwitchTab,
     closeAllTabs: notes.closeAllTabs,
+    onInternalVaultWrite: markRecentVaultWrite,
     reloadVault: vault.reloadVault,
     reloadFolders: vault.reloadFolders,
     setToastMessage,
@@ -1370,6 +1371,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
 
   const deleteActions = useDeleteActions({
     onDeselectNote: handleDeselectDeletedNote,
+    onInternalVaultWrite: markRecentVaultWrite,
     removeEntry: vault.removeEntry,
     removeEntries: vault.removeEntries,
     resolveVaultPathForPath: resolveVaultPathForNotePath,
@@ -2274,6 +2276,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
               noteWidth={activeNoteWidth}
               onToggleNoteWidth={handleToggleNoteWidth}
               imageRenameCommand={imageRenameCommand}
+              onInternalVaultWrite={markRecentVaultWrite}
               rawToggleRef={rawToggleRef}
               tableOfContentsToggleRef={tableOfContentsToggleRef}
               pdfExportRef={pdfExportRef}

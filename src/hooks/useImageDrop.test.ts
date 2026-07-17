@@ -140,6 +140,38 @@ describe('uploadImageFile', () => {
     expect(url).toBe('asset://localhost/vault/attachments/123-image.png')
     tauriMode = false
   })
+
+  it('marks the saved path as an internal write so the vault watcher does not redundantly rescan after a paste', async () => {
+    tauriMode = true
+    const { invoke, convertFileSrc } = await import('@tauri-apps/api/core')
+    vi.mocked(invoke).mockReset()
+    vi.mocked(invoke).mockResolvedValue('/vault/attachments/123-test.png')
+    vi.mocked(convertFileSrc).mockReturnValue('asset://localhost/vault/attachments/123-test.png')
+    const onInternalVaultWrite = vi.fn()
+
+    const file = new File([new Blob([new Uint8Array([0x89, 0x50])])], 'test.png', { type: 'image/png' })
+    await uploadImageFile(file, '/vault', undefined, onInternalVaultWrite)
+
+    expect(onInternalVaultWrite).toHaveBeenCalledWith('/vault/attachments/123-test.png')
+    tauriMode = false
+  })
+
+  it('marks both the saved and renamed paths as internal writes when a rename command runs', async () => {
+    tauriMode = true
+    const { invoke, convertFileSrc } = await import('@tauri-apps/api/core')
+    vi.mocked(invoke).mockReset()
+    vi.mocked(invoke).mockResolvedValueOnce('/vault/attachments/123-image.png')   // save_image
+    vi.mocked(invoke).mockResolvedValueOnce('/vault/attachments/golden-retriever.png') // rename_pasted_image
+    vi.mocked(convertFileSrc).mockReturnValue('asset://localhost/vault/attachments/golden-retriever.png')
+    const onInternalVaultWrite = vi.fn()
+
+    const file = new File([new Blob([new Uint8Array([1, 2])])], 'image.png', { type: 'image/png' })
+    await uploadImageFile(file, '/vault', '~/bin/name.sh', onInternalVaultWrite)
+
+    expect(onInternalVaultWrite).toHaveBeenCalledWith('/vault/attachments/123-image.png')
+    expect(onInternalVaultWrite).toHaveBeenCalledWith('/vault/attachments/golden-retriever.png')
+    tauriMode = false
+  })
 })
 
 describe('useImageDrop', () => {
@@ -237,7 +269,11 @@ describe('useImageDrop — Tauri native drag-drop', () => {
     container.remove()
   })
 
-  function renderImageDropTauri(opts?: { onImageUrl?: (url: string) => void; vaultPath?: string }) {
+  function renderImageDropTauri(opts?: {
+    onImageUrl?: (url: string) => void
+    vaultPath?: string
+    onInternalVaultWrite?: (path: string) => void
+  }) {
     const ref = createRef<HTMLDivElement>()
     Object.defineProperty(ref, 'current', { value: container, writable: true })
     return renderHook(() => useImageDrop({ containerRef: ref, ...opts }))
@@ -307,6 +343,31 @@ describe('useImageDrop — Tauri native drag-drop', () => {
       sourcePath: '/tmp/photo.png',
     })
     expect(invoke).toHaveBeenCalledTimes(1)
+  })
+
+  it('marks a natively-dropped image path as an internal write so the vault watcher does not redundantly rescan', async () => {
+    const onImageUrl = vi.fn()
+    const onInternalVaultWrite = vi.fn()
+    const { invoke, convertFileSrc } = await import('@tauri-apps/api/core')
+    vi.mocked(invoke).mockClear()
+    vi.mocked(convertFileSrc).mockClear()
+    vi.mocked(invoke).mockResolvedValue('/vault/attachments/123-photo.png')
+    vi.mocked(convertFileSrc).mockReturnValue('asset://localhost/vault/attachments/123-photo.png')
+    renderImageDropTauri({ onImageUrl, vaultPath: '/vault', onInternalVaultWrite })
+
+    await waitForNativeDropListeners()
+
+    act(() => {
+      emitNativeDropEvent({
+        type: 'drop',
+        paths: ['/tmp/photo.png'],
+        position: { x: 100, y: 100 },
+      })
+    })
+
+    await waitFor(() => {
+      expect(onInternalVaultWrite).toHaveBeenCalledWith('/vault/attachments/123-photo.png')
+    })
   })
 
   it('resets isDragOver on Tauri leave event', async () => {

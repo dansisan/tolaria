@@ -11,6 +11,7 @@ interface UseFolderActionsInput {
   activeTabPathRef: React.MutableRefObject<string | null>
   handleSwitchTab: (path: string) => void
   closeAllTabs: () => void
+  onInternalVaultWrite?: (path: string) => void
   reloadVault: () => Promise<VaultEntry[]>
   reloadFolders: () => Promise<FolderNode[]>
   setToastMessage: (message: string | null) => void
@@ -24,6 +25,7 @@ export function useFolderActions({
   activeTabPathRef,
   handleSwitchTab,
   closeAllTabs,
+  onInternalVaultWrite,
   reloadVault,
   reloadFolders,
   setToastMessage,
@@ -31,6 +33,7 @@ export function useFolderActions({
   const renameActions = useFolderRename({
     activeTabPathRef,
     handleSwitchTab,
+    onInternalVaultWrite,
     reloadFolders,
     reloadVault,
     selection,
@@ -43,6 +46,7 @@ export function useFolderActions({
     activeTabPathRef,
     clearFolderRename: renameActions.cancelFolderRename,
     closeAllTabs,
+    onInternalVaultWrite,
     reloadFolders,
     reloadVault,
     selection,

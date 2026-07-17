@@ -127,6 +127,20 @@ describe('useRecentVaultWrites', () => {
     expect(result.current.filterExternalPaths(['/vault-a/note.md'])).toEqual(['/vault-a/note.md'])
   })
 
+  it('filters descendants of a recently-written folder, since folder renames/deletes never report every contained path individually', () => {
+    const { result } = renderHook(() => useRecentVaultWrites({ vaultPath: '/vault', now: () => 1000 }))
+
+    act(() => {
+      result.current.markInternalWrite('/vault/projects')
+    })
+
+    expect(result.current.filterExternalPaths([
+      '/vault/projects/note.md',
+      '/vault/projects/nested/deep.md',
+      '/vault/other/note.md',
+    ])).toEqual(['/vault/other/note.md'])
+  })
+
   it('clears recent writes when the mounted vault root set changes', () => {
     const { result, rerender } = renderHook(
       ({ vaultPaths }) => useRecentVaultWrites({ vaultPath: '/vault-a', vaultPaths, now: () => 1000 }),

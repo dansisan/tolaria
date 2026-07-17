@@ -543,6 +543,10 @@ interface PersistCallbacks {
   onStart?: (p: string) => void
   onEnd?: (p: string) => void
   onPersisted?: (path: string) => void
+  /** Marks the path as a known-recent internal write so the vault file watcher's
+   *  generic "unknown path changed" fallback doesn't redundantly rescan the
+   *  whole vault a moment after a note we already know about was created. */
+  onInternalVaultWrite?: (path: string) => void
 }
 
 /** Persist to disk; track pending state via onStart/onEnd. */
@@ -551,6 +555,7 @@ async function persistOptimistic(request: PersistNewNoteRequest, cbs: PersistCal
   try {
     await persistNewNote(request)
     cbs.onPersisted?.(request.path)
+    cbs.onInternalVaultWrite?.(request.path)
   } finally {
     cbs.onEnd?.(request.path)
   }
@@ -703,6 +708,7 @@ interface ImmediateCreateDeps {
   openTabWithContent: (entry: VaultEntry, content: string) => void
   addEntry: (entry: VaultEntry) => void
   onNewNotePersisted?: (path: string) => void
+  onInternalVaultWrite?: (path: string) => void
   removePendingSave?: (path: string) => void
   setToastMessage: (msg: string | null) => void
 }
@@ -733,6 +739,7 @@ interface ImmediateCreateQueueConfig {
   addEntry: (entry: VaultEntry) => void
   openTabWithContent: (entry: VaultEntry, content: string) => void
   onNewNotePersisted?: (path: string) => void
+  onInternalVaultWrite?: (path: string) => void
   removePendingSave?: (path: string) => void
   setToastMessage: (msg: string | null) => void
 }
@@ -769,6 +776,7 @@ async function persistImmediateEntry(
       onStart: deps.addPendingSave,
       onEnd: deps.removePendingSave,
       onPersisted: deps.onNewNotePersisted,
+      onInternalVaultWrite: deps.onInternalVaultWrite,
     })
     return true
   } catch (error) {
@@ -837,6 +845,7 @@ function useLatestImmediateCreateDeps(
     addEntry,
     addPendingSave,
     onNewNotePersisted,
+    onInternalVaultWrite,
     removePendingSave,
     setToastMessage,
   } = config
@@ -852,6 +861,7 @@ function useLatestImmediateCreateDeps(
       addEntry,
       addPendingSave,
       onNewNotePersisted,
+      onInternalVaultWrite,
       removePendingSave,
       setToastMessage,
     }
@@ -864,6 +874,7 @@ function useLatestImmediateCreateDeps(
     addEntry,
     addPendingSave,
     onNewNotePersisted,
+    onInternalVaultWrite,
     removePendingSave,
     setToastMessage,
     pendingSlugsRef,
@@ -953,6 +964,7 @@ export interface NoteCreationConfig {
   unsavedPaths?: Set<string>
   markContentPending?: (path: string, content: string) => void
   onNewNotePersisted?: (path: string) => void
+  onInternalVaultWrite?: (path: string) => void
   onTypeStateChanged?: () => void | Promise<void>
 }
 
@@ -972,6 +984,7 @@ export function useNoteCreation(config: NoteCreationConfig, tabDeps: CreationTab
     vaultPath,
     vaults,
     onNewNotePersisted,
+    onInternalVaultWrite,
     onTypeStateChanged,
   } = config
   const { openTabWithContent } = tabDeps
@@ -985,7 +998,7 @@ export function useNoteCreation(config: NoteCreationConfig, tabDeps: CreationTab
     try {
       await persistOptimistic(
         { path: resolved.entry.path, content: resolved.content, vaultPath: resolved.entry.workspace?.path },
-        { onStart: addPendingSave, onEnd: removePendingSave, onPersisted: onNewNotePersisted },
+        { onStart: addPendingSave, onEnd: removePendingSave, onPersisted: onNewNotePersisted, onInternalVaultWrite },
       )
       if (resolved.entry.isA === 'Type') {
         await onTypeStateChanged?.()
@@ -994,7 +1007,7 @@ export function useNoteCreation(config: NoteCreationConfig, tabDeps: CreationTab
       removeEntry(resolved.entry.path)
       throw error
     }
-  }, [openTabWithContent, addEntry, addPendingSave, removePendingSave, onNewNotePersisted, onTypeStateChanged, removeEntry])
+  }, [openTabWithContent, addEntry, addPendingSave, removePendingSave, onNewNotePersisted, onInternalVaultWrite, onTypeStateChanged, removeEntry])
 
   const handleCreateNote = useCallback((title: string, type: string, creationPath: NamedCreationPath = 'plus_button'): Promise<boolean> =>
     createNamedNote({ entries, vaultPath, defaultWorkspacePath, vaults, setToastMessage, persistResolvedEntry, title, type, creationPath }),
@@ -1025,6 +1038,7 @@ export function useNoteCreation(config: NoteCreationConfig, tabDeps: CreationTab
     addPendingSave,
     openTabWithContent,
     onNewNotePersisted,
+    onInternalVaultWrite,
     removePendingSave,
     setToastMessage,
   })

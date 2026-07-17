@@ -12,15 +12,18 @@ const TAURI_DRAG_DROP_EVENT = 'tauri://drag-drop'
 const TAURI_DRAG_LEAVE_EVENT = 'tauri://drag-leave'
 
 type ImageUrlHandler = (url: string) => void
+type InternalVaultWriteHandler = (path: string) => void
 type TauriDropEvent = TauriEvent<TauriDragDropPayload>
 type CopyImageToVaultRequest = {
   sourcePath: string
   vaultPath: string
+  onInternalVaultWrite: InternalVaultWriteHandler | undefined
 }
 type DroppedImagesRequest = {
   imagePaths: string[]
   vaultPath: string | undefined
   onImageUrl: ImageUrlHandler | undefined
+  onInternalVaultWrite: InternalVaultWriteHandler | undefined
 }
 
 function hasImageFiles(dt: DataTransfer): boolean {
@@ -37,10 +40,17 @@ function isImagePath(path: string): boolean {
 }
 
 /** Run the optional AI rename command on a just-saved attachment; on any failure keep the saved path. */
-async function applyImageRenameCommand(vaultPath: string, savedPath: string, renameCommand?: string): Promise<string> {
+async function applyImageRenameCommand(
+  vaultPath: string,
+  savedPath: string,
+  renameCommand?: string,
+  onInternalVaultWrite?: InternalVaultWriteHandler,
+): Promise<string> {
   if (!renameCommand) return savedPath
   try {
-    return await invoke<string>('rename_pasted_image', { vaultPath, imagePath: savedPath, command: renameCommand })
+    const renamedPath = await invoke<string>('rename_pasted_image', { vaultPath, imagePath: savedPath, command: renameCommand })
+    onInternalVaultWrite?.(renamedPath)
+    return renamedPath
   } catch {
     return savedPath
   }
@@ -51,7 +61,12 @@ async function applyImageRenameCommand(vaultPath: string, savedPath: string, ren
  * When `renameCommand` is set, the saved file is renamed via that command before the URL
  * is returned (so the editor inserts the final name); failures fall back to the saved name.
  */
-export async function uploadImageFile(file: File, vaultPath?: string, renameCommand?: string): Promise<string> {
+export async function uploadImageFile(
+  file: File,
+  vaultPath?: string,
+  renameCommand?: string,
+  onInternalVaultWrite?: InternalVaultWriteHandler,
+): Promise<string> {
   if (isTauri() && vaultPath) {
     const buf = await file.arrayBuffer()
     const bytes = new Uint8Array(buf)
@@ -63,7 +78,8 @@ export async function uploadImageFile(file: File, vaultPath?: string, renameComm
       filename: file.name,
       data: base64,
     })
-    const finalPath = await applyImageRenameCommand(vaultPath, savedPath, renameCommand)
+    onInternalVaultWrite?.(savedPath)
+    const finalPath = await applyImageRenameCommand(vaultPath, savedPath, renameCommand, onInternalVaultWrite)
     return attachmentAssetUrlFromPath({ path: finalPath })
   }
   return new Promise<string>((resolve, reject) => {
@@ -78,8 +94,10 @@ export async function uploadImageFile(file: File, vaultPath?: string, renameComm
 async function copyImageToVault({
   sourcePath,
   vaultPath,
+  onInternalVaultWrite,
 }: CopyImageToVaultRequest): Promise<string> {
   const savedPath = await invoke<string>('copy_image_to_vault', { vaultPath, sourcePath })
+  onInternalVaultWrite?.(savedPath)
   return attachmentAssetUrlFromPath({ path: savedPath })
 }
 
@@ -87,12 +105,13 @@ function insertDroppedImages({
   imagePaths,
   vaultPath,
   onImageUrl,
+  onInternalVaultWrite,
 }: DroppedImagesRequest): void {
   if (imagePaths.length === 0) return
   if (!vaultPath || !onImageUrl) return
 
   for (const sourcePath of imagePaths) {
-    void copyImageToVault({ sourcePath, vaultPath }).then(onImageUrl)
+    void copyImageToVault({ sourcePath, vaultPath, onInternalVaultWrite }).then(onImageUrl)
   }
 }
 
@@ -117,13 +136,19 @@ interface UseImageDropOptions {
   containerRef: RefObject<HTMLDivElement | null>
   /** Called with an asset URL for each image dropped via Tauri native drag-drop. */
   onImageUrl?: (url: string) => void
+  /** Marks a path as a known-recent internal write so the vault file watcher's
+   *  generic "unknown path changed" fallback doesn't redundantly rescan the
+   *  whole vault a moment after a dropped image we already know about. */
+  onInternalVaultWrite?: InternalVaultWriteHandler
   vaultPath?: string
 }
 
-export function useImageDrop({ containerRef, onImageUrl, vaultPath }: UseImageDropOptions) {
+export function useImageDrop({ containerRef, onImageUrl, onInternalVaultWrite, vaultPath }: UseImageDropOptions) {
   const [isDragOver, setIsDragOver] = useState(false)
   const onImageUrlRef = useRef(onImageUrl)
   useEffect(() => { onImageUrlRef.current = onImageUrl }, [onImageUrl])
+  const onInternalVaultWriteRef = useRef(onInternalVaultWrite)
+  useEffect(() => { onInternalVaultWriteRef.current = onInternalVaultWrite }, [onInternalVaultWrite])
   const vaultPathRef = useRef(vaultPath)
   useEffect(() => { vaultPathRef.current = vaultPath }, [vaultPath])
 
@@ -176,6 +201,7 @@ export function useImageDrop({ containerRef, onImageUrl, vaultPath }: UseImageDr
               imagePaths: event.payload.paths.filter(isImagePath),
               vaultPath: vaultPathRef.current,
               onImageUrl: onImageUrlRef.current,
+              onInternalVaultWrite: onInternalVaultWriteRef.current,
             })
             return
           }

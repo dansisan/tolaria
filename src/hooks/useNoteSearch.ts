@@ -7,6 +7,9 @@ import type { NoteSearchResultItem } from '../components/NoteSearchList'
 import { slugifyNoteStem } from '../utils/noteSlug'
 
 const DEFAULT_MAX_RESULTS = 20
+// Matches the sidebar note-list search's debounce (useNoteListSearchState.ts) so
+// fuzzy-matching every vault entry doesn't run synchronously on every keystroke.
+const QUICK_OPEN_SEARCH_DEBOUNCE_MS = 180
 
 export interface NoteSearchResult extends NoteSearchResultItem {
   entry: VaultEntry
@@ -182,7 +185,24 @@ const SEARCH_EXCLUDED_TYPES = new Set(['Config'])
 
 export function useNoteSearch(entries: VaultEntry[], query: string, maxResults = DEFAULT_MAX_RESULTS) {
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [debouncedQuery, setDebouncedQuery] = useState(query)
+  const [prevQuery, setPrevQuery] = useState(query)
   const typeEntryMap = useMemo(() => buildTypeEntryMap(entries), [entries])
+
+  // Clearing the query (including the dialog's reset-on-open) takes effect
+  // immediately, so the "recent notes" view never lags behind a stale search.
+  // Adjusted during render (not an effect) per React's guidance for state that
+  // must change in the same render as the prop that drives it.
+  if (query !== prevQuery) {
+    setPrevQuery(query)
+    if (query.trim().length === 0) setDebouncedQuery(query)
+  }
+
+  useEffect(() => {
+    if (query.trim().length === 0) return
+    const timeoutId = window.setTimeout(() => setDebouncedQuery(query), QUICK_OPEN_SEARCH_DEBOUNCE_MS)
+    return () => window.clearTimeout(timeoutId)
+  }, [query])
 
   const searchableEntries = useMemo(
     () => entries.filter((e) => !SEARCH_EXCLUDED_TYPES.has(e.isA ?? '')),
@@ -195,7 +215,7 @@ export function useNoteSearch(entries: VaultEntry[], query: string, maxResults =
 
   const results: NoteSearchResult[] = useMemo(() => {
     const mapResult = (entry: VaultEntry) => toResult({ entry, typeEntryMap, showWorkspace })
-    if (!query.trim()) {
+    if (!debouncedQuery.trim()) {
       return [...searchableEntries]
         .sort((a, b) => (b.modifiedAt ?? 0) - (a.modifiedAt ?? 0))
         .slice(0, maxResults)
@@ -204,13 +224,13 @@ export function useNoteSearch(entries: VaultEntry[], query: string, maxResults =
     return searchableEntries
       .map((e) => ({
         entry: e,
-        ...rankSearchEntry({ query, entry: e }),
+        ...rankSearchEntry({ query: debouncedQuery, entry: e }),
       }))
       .filter((r) => r.match)
       .sort((a, b) => a.rank - b.rank || b.score - a.score)
       .slice(0, maxResults)
       .map((r) => mapResult(r.entry))
-  }, [searchableEntries, query, maxResults, typeEntryMap, showWorkspace])
+  }, [searchableEntries, debouncedQuery, maxResults, typeEntryMap, showWorkspace])
 
   useEffect(() => {
     void query

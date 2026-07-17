@@ -110,6 +110,10 @@ interface EditorProps {
   onToggleNoteWidth?: () => void
   /** External command that renames pasted images, or undefined to keep saved names. */
   imageRenameCommand?: string
+  /** Marks a path as a known-recent internal write so the vault file watcher's
+   *  generic "unknown path changed" fallback doesn't redundantly rescan the
+   *  whole vault a moment after a pasted/dropped image we already know about. */
+  onInternalVaultWrite?: (path: string) => void
   canGoBack?: boolean
   canGoForward?: boolean
   onGoBack?: () => void
@@ -206,6 +210,7 @@ interface EditorSetupParams {
   activeTabPath: string | null
   vaultPath?: string
   imageRenameCommand?: string
+  onInternalVaultWrite?: (path: string) => void
   onContentChange?: (path: string, content: string) => void
   onLoadDiff?: (path: string) => Promise<string>
   onLoadDiffAtCommit?: (path: string, commitHash: string) => Promise<string>
@@ -217,20 +222,27 @@ interface EditorSetupParams {
 }
 
 function useEditorSetup({
-  tabs, activeTabPath, vaultPath, imageRenameCommand, onContentChange,
+  tabs, activeTabPath, vaultPath, imageRenameCommand, onInternalVaultWrite, onContentChange,
   onLoadDiff, onLoadDiffAtCommit, pendingCommitDiffRequest, onPendingCommitDiffHandled, getNoteStatus,
   rawToggleRef, diffToggleRef,
 }: EditorSetupParams) {
   const vaultPathRef = useRef(vaultPath)
   const imageRenameCommandRef = useRef(imageRenameCommand)
+  const onInternalVaultWriteRef = useRef(onInternalVaultWrite)
   const flushPendingEditorChangeRef = useRef<(() => boolean) | null>(null)
   useEffect(() => { vaultPathRef.current = vaultPath }, [vaultPath])
   useEffect(() => { imageRenameCommandRef.current = imageRenameCommand }, [imageRenameCommand])
+  useEffect(() => { onInternalVaultWriteRef.current = onInternalVaultWrite }, [onInternalVaultWrite])
 
   const editor = useCreateBlockNote({
     schema,
     domAttributes: RICH_EDITOR_BIDI_DOM_ATTRIBUTES,
-    uploadFile: (file: File) => uploadImageFile(file, vaultPathRef.current, imageRenameCommandRef.current),
+    uploadFile: (file: File) => uploadImageFile(
+      file,
+      vaultPathRef.current,
+      imageRenameCommandRef.current,
+      onInternalVaultWriteRef.current,
+    ),
     _tiptapOptions: { injectNonce: RUNTIME_STYLE_NONCE },
     extensions: [
       createRichEditorTransformErrorRecoveryExtension(),
@@ -393,6 +405,7 @@ function EditorLayout({
   onUnarchiveNote,
   vaultPath,
   vaultPaths,
+  onInternalVaultWrite,
   rawModeContent,
   findRequest,
   onFindClose,
@@ -467,6 +480,7 @@ function EditorLayout({
   onUnarchiveNote?: (path: string) => void
   vaultPath?: string
   vaultPaths?: string[]
+  onInternalVaultWrite?: (path: string) => void
   rawModeContent: string | null
   findRequest?: RawEditorFindRequest | null
   onFindClose?: () => void
@@ -559,6 +573,7 @@ function EditorLayout({
               onArchiveNote={onArchiveNote}
               onUnarchiveNote={onUnarchiveNote}
               vaultPath={vaultPath}
+              onInternalVaultWrite={onInternalVaultWrite}
               rawModeContent={rawModeContent}
               findRequest={findRequest}
               onFindClose={onFindClose}
@@ -645,6 +660,7 @@ export const Editor = memo(function Editor(props: EditorProps) {
     activeTabPath: props.activeTabPath,
     vaultPath: props.vaultPath,
     imageRenameCommand: props.imageRenameCommand,
+    onInternalVaultWrite: props.onInternalVaultWrite,
     onContentChange: props.onContentChange,
     onLoadDiff: props.onLoadDiff,
     onLoadDiffAtCommit: props.onLoadDiffAtCommit,
