@@ -15,6 +15,7 @@ import type { FrontmatterOpOptions } from '../hooks/frontmatterOps'
 import { ResizeHandle } from './ResizeHandle'
 import { useDiffMode, type CommitDiffRequest } from '../hooks/useDiffMode'
 import { useEditorFocus } from '../hooks/useEditorFocus'
+import { useEditorDebugBridge } from '../hooks/editorDebugBridge'
 import { useDragRegion } from '../hooks/useDragRegion'
 import { formatShortcutDisplay } from '../hooks/appCommandCatalog'
 import { EditorRightPanel } from './EditorRightPanel'
@@ -255,6 +256,7 @@ function useEditorSetup({
       createCodeBlockLineNumberExtension(),
     ],
   })
+  useEditorDebugBridge(editor)
   const activeTab = tabs.find((t) => t.entry.path === activeTabPath) ?? null
   const {
     rawMode,

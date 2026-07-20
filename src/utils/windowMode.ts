@@ -106,6 +106,22 @@ export function isAiWorkspaceWindow(): boolean {
   }
 }
 
+/**
+ * True once a detached AI workspace window has ever been opened this
+ * install (the flag `rememberAiWorkspaceWindow` sets persists across
+ * restarts). Lets callers skip work that only matters for that separate
+ * window — e.g. publishing the shared cross-window context — when nobody
+ * has ever used the feature, rather than paying that cost on every note
+ * switch regardless.
+ */
+export function hasEverOpenedAiWorkspaceWindow(): boolean {
+  try {
+    return localStorage.getItem(AI_WORKSPACE_WINDOW_STORAGE_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
 export function getNoteWindowParams(): NoteWindowParams | null {
   const params = new URLSearchParams(window.location.search)
   if (params.get('window') !== 'note') return getStoredNoteWindowParams(getCurrentWindowLabel())

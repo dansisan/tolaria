@@ -3,6 +3,30 @@ import type { VirtuosoHandle } from 'react-virtuoso'
 import type { VaultEntry } from '../types'
 import { logKeyboardNavigationTrace } from '../utils/noteOpenPerformance'
 
+/**
+ * Diagnostic only: logs the elapsed time from an ArrowUp/ArrowDown press in
+ * the note list to the moment that note's content actually finishes
+ * rendering (the same 'laputa:editor-tab-swapped' event useEditorTabSwap
+ * dispatches on swap completion), so the up/down-to-render gap is directly
+ * visible in the console without a profiler.
+ */
+function logNextRenderAfterArrowKey(path: string, pressedAt: number): void {
+  const cleanup = () => {
+    window.removeEventListener('laputa:editor-tab-swapped', handleSwap)
+    clearTimeout(giveUpTimer)
+  }
+  const handleSwap = (event: Event) => {
+    const detail = (event as CustomEvent<{ path?: string }>).detail
+    if (detail?.path !== path) return
+    cleanup()
+    console.log(`[diag] arrow-key -> render path=${path} elapsed=${(performance.now() - pressedAt).toFixed(1)}ms`)
+  }
+  // Rapid key repeats can coalesce this exact path out of ever opening (see
+  // useScheduledOpen) — give up instead of leaking the listener forever.
+  const giveUpTimer = setTimeout(cleanup, 5_000)
+  window.addEventListener('laputa:editor-tab-swapped', handleSwap)
+}
+
 interface NoteListKeyboardOptions {
   items: VaultEntry[]
   selectedNotePath: string | null
@@ -279,6 +303,7 @@ function useMoveHighlight({
     virtuosoRef.current?.scrollIntoView({ index: nextIndex, behavior: 'auto' })
     scheduleOpen(nextItem)
     onPrefetch?.(nextItem)
+    logNextRenderAfterArrowKey(nextItem.path, startedAt)
     logKeyboardNavigationTrace(direction === 1 ? 'down' : 'up', items.length, performance.now() - startedAt)
   }, [highlightedPathRef, items, onExitTop, onPrefetch, scheduleOpen, selectedNotePath, syncHighlightedPath, virtuosoRef])
 }

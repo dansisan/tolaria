@@ -58,7 +58,7 @@ function appendFocusedEditorSelection() {
   const container = document.createElement('div')
   container.className = 'editor__blocknote-container'
   const editable = document.createElement('div')
-  editable.contentEditable = 'true'
+  editable.setAttribute('contenteditable', 'true')
   editable.textContent = 'Old current note caret'
   container.appendChild(editable)
   document.body.appendChild(container)

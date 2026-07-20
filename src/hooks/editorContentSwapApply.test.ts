@@ -1,5 +1,5 @@
 import { BlockNoteEditor } from '@blocknote/core'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { applyBlocksToEditor } from './editorContentSwapApply'
 import { schema } from '../components/editorSchema'
 
@@ -56,5 +56,25 @@ describe('applyBlocksToEditor undo history', () => {
     // Excluding the load from history must not disable history for real edits.
     expect(editor.undo()).toBe(true)
     expect(JSON.stringify(editor.document)).toContain('Original')
+  })
+})
+
+describe('applyBlocksToEditor side menu suppression', () => {
+  it('hides the side menu before swapping content, so it never recomputes position against a document that is about to disappear', () => {
+    const editor = mountEditor()
+    const sideMenu = editor.getExtension('sideMenu') as { unfreezeMenu?: () => void } | undefined
+    expect(typeof sideMenu?.unfreezeMenu).toBe('function')
+    const unfreezeSpy = vi.spyOn(sideMenu!, 'unfreezeMenu')
+
+    loadContent(editor, 'New content')
+
+    expect(unfreezeSpy).toHaveBeenCalled()
+  })
+
+  it('does not throw when the side menu has never shown yet (its internal state is still uninitialized)', () => {
+    const editor = mountEditor()
+
+    expect(() => loadContent(editor, 'New content')).not.toThrow()
+    expect(JSON.stringify(editor.document)).toContain('New content')
   })
 })

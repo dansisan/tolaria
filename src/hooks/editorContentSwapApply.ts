@@ -19,6 +19,35 @@ interface StateSwapEditor {
   prosemirrorView?: StateSwapView
 }
 
+interface SideMenuExtensionApi {
+  unfreezeMenu?: () => void
+}
+
+interface EditorWithExtensions {
+  getExtension?: (key: string) => SideMenuExtensionApi | undefined
+}
+
+/**
+ * BlockNote's side menu (the hover drag-handle/+ button) re-measures its
+ * position on every transaction whose document changed, but only while its
+ * `show` state is still true from a prior mouse hover — a case its own
+ * update() exists for (a block shifting under an already-shown menu), not
+ * for swapping in an entirely different note. Forcing `show` false first
+ * (the same effect `unfreezeMenu()` has) skips that DOM-geometry work when
+ * it can't possibly be showing the right thing afterward anyway.
+ */
+function suppressSideMenuBeforeContentSwap(editor: ApplyBlocksToEditorOptions['editor']): void {
+  const sideMenu = (editor as unknown as EditorWithExtensions).getExtension?.('sideMenu')
+  try {
+    // unfreezeMenu() assumes the menu has shown at least once this session
+    // and throws if its internal state is still uninitialized — harmless to
+    // swallow, since there's nothing to hide in that case anyway.
+    sideMenu?.unfreezeMenu?.()
+  } catch {
+    // Nothing to hide yet — see above.
+  }
+}
+
 /**
  * ProseMirror documents already built for a given cached blocks array.
  * Docs are immutable, and block arrays are cache-identity-stable per
@@ -45,6 +74,7 @@ function applyCachedDocState(
   if (!view) return false
 
   resetTextSelectionBeforeContentSwap(editor)
+  suppressSideMenuBeforeContentSwap(editor)
   // A whole-state swap also resets plugin state, which clears undo history —
   // the same isolation the addToHistory:false transaction below approximates.
   view.updateState(EditorState.create({ doc: cachedDoc, plugins: view.state.plugins as EditorState['plugins'] }))
@@ -93,6 +123,7 @@ export function applyBlocksToEditor(options: ApplyBlocksToEditorOptions): boolea
   const safeBlocks = repairMalformedEditorBlocks(blocks)
   try {
     resetTextSelectionBeforeContentSwap(editor)
+    suppressSideMenuBeforeContentSwap(editor)
     // Load the note's content without recording it in the undo history. The
     // BlockNote editor instance is reused across notes, so a recordable swap
     // would let Cmd+Z undo the content load itself — emptying the note (or

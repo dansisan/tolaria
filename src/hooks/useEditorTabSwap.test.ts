@@ -371,7 +371,7 @@ describe('useEditorTabSwap raw mode sync', () => {
     const container = document.createElement('div')
     container.className = 'editor__blocknote-container'
     const editable = document.createElement('div')
-    editable.contentEditable = 'true'
+    editable.setAttribute('contenteditable', 'true')
     editable.textContent = 'Old note caret'
     container.appendChild(editable)
     document.body.appendChild(container)

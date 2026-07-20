@@ -109,7 +109,7 @@ import { isWindows } from './utils/platform'
 import { getPulledVaultUpdateOptions, refreshPulledVaultState } from './utils/pulledVaultRefresh'
 import { applyWatcherPartialRefresh } from './utils/watcherPartialRefresh'
 import { findByNotePath, notePathsMatch } from './utils/notePathIdentity'
-import { isAiWorkspaceWindow, isNoteWindow, getNoteWindowParams, type NoteWindowParams } from './utils/windowMode'
+import { hasEverOpenedAiWorkspaceWindow, isAiWorkspaceWindow, isNoteWindow, getNoteWindowParams, type NoteWindowParams } from './utils/windowMode'
 import type { NotePdfExportSource } from './utils/notePdfExport'
 import { GitSetupDialog } from './components/GitRequiredModal'
 import { RenameDetectedBanner } from './components/RenameDetectedBanner'
@@ -2063,6 +2063,13 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     return { type: null, query: '' }
   }, [effectiveSelection])
   useEffect(() => {
+    // Only the detached AI workspace window reads this (the in-app panel gets
+    // entries via direct props below) — cloning every vault entry and writing
+    // them to localStorage on every note switch is wasted work for the vast
+    // majority of users who've never opened that window, and for anyone who
+    // has since disabled AI features entirely. Wait for settings to load
+    // before trusting aiFeaturesEnabled — it defaults to true until then.
+    if (!settingsLoaded || !aiFeaturesEnabled || !hasEverOpenedAiWorkspaceWindow()) return
     publishAiWorkspaceWindowSharedContext({
       ...aiWorkspaceWindowContext,
       activeEntry: activeTab?.entry ?? null,
@@ -2075,10 +2082,12 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
   }, [
     activeTab?.content,
     activeTab?.entry,
+    aiFeaturesEnabled,
     aiNoteList,
     aiNoteListFilter,
     aiWorkspaceWindowContext,
     notes.tabs,
+    settingsLoaded,
     visibleEntries,
   ])
 

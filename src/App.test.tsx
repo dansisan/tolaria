@@ -345,6 +345,10 @@ vi.mock('./utils/streamAiAgent', () => ({
   streamAiAgent: vi.fn(async () => {}),
 }))
 
+vi.mock('./lib/aiWorkspaceWindowSharedContext', () => ({
+  publishAiWorkspaceWindowSharedContext: vi.fn(),
+}))
+
 vi.mock('./hooks/useUpdater', async () => {
   const actual = await vi.importActual<typeof import('./hooks/useUpdater')>('./hooks/useUpdater')
 
@@ -447,6 +451,8 @@ import { TooltipProvider } from './components/ui/tooltip'
 import { useUpdater } from './hooks/useUpdater'
 import { isTauri } from './mock-tauri'
 import { streamAiAgent } from './utils/streamAiAgent'
+import { publishAiWorkspaceWindowSharedContext } from './lib/aiWorkspaceWindowSharedContext'
+import { rememberAiWorkspaceWindow } from './utils/windowMode'
 
 const AI_AGENTS_ONBOARDING_DISMISSED_STORAGE_NAME = 'tolaria:ai-agents-onboarding-dismissed'
 const CLAUDE_CODE_ONBOARDING_DISMISSED_STORAGE_NAME = 'tolaria:claude-code-onboarding-dismissed'
@@ -526,6 +532,35 @@ describe('App', () => {
       expect(screen.getAllByText('Test Project').length).toBeGreaterThan(0)
       expect(screen.getAllByText('Software Development').length).toBeGreaterThan(0)
     }, { timeout: SLOW_APP_READY_TIMEOUT_MS })
+  })
+
+  it('does not publish the AI workspace shared context on note switch when the detached window has never been opened', async () => {
+    render(<App />)
+    const noteListContainer = await screen.findByTestId('note-list-container', {}, { timeout: SLOW_APP_READY_TIMEOUT_MS })
+    await clickNoteListItem(noteListContainer, 'Test Project')
+
+    expect(publishAiWorkspaceWindowSharedContext).not.toHaveBeenCalled()
+  })
+
+  it('publishes the AI workspace shared context on note switch once the detached window has been opened', async () => {
+    rememberAiWorkspaceWindow()
+    render(<App />)
+    const noteListContainer = await screen.findByTestId('note-list-container', {}, { timeout: SLOW_APP_READY_TIMEOUT_MS })
+    await clickNoteListItem(noteListContainer, 'Test Project')
+
+    await waitFor(() => {
+      expect(publishAiWorkspaceWindowSharedContext).toHaveBeenCalled()
+    })
+  })
+
+  it('does not publish the AI workspace shared context on note switch when AI features are disabled, even if the detached window was opened previously', async () => {
+    rememberAiWorkspaceWindow()
+    mockCommandResults.get_settings = createSettings({ ai_features_enabled: false })
+    render(<App />)
+    const noteListContainer = await screen.findByTestId('note-list-container', {}, { timeout: SLOW_APP_READY_TIMEOUT_MS })
+    await clickNoteListItem(noteListContainer, 'Test Project')
+
+    expect(publishAiWorkspaceWindowSharedContext).not.toHaveBeenCalled()
   })
 
   it('keeps the app shell usable while the vault note scan is pending', async () => {
