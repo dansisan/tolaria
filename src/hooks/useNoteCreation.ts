@@ -294,22 +294,16 @@ function sanitizeFilenameStem(text: string): string {
   return cleaned || slugify(text)
 }
 
-/**
- * Match the backend's `created` parsing: a naive `YYYY-MM-DD HH:MM:SS` datetime is read as UTC.
- * Keeps the optimistic entry's createdAt identical to what a vault reload computes from the frontmatter.
- */
-function frontmatterCreatedSeconds(date: Date): number {
-  return Math.floor(Date.UTC(
-    date.getFullYear(), date.getMonth(), date.getDate(),
-    date.getHours(), date.getMinutes(), date.getSeconds(),
-  ) / 1000)
-}
-
 export function resolveNewNote({ title, type, vaultPath, defaultWorkspacePath, vaults = [], template, defaults = [], createdDate, filenameStem }: NewNoteParams): { entry: VaultEntry; content: string } {
   const creationVaultPath = resolveCreationVaultPath(vaultPath, defaultWorkspacePath, vaults)
   const slug = filenameStem ? sanitizeFilenameStem(filenameStem) : slugify(title)
   const status = null
-  const createdAt = createdDate ? frontmatterCreatedSeconds(createdDate) : undefined
+  // The on-disk `created` frontmatter is a local wall-clock string (see
+  // `formatLocalISODatetime`), but it represents the same real instant as
+  // `createdDate` regardless of the machine's local timezone — so the
+  // optimistic entry's createdAt is just the Date's real epoch, no
+  // reinterpretation needed to match a vault reload.
+  const createdAt = createdDate ? Math.floor(createdDate.getTime() / 1000) : undefined
   const entry = {
     ...buildNewEntry({ path: joinVaultPath(creationVaultPath, `${slug}.md`), slug, title, type, status, createdAt }),
     workspace: workspaceForVaultPath(creationVaultPath, vaults, defaultWorkspacePath),

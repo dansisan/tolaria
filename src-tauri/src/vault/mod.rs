@@ -84,7 +84,7 @@ fn is_default_note_type(is_a: &Option<String>) -> bool {
 pub(crate) fn derive_markdown_title_from_content(content: &str, filename: &str) -> String {
     let matter = Matter::<YAML>::new();
     let parsed = matter.parse(content);
-    let (frontmatter, _, _, _) = extract_fm_and_rels(parsed.data, content, "created");
+    let (frontmatter, _, _, _, _) = extract_fm_and_rels(parsed.data, content, "created");
     let is_a = resolve_is_a(frontmatter.is_a.clone());
     if is_default_note_type(&is_a) {
         return filename.strip_suffix(".md").unwrap_or(filename).to_string();
@@ -108,11 +108,20 @@ fn resolve_entry_dates(
 
 /// Parse a single markdown file into a VaultEntry.
 ///
-/// If `git_dates` is provided, `created_at` comes from git history while
-/// `modified_at` uses the newer of the latest git touch and the current
-/// filesystem modified time. Pass `None` to use filesystem dates only
-/// (appropriate for non-git vaults).
-pub fn parse_md_file(path: &Path, git_dates: Option<(u64, u64)>, fm_created_key: &str) -> Result<VaultEntry, String> {
+/// `modified_at` prioritizes a `modified` frontmatter timestamp when present
+/// (kept current by `stamp_modified_date` on save); otherwise, if `git_dates`
+/// is provided, it uses the newer of the latest git touch and the current
+/// filesystem modified time. `created_at` similarly prioritizes `fm_created_key`
+/// frontmatter, then falls back to git history. Pass `git_dates: None` to use
+/// filesystem dates only (appropriate for non-git vaults). Naive frontmatter
+/// datetimes are interpreted in the machine's ambient local timezone (see
+/// `frontmatter::local_datetime_to_utc_secs`) — the same zone
+/// `stamp_modified_date` writes in.
+pub fn parse_md_file(
+    path: &Path,
+    git_dates: Option<(u64, u64)>,
+    fm_created_key: &str,
+) -> Result<VaultEntry, String> {
     let content = fs::read_to_string(path)
         .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
     let filename = path
@@ -122,7 +131,7 @@ pub fn parse_md_file(path: &Path, git_dates: Option<(u64, u64)>, fm_created_key:
 
     let matter = Matter::<YAML>::new();
     let parsed = matter.parse(&content);
-    let (frontmatter, mut relationships, properties, fm_created_at) =
+    let (frontmatter, mut relationships, properties, fm_created_at, fm_modified_at) =
         extract_fm_and_rels(parsed.data, &content, fm_created_key);
 
     let is_a = resolve_is_a(frontmatter.is_a);
@@ -145,6 +154,7 @@ pub fn parse_md_file(path: &Path, git_dates: Option<(u64, u64)>, fm_created_key:
     let (fs_modified, fs_created, file_size) = read_file_metadata(path)?;
     let (modified_at, fs_or_git_created) = resolve_entry_dates(fs_modified, fs_created, git_dates);
     let created_at = fm_created_at.or(fs_or_git_created);
+    let modified_at = fm_modified_at.or(modified_at);
 
     // Add "Type" relationship: isA becomes a navigable link to the type document.
     // Skip for type documents themselves (isA == "Type") to avoid self-referential links.
@@ -247,9 +257,8 @@ pub fn reload_entry(path: &Path) -> Result<VaultEntry, String> {
     if !path.exists() {
         return Err(format!("File does not exist: {}", path.display()));
     }
-    let fm_key = crate::settings::get_settings()
-        .map(|s| s.frontmatter_created_key.unwrap_or_else(|| crate::settings::DEFAULT_FRONTMATTER_CREATED_KEY.to_string()))
-        .unwrap_or_else(|_| crate::settings::DEFAULT_FRONTMATTER_CREATED_KEY.to_string());
+    let settings = crate::settings::get_settings().unwrap_or_default();
+    let fm_key = crate::settings::effective_frontmatter_created_key(&settings).to_string();
     if is_md_file(path) {
         parse_md_file(path, None, &fm_key)
     } else {

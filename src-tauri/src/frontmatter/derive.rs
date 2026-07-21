@@ -5,11 +5,11 @@
 //! `save_note_content`). It also backs any backfill that re-derives these fields
 //! across a whole vault, so the save path and the bulk path can never drift.
 //!
-//! Each stamper owns its own write policy: `modified` updates only when the
-//! note already declares the key, while content fields like `codeBlocks` and
-//! `bottomLines` are added as soon as a note has something to record (and then
-//! kept in sync). None forces frontmatter onto a plain prose note that has
-//! nothing to record.
+//! Each stamper owns its own write policy: `modified` is refreshed
+//! unconditionally on every save (adding the key, and a frontmatter block,
+//! if the note doesn't have them yet — see `stamp_modified_date`), while
+//! content fields like `codeBlocks` and `bottomLines` are added only once a
+//! note has something to record (and then kept in sync).
 
 use super::ops::content_body;
 use super::{frontmatter_has_key, stamp_modified_date, update_frontmatter_content, FrontmatterValue};

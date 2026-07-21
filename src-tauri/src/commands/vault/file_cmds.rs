@@ -153,6 +153,11 @@ pub async fn save_note_content(
     vault_path: Option<PathBuf>,
 ) -> Result<Vec<String>, String> {
     tokio::task::spawn_blocking(move || {
+        // The naive "%Y-%m-%d %H:%M:%S" string carries no offset marker, so
+        // it must be written in the same timezone `parse_date_str_secs`
+        // interprets it in on read: the machine's ambient local timezone.
+        // Both sides always agree on "whatever this machine's local zone
+        // currently is" without needing a stored setting.
         let ctx = crate::frontmatter::DeriveContext {
             timestamp: chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
         };
@@ -396,10 +401,11 @@ mod tests {
         )
         .await
         .unwrap();
-        assert_eq!(
-            get_note_content(note, Some(root)).unwrap(),
-            "---\ntitle: Command Note\n---\n# Command Note\nBody\n"
-        );
+        let saved = get_note_content(note, Some(root)).unwrap();
+        // A `modified` frontmatter key is stamped on every save.
+        assert!(saved.contains("title: Command Note"));
+        assert!(saved.contains("modified:"));
+        assert!(saved.contains("# Command Note\nBody\n"));
     }
 
     #[tokio::test]
@@ -419,10 +425,11 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(
-            get_note_content(note, Some(root)).unwrap(),
-            "# Windows-Sensitive Path\n\nBody\n"
-        );
+        let saved = get_note_content(note, Some(root)).unwrap();
+        // A `modified` frontmatter key is stamped on every save, even for a
+        // plain note that had none before.
+        assert!(saved.contains("modified:"));
+        assert!(saved.contains("# Windows-Sensitive Path\n\nBody\n"));
     }
 
     #[tokio::test]
@@ -444,6 +451,37 @@ mod tests {
         assert!(!saved.contains("2020-01-01"));
         assert!(saved.contains("modified:"));
         assert!(saved.contains("# Note\n\nBody"));
+    }
+
+    // Regression test: `stamp_modified_date`'s writer and `parse_date_str_secs`'s
+    // reader must agree on the timezone naive "%Y-%m-%d %H:%M:%S" values are
+    // interpreted in — both use the machine's ambient local timezone. A
+    // mismatch (e.g. writing local wall-clock time while the reader assumes
+    // UTC) silently shifts `modified_at` — e.g. a note saved "just now" reads
+    // back as several hours old.
+    #[tokio::test]
+    async fn save_note_content_stamps_modified_using_ambient_local_timezone() {
+        let dir = TempDir::new().unwrap();
+        let root = vault_root(&dir);
+        let note = root.join("note.md");
+
+        save_note_content(
+            note.clone(),
+            "# Note\n\nBody\n".to_string(),
+            Some(root.clone()),
+        )
+        .await
+        .unwrap();
+
+        let entry = vault::parse_md_file(&note, None, "created").unwrap();
+        let now = chrono::Utc::now().timestamp() as u64;
+        let modified_at = entry.modified_at.unwrap();
+
+        assert!(
+            now.abs_diff(modified_at) < 60,
+            "expected modified_at ({modified_at}) within 60s of UTC now ({now}); \
+             a multi-hour gap indicates a writer/reader timezone mismatch"
+        );
     }
 
     #[tokio::test]

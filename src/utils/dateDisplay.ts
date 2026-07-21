@@ -39,6 +39,15 @@ function twoDigit(value: number): string {
   return String(value).padStart(2, '0')
 }
 
+/**
+ * Naive "YYYY-MM-DD HH:MM:SS" in the machine's ambient local timezone. Used
+ * both for displaying a human-editable local-time text field
+ * (`CreateNoteForDateDialog`) and for writing `created`/`modified`
+ * frontmatter (`buildNoteContent`): the Rust backend's `parse_date_str_secs`
+ * interprets this naive format using the same ambient local timezone
+ * (`chrono::Local`), so writer and reader always agree regardless of what
+ * zone the current machine happens to be in.
+ */
 export function formatLocalISODatetime(date: Date): string {
   return `${date.getFullYear()}-${twoDigit(date.getMonth() + 1)}-${twoDigit(date.getDate())} ${twoDigit(date.getHours())}:${twoDigit(date.getMinutes())}:${twoDigit(date.getSeconds())}`
 }

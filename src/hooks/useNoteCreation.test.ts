@@ -118,6 +118,10 @@ describe('entryMatchesTarget', () => {
 })
 
 describe('buildNoteContent', () => {
+  // A bare ISO string with no offset is parsed as local time by `new Date()`,
+  // and `formatLocalISODatetime` writes local components back out — so this
+  // fixture and the expected string below stay self-consistent regardless of
+  // the test runner's timezone.
   const FIXED_DATE = new Date('2026-01-15T12:30:45')
   const FIXED_DATETIME = '2026-01-15 12:30:45'
   const DATE_FIELDS = `created: "${FIXED_DATETIME}"\ndayCreated: Thu\nmodified: "${FIXED_DATETIME}"`
@@ -192,10 +196,10 @@ describe('resolveNewNote', () => {
     expect(entry.filename).toBe('a b c.md')
   })
 
-  it('backdates the entry createdAt to match the chosen date (parsed as UTC like the backend)', () => {
+  it('backdates the entry createdAt to match the chosen date (real epoch, matching a vault reload)', () => {
     const createdDate = new Date('2026-01-10T09:00:00')
     const { entry, content } = resolveNewNote({ title: 'Backdated', type: 'Note', vaultPath: '/vault', createdDate })
-    expect(entry.createdAt).toBe(Math.floor(Date.UTC(2026, 0, 10, 9, 0, 0) / 1000))
+    expect(entry.createdAt).toBe(Math.floor(createdDate.getTime() / 1000))
     expect(content).toContain('created: "2026-01-10 09:00:00"')
     expect(content).toContain('dayCreated: Sat')
   })

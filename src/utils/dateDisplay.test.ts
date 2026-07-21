@@ -3,6 +3,7 @@ import {
   formatDateForDisplay,
   formatDatePartsForDisplay,
   formatDateValueForDisplay,
+  formatLocalISODatetime,
   formatRelativeTime,
   normalizeDateDisplayFormat,
 } from './dateDisplay'
@@ -68,5 +69,21 @@ describe('dateDisplay', () => {
     expect(formatDateValueForDisplay('2026-05-11', 'european')).toBe('11/5/2026')
     expect(formatDateValueForDisplay('05/11/2026', 'friendly')).toBe('May 11, 2026')
     expect(formatDateValueForDisplay('next Monday', 'iso')).toBe('next Monday')
+  })
+
+  it('formatLocalISODatetime writes a naive string whose local components round-trip to the original instant', () => {
+    // This is the contract the Rust backend relies on: it reads this naive
+    // "YYYY-MM-DD HH:MM:SS" string back via the machine's ambient local
+    // timezone (`chrono::Local`), the same zone this function reads from —
+    // so round-tripping through local components (not UTC) must reproduce
+    // the original instant, regardless of what timezone this runs in.
+    const instant = new Date(2026, 5, 1, 3, 4, 5)
+    const written = formatLocalISODatetime(instant)
+
+    const [datePart, timePart] = written.split(' ')
+    const [y, m, d] = datePart.split('-').map(Number)
+    const [h, mi, s] = timePart.split(':').map(Number)
+    const reparsed = new Date(y, m - 1, d, h, mi, s)
+    expect(reparsed.getTime()).toBe(instant.getTime())
   })
 })

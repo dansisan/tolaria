@@ -181,6 +181,10 @@ describe('entryMatchesTarget', () => {
 })
 
 describe('buildNoteContent', () => {
+  // A bare ISO string with no offset is parsed as local time by `new Date()`,
+  // and `formatLocalISODatetime` writes local components back out — so this
+  // fixture and the expected string below stay self-consistent regardless of
+  // the test runner's timezone.
   const FIXED_DATE = new Date('2026-01-15T12:30:45')
   const FIXED_DATETIME = '2026-01-15 12:30:45'
   const DATE_FIELDS = `created: "${FIXED_DATETIME}"\ndayCreated: Thu\nmodified: "${FIXED_DATETIME}"`

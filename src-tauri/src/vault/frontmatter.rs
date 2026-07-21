@@ -1,6 +1,6 @@
 use crate::frontmatter::keys::{canonical_known_frontmatter_key, FrontmatterKey};
 use crate::vault::parsing::contains_wikilink;
-use chrono::{DateTime, NaiveDate, NaiveDateTime};
+use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, TimeZone};
 use serde::Deserialize;
 use std::collections::HashMap;
 
@@ -504,6 +504,23 @@ fn flush_list(
     }
 }
 
+/// Resolve a naive local datetime to a UTC epoch, interpreting its
+/// components in the machine's ambient local timezone (`chrono::Local`) —
+/// the same zone `stamp_modified_date`/`buildNoteContent` write in, so
+/// writer and reader always agree regardless of what that zone is. Ambiguous
+/// times (a DST fall-back transition repeats an hour) resolve to the earlier
+/// occurrence — the common convention. A nonexistent time (a DST
+/// spring-forward transition skips an hour) returns `None`, same as an
+/// unparseable string; this is a ~1-hour-per-year edge case not worth more
+/// machinery.
+fn local_datetime_to_utc_secs(naive: NaiveDateTime) -> Option<u64> {
+    match Local.from_local_datetime(&naive) {
+        chrono::LocalResult::Single(dt) => Some(dt.timestamp() as u64),
+        chrono::LocalResult::Ambiguous(earliest, _latest) => Some(earliest.timestamp() as u64),
+        chrono::LocalResult::None => None,
+    }
+}
+
 fn parse_date_str_secs(s: &str) -> Option<u64> {
     if let Ok(dt) = DateTime::parse_from_rfc3339(s) {
         return Some(dt.timestamp() as u64);
@@ -517,13 +534,14 @@ fn parse_date_str_secs(s: &str) -> Option<u64> {
         "%Y-%m-%d %H:%M",
     ] {
         if let Ok(dt) = NaiveDateTime::parse_from_str(s, fmt) {
-            return Some(dt.and_utc().timestamp() as u64);
+            return local_datetime_to_utc_secs(dt);
         }
     }
     if let Ok(d) = NaiveDate::parse_from_str(s, "%Y-%m-%d") {
-        // Use noon UTC so date-only values display on the correct calendar day
-        // across all timezones (UTC-12 to UTC+14).
-        return Some(d.and_hms_opt(12, 0, 0)?.and_utc().timestamp() as u64);
+        // Noon (not midnight) so date-only values display on the correct
+        // calendar day even if interpreted a few hours off.
+        let naive = d.and_hms_opt(12, 0, 0)?;
+        return local_datetime_to_utc_secs(naive);
     }
     None
 }
@@ -536,11 +554,13 @@ fn parse_fm_date_secs(value: &serde_json::Value) -> Option<u64> {
     }
 }
 
-/// (frontmatter, relationships, custom properties, parsed creation timestamp in seconds since epoch)
+/// (frontmatter, relationships, custom properties, parsed creation timestamp,
+/// parsed `modified` frontmatter timestamp — both in seconds since epoch)
 pub(crate) type FrontmatterExtraction = (
     Frontmatter,
     HashMap<String, Vec<String>>,
     HashMap<String, serde_json::Value>,
+    Option<u64>,
     Option<u64>,
 );
 
@@ -549,7 +569,12 @@ pub(crate) type FrontmatterExtraction = (
 /// `raw_content` is used as a fallback: simple key:value pairs are extracted line-by-line
 /// so that critical fields like Trashed, Archived, type are not silently lost.
 ///
-/// `fm_created_key` is the frontmatter key to read a creation timestamp from.
+/// `fm_created_key` is the frontmatter key to read a creation timestamp from. The
+/// modified timestamp always reads the hardcoded `"modified"` key (the one
+/// `stamp_modified_date` writes on save) rather than a configurable key, since it
+/// isn't user-facing settings surface today. Naive datetime values (no offset
+/// marker) are interpreted in the machine's ambient local timezone — see
+/// `local_datetime_to_utc_secs`.
 pub(crate) fn extract_fm_and_rels(
     data: Option<gray_matter::Pod>,
     raw_content: &str,
@@ -564,15 +589,25 @@ pub(crate) fn extract_fm_and_rels(
             // Fall back to line-by-line extraction from the raw frontmatter block.
             match RawFrontmatter(raw_content).extract_block() {
                 Some(raw) => RawFrontmatter(raw).parse_fallback(),
-                None => return (Frontmatter::default(), HashMap::new(), HashMap::new(), None),
+                None => {
+                    return (
+                        Frontmatter::default(),
+                        HashMap::new(),
+                        HashMap::new(),
+                        None,
+                        None,
+                    )
+                }
             }
         }
     };
     let fm_created_at = json_map.get(fm_created_key).and_then(parse_fm_date_secs);
+    let fm_modified_at = json_map.get("modified").and_then(parse_fm_date_secs);
     (
         parse_frontmatter(&json_map, raw_content),
         extract_relationships(&json_map),
         extract_properties(&json_map),
         fm_created_at,
+        fm_modified_at,
     )
 }

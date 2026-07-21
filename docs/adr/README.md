@@ -94,7 +94,7 @@ proposed → active → superseded
 | [0036](0036-external-rename-detection-via-git-diff.md) | External rename detection via git diff on focus regain | active |
 | [0037](0037-codemirror-language-markdown-highlighting.md) | Language-based markdown syntax highlighting in raw editor | active |
 | [0038](0038-frontmatter-backed-favorites.md) | Frontmatter-backed favorites (_favorite, _favorite_index) | active |
-| [0039](0039-git-history-for-note-dates.md) | Git history as source of truth for note creation/modification dates | active |
+| [0039](0039-git-history-for-note-dates.md) | Git history as source of truth for note creation/modification dates | superseded → [0139](0139-frontmatter-modified-overrides-fs-git-date-resolution.md) |
 | [0040](0040-custom-views-yml-filter-engine.md) | Custom Views — .laputa/views/*.yml with YAML filter engine | active |
 | [0041](0041-filekind-all-files-in-vault-scanner.md) | fileKind field — scan all vault files, not just markdown | active |
 | [0042](0042-trash-auto-purge-safety-model.md) | Trash auto-purge safety model | superseded → [0045](0045-permanent-delete-no-trash.md) |
@@ -190,3 +190,5 @@ proposed → active → superseded
 | [0136](0136-wider-autosave-idle-window.md) | Wider autosave idle window | active |
 | [0137](0137-deferred-wikilink-rewrite-after-rename.md) | Deferred vault-wide wikilink rewrite after rename | active |
 | [0138](0138-filename-is-the-title-for-notes.md) | Filename is the title for Notes; Types keep H1/frontmatter title | active |
+| [0139](0139-frontmatter-modified-overrides-fs-git-date-resolution.md) | Frontmatter `modified` field overrides fs/git date resolution | active |
+| [0140](0140-ambient-local-timezone-for-frontmatter-dates.md) | Ambient local timezone for frontmatter dates (no stored setting) | active |

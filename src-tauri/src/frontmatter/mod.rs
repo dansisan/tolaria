@@ -12,16 +12,15 @@ pub use derive::{apply_content_frontmatter, apply_derived_frontmatter, DeriveCon
 pub use ops::{frontmatter_has_key, update_frontmatter_content};
 pub use yaml::{format_yaml_key, FrontmatterValue};
 
-/// Refresh the `modified` frontmatter timestamp to `timestamp`, but only when the
-/// note already declares a `modified` key. Returns the content unchanged otherwise
-/// — never adds frontmatter or the key to notes that don't use it.
+/// Refresh the `modified` frontmatter timestamp to `timestamp` on every save,
+/// adding both the key and a frontmatter block if the note doesn't have them
+/// yet. This makes `modified` the durable, portable source of truth for a
+/// note's last-edit time — immune to filesystem-mtime resets from git
+/// operations like clone/checkout (see ADR superseding 0039).
 ///
 /// This runs on the write path (see `save_note_content`) so the date stays current
 /// and portable across machines, without rewriting the content the editor is showing.
 pub fn stamp_modified_date(content: &str, timestamp: &str) -> String {
-    if !frontmatter_has_key(content, "modified") {
-        return content.to_string();
-    }
     update_frontmatter_content(
         content,
         "modified",
@@ -111,15 +110,23 @@ mod tests {
     }
 
     #[test]
-    fn stamp_modified_date_leaves_notes_without_a_modified_key_alone() {
+    fn stamp_modified_date_adds_key_to_notes_that_lack_it() {
         let content = "---\ntitle: Note\n---\n# Note\n\nBody";
-        assert_eq!(stamp_modified_date(content, "2026-05-31 14:45:00"), content);
+        let stamped = stamp_modified_date(content, "2026-05-31 14:45:00");
+        assert!(stamped.contains("2026-05-31 14:45:00"));
+        assert!(stamped.contains("modified"));
+        assert!(stamped.contains("title: Note"));
+        assert!(stamped.contains("# Note\n\nBody"));
     }
 
     #[test]
-    fn stamp_modified_date_does_not_add_frontmatter_to_plain_notes() {
+    fn stamp_modified_date_creates_frontmatter_for_plain_notes() {
         let content = "# Note\n\nJust body, no frontmatter";
-        assert_eq!(stamp_modified_date(content, "2026-05-31 14:45:00"), content);
+        let stamped = stamp_modified_date(content, "2026-05-31 14:45:00");
+        assert!(stamped.starts_with("---\n"));
+        assert!(stamped.contains("2026-05-31 14:45:00"));
+        assert!(stamped.contains("modified"));
+        assert!(stamped.contains("# Note\n\nJust body, no frontmatter"));
     }
 
     #[test]

@@ -2,7 +2,8 @@
 type: ADR
 id: "0039"
 title: "Use git history for note creation and modification dates"
-status: active
+status: superseded
+superseded_by: "0139"
 date: 2026-04-02
 ---
 

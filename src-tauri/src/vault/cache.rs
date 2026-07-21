@@ -662,9 +662,8 @@ pub fn scan_vault_cached(vault_path: &Path) -> Result<Vec<VaultEntry>, String> {
     // Migrate legacy in-vault cache to external location on first run
     migrate_legacy_cache(vault_path);
 
-    let fm_key = crate::settings::get_settings()
-        .map(|s| crate::settings::effective_frontmatter_created_key(&s).to_string())
-        .unwrap_or_else(|_| crate::settings::DEFAULT_FRONTMATTER_CREATED_KEY.to_string());
+    let settings = crate::settings::get_settings().unwrap_or_default();
+    let fm_key = crate::settings::effective_frontmatter_created_key(&settings).to_string();
 
     let current_hash = match git_head_hash(vault_path) {
         Some(h) => h,

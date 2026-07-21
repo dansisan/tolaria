@@ -187,6 +187,15 @@ fn test_alias_collisions_keep_frontmatter_with_last_value_winning() {
     assert_eq!(entry.status, Some("Evergreened".to_string()));
 }
 
+/// Naive datetimes (no offset marker) are interpreted in the machine's
+/// ambient local timezone — the same zone `stamp_modified_date` writes in —
+/// so expected values here are computed the same way rather than hardcoding
+/// a UTC assumption, keeping the test deterministic regardless of what
+/// timezone actually runs it.
+fn local_epoch_secs(naive: chrono::NaiveDateTime) -> i64 {
+    naive.and_local_timezone(chrono::Local).single().unwrap().timestamp()
+}
+
 #[test]
 fn test_frontmatter_created_date_only_is_in_seconds() {
     let dir = TempDir::new().unwrap();
@@ -194,8 +203,14 @@ fn test_frontmatter_created_date_only_is_in_seconds() {
     let content = "---\ncreated: 2025-11-30\n---\n# Test\n";
     let entry = parse_test_entry(&dir, "date-only.md", content);
 
-    // 2025-11-30 12:00:00 UTC — noon keeps the date stable across all timezones
-    assert_eq!(entry.created_at, Some(1_764_460_800 + 12 * 3600));
+    // Noon keeps the date stable across all timezones.
+    let expected = local_epoch_secs(
+        chrono::NaiveDate::from_ymd_opt(2025, 11, 30)
+            .unwrap()
+            .and_hms_opt(12, 0, 0)
+            .unwrap(),
+    );
+    assert_eq!(entry.created_at, Some(expected as u64));
 }
 
 #[test]
@@ -204,8 +219,13 @@ fn test_frontmatter_created_datetime_is_in_seconds() {
     let content = "---\ncreated: 2025-11-30T10:30:00\n---\n# Test\n";
     let entry = parse_test_entry(&dir, "datetime.md", content);
 
-    // 2025-11-30 10:30:00 UTC = base + 37800 seconds
-    assert_eq!(entry.created_at, Some(1_764_460_800 + 10 * 3600 + 30 * 60));
+    let expected = local_epoch_secs(
+        chrono::NaiveDate::from_ymd_opt(2025, 11, 30)
+            .unwrap()
+            .and_hms_opt(10, 30, 0)
+            .unwrap(),
+    );
+    assert_eq!(entry.created_at, Some(expected as u64));
 }
 
 #[test]
@@ -214,6 +234,7 @@ fn test_frontmatter_created_rfc3339_is_in_seconds() {
     let content = "---\ncreated: 2025-11-30T10:30:00Z\n---\n# Test\n";
     let entry = parse_test_entry(&dir, "rfc3339.md", content);
 
+    // RFC3339 carries an explicit "Z" (UTC) offset, so this is timezone-independent.
     assert_eq!(entry.created_at, Some(1_764_460_800 + 10 * 3600 + 30 * 60));
 }
 
@@ -224,7 +245,13 @@ fn test_frontmatter_created_datetime_without_seconds_space_separator() {
     let content = "---\ncreated: 2025-11-30 10:30\n---\n# Test\n";
     let entry = parse_test_entry(&dir, "no-seconds-space.md", content);
 
-    assert_eq!(entry.created_at, Some(1_764_460_800 + 10 * 3600 + 30 * 60));
+    let expected = local_epoch_secs(
+        chrono::NaiveDate::from_ymd_opt(2025, 11, 30)
+            .unwrap()
+            .and_hms_opt(10, 30, 0)
+            .unwrap(),
+    );
+    assert_eq!(entry.created_at, Some(expected as u64));
 }
 
 #[test]
@@ -234,7 +261,13 @@ fn test_frontmatter_created_datetime_without_seconds_t_separator() {
     let content = "---\ncreated: 2025-11-30T10:30\n---\n# Test\n";
     let entry = parse_test_entry(&dir, "no-seconds-t.md", content);
 
-    assert_eq!(entry.created_at, Some(1_764_460_800 + 10 * 3600 + 30 * 60));
+    let expected = local_epoch_secs(
+        chrono::NaiveDate::from_ymd_opt(2025, 11, 30)
+            .unwrap()
+            .and_hms_opt(10, 30, 0)
+            .unwrap(),
+    );
+    assert_eq!(entry.created_at, Some(expected as u64));
 }
 
 #[test]
