@@ -332,12 +332,12 @@ function findNearestByDate(
 ): { entry: VaultEntry; index: number } | null {
   let best: { entry: VaultEntry; index: number; diff: number } | null = null
 
-  items.forEach((entry, index) => {
+  for (const [index, entry] of items.entries()) {
     const ms = entryDateMs(entry, field)
-    if (ms === null) return
+    if (ms === null) continue
     const diff = Math.abs(ms - targetMs)
     if (!best || diff < best.diff) best = { entry, index, diff }
-  })
+  }
 
   return best && { entry: best.entry, index: best.index }
 }
