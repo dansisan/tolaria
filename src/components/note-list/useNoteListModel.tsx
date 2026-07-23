@@ -10,7 +10,7 @@ import type {
   ViewFile,
 } from '../../types'
 import type { AppLocale } from '../../lib/i18n'
-import type { NoteListFilter, RelationshipGroup, SortOption } from '../../utils/noteListHelpers'
+import type { NoteListFilter, RelationshipGroup, SortDirection, SortOption } from '../../utils/noteListHelpers'
 import { countByFilter, countAllByFilter, countAllNotesByFilter } from '../../utils/noteListHelpers'
 import type { AllNotesFileVisibility } from '../../utils/allNotesFileVisibility'
 import type { GitRepositoryOption } from '../../utils/gitRepositories'
@@ -374,6 +374,8 @@ interface UseNoteListInteractionStateParams {
   onBulkArchive?: (paths: string[]) => void
   onBulkDeletePermanently?: (paths: string[]) => void
   locale: AppLocale
+  listSort: SortOption
+  listDirection: SortDirection
 }
 
 function useNoteListInteractionState({
@@ -403,6 +405,8 @@ function useNoteListInteractionState({
   onBulkArchive,
   onBulkDeletePermanently,
   locale,
+  listSort,
+  listDirection,
 }: UseNoteListInteractionStateParams) {
   const changesContextMenu = useChangesContextMenu({ isChangesView, onDiscardFile, modifiedFiles, locale })
   const noteListContextMenu = useNoteListContextMenu({
@@ -443,6 +447,8 @@ function useNoteListInteractionState({
     onDiscardFile,
     openContextMenuForEntry: changesContextMenu.openContextMenuForEntry,
     onCreateNote,
+    listSort,
+    listDirection,
   })
   const getChangeStatus = useChangeStatusResolver(isChangesView, modifiedFiles)
   const {
@@ -662,6 +668,9 @@ function buildNoteListLayoutModel(params: {
     handleNoteListFocus: params.interaction.noteListKeyboard.handleFocus,
     focusNoteList: params.interaction.noteListKeyboard.focusList,
     noteListVirtuosoRef: params.interaction.noteListKeyboard.virtuosoRef,
+    jumpByYear: params.interaction.noteListKeyboard.jumpByYear,
+    jumpToDate: params.interaction.noteListKeyboard.jumpToDate,
+    canJumpByYear: params.interaction.noteListKeyboard.canJumpByYear,
     entitySelection: params.interaction.entitySelection,
     searchedGroups: params.content.searchedGroups,
     collapsedGroups: params.interaction.collapsedGroups,
@@ -820,6 +829,8 @@ export function useNoteListModel({
     onBulkArchive,
     onBulkDeletePermanently,
     locale,
+    listSort: content.listSort,
+    listDirection: content.listDirection,
   })
   useRevealSelectedNote({
     selectedNotePath,

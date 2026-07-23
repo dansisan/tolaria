@@ -72,4 +72,37 @@ describe('NoteTimelineDialog', () => {
     render(<NoteTimelineDialog open onClose={() => {}} entries={SAME_WEEK} title="Inbox" />)
     expect(screen.getByRole('heading', { name: 'Inbox' })).toBeInTheDocument()
   })
+
+  it('calls onSelectBucket with the clicked bucket when it has notes', () => {
+    const onSelectBucket = vi.fn()
+    render(<NoteTimelineDialog open onClose={() => {}} entries={SAME_WEEK} onSelectBucket={onSelectBucket} />)
+
+    const bar = screen.getAllByTestId('timeline-bar')[0]
+    expect(bar.tagName).toBe('BUTTON')
+    fireEvent.click(bar)
+
+    expect(onSelectBucket).toHaveBeenCalledTimes(1)
+    expect(onSelectBucket).toHaveBeenCalledWith(expect.objectContaining({ count: 3 }))
+  })
+
+  it('does not make empty buckets clickable', () => {
+    const onSelectBucket = vi.fn()
+    // A one-year span with only two dated notes creates many empty month buckets in between.
+    render(
+      <NoteTimelineDialog
+        open
+        onClose={() => {}}
+        entries={ACROSS_MONTHS}
+        onSelectBucket={onSelectBucket}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Month' }))
+
+    const emptyBar = screen.getAllByTestId('timeline-bar').find((bar) => bar.dataset.count === '0')
+    expect(emptyBar).toBeDefined()
+    expect(emptyBar?.tagName).not.toBe('BUTTON')
+
+    if (emptyBar) fireEvent.click(emptyBar)
+    expect(onSelectBucket).not.toHaveBeenCalled()
+  })
 })

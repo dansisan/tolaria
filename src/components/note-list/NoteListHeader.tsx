@@ -1,4 +1,4 @@
-import { ChartBar, Checks, CircleNotch as Loader2, MagnifyingGlass, Plus, SidebarSimple, X } from '@phosphor-icons/react'
+import { CaretLineDown, CaretLineUp, ChartBar, Checks, CircleNotch as Loader2, MagnifyingGlass, Plus, SidebarSimple, X } from '@phosphor-icons/react'
 import type { VaultEntry } from '../../types'
 import type { SortOption, SortDirection } from '../../utils/noteListHelpers'
 import { translate, type AppLocale, type TranslationKey } from '../../lib/i18n'
@@ -63,6 +63,9 @@ interface NoteListHeaderProps {
   onOpenType: (entry: VaultEntry) => void
   onToggleSearch: () => void
   onOpenTimeline: () => void
+  /** Whether the list is currently sorted by a date field (created/modified), enabling the year-jump buttons. */
+  canJumpByYear?: boolean
+  onJumpByYear?: (direction: 'up' | 'down') => void
   onSearchChange: (value: string) => void
   onSearchKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void
   onGitRepositoryChange?: (path: string) => void
@@ -200,6 +203,78 @@ function BulkSelectButton({
   )
 }
 
+/**
+ * The Up/Down buttons always move physically through the list (same sense as arrow-key
+ * navigation), so which one means "newer" vs "older" flips with sort direction: sorted
+ * descending (newest first), Down goes further back in time; sorted ascending, Down goes
+ * forward.
+ */
+function jumpYearLabelKey(direction: 'up' | 'down', listDirection: SortDirection): TranslationKey {
+  const isNewer = (direction === 'up') === (listDirection === 'desc')
+  return isNewer ? 'noteList.jumpYear.newer' : 'noteList.jumpYear.older'
+}
+
+/** Not registered in appCommandCatalog (it's list-local, like Cmd+Up/Down edge-jump), so the display string is built here following the same Mac-symbol / Ctrl+Shift+Word convention as `formatShortcutDisplay`. */
+function jumpYearShortcutDisplay(direction: 'up' | 'down'): string {
+  if (isMac()) return `⌘⇧${direction === 'up' ? '↑' : '↓'}`
+  return `Ctrl+Shift+${direction === 'up' ? 'Up' : 'Down'}`
+}
+
+function jumpYearLabel(direction: 'up' | 'down', listDirection: SortDirection, locale: AppLocale): string {
+  const baseLabel = translate(locale, jumpYearLabelKey(direction, listDirection))
+  return `${baseLabel} (${jumpYearShortcutDisplay(direction)})`
+}
+
+function JumpByYearButtons({
+  canJumpByYear,
+  onJumpByYear,
+  listDirection,
+  locale,
+}: {
+  canJumpByYear?: boolean
+  onJumpByYear?: (direction: 'up' | 'down') => void
+  listDirection: SortDirection
+  locale: AppLocale
+}) {
+  if (!onJumpByYear) return null
+
+  const handleJump = (direction: 'up' | 'down') => {
+    onJumpByYear(direction)
+    trackEvent('note_list_year_jump', { direction, via: 'button' })
+  }
+
+  return (
+    <>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        className={NOTE_LIST_ACTION_BUTTON_CLASSNAME}
+        disabled={!canJumpByYear}
+        onClick={() => handleJump('up')}
+        title={jumpYearLabel('up', listDirection, locale)}
+        aria-label={jumpYearLabel('up', listDirection, locale)}
+        data-testid="note-list-jump-year-up"
+      >
+        <CaretLineUp size={16} />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        className={NOTE_LIST_ACTION_BUTTON_CLASSNAME}
+        disabled={!canJumpByYear}
+        onClick={() => handleJump('down')}
+        title={jumpYearLabel('down', listDirection, locale)}
+        aria-label={jumpYearLabel('down', listDirection, locale)}
+        data-testid="note-list-jump-year-down"
+      >
+        <CaretLineDown size={16} />
+      </Button>
+    </>
+  )
+}
+
 function HeaderActions({
   isEntityView,
   isChangesView,
@@ -214,6 +289,8 @@ function HeaderActions({
   onToggleSearch,
   onToggleBulkMode,
   onOpenTimeline,
+  canJumpByYear,
+  onJumpByYear,
 }: Pick<
   NoteListHeaderProps,
   | 'isEntityView'
@@ -229,6 +306,8 @@ function HeaderActions({
   | 'onToggleSearch'
   | 'onToggleBulkMode'
   | 'onOpenTimeline'
+  | 'canJumpByYear'
+  | 'onJumpByYear'
 > & {
   locale: AppLocale
 }) {
@@ -236,6 +315,7 @@ function HeaderActions({
     <div className="ml-3 flex shrink-0 items-center justify-end gap-2" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
       {!isEntityView && <SortDropdown groupLabel="__list__" current={listSort} direction={listDirection} customProperties={customProperties} locale={locale} onChange={onSortChange} />}
       <BulkSelectButton bulkMode={bulkMode} isChangesView={isChangesView} locale={locale} onToggleBulkMode={onToggleBulkMode} />
+      <JumpByYearButtons canJumpByYear={canJumpByYear} onJumpByYear={onJumpByYear} listDirection={listDirection} locale={locale} />
       <Button type="button" variant="ghost" size="icon-xs" className={NOTE_LIST_ACTION_BUTTON_CLASSNAME} onClick={onOpenTimeline} title={translate(locale, 'noteList.timeline.action')} aria-label={translate(locale, 'noteList.timeline.action')}>
         <ChartBar size={16} />
       </Button>
@@ -364,6 +444,8 @@ export function NoteListHeader({
   onOpenType,
   onToggleSearch,
   onOpenTimeline,
+  canJumpByYear,
+  onJumpByYear,
   onSearchChange,
   onSearchKeyDown,
   onGitRepositoryChange,
@@ -397,6 +479,8 @@ export function NoteListHeader({
           onToggleSearch={onToggleSearch}
           onToggleBulkMode={onToggleBulkMode}
           onOpenTimeline={onOpenTimeline}
+          canJumpByYear={canJumpByYear}
+          onJumpByYear={onJumpByYear}
         />
       </div>
       <RepositorySelectorRow

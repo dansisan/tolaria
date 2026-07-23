@@ -496,6 +496,8 @@
   "noteList.timeline.granularity.day": "Day",
   "noteList.timeline.granularity.week": "Week",
   "noteList.timeline.granularity.month": "Month",
+  "noteList.jumpYear.older": "Jump one year earlier",
+  "noteList.jumpYear.newer": "Jump one year later",
   "noteList.quickOpenCreate": "Create note \"{title}\"",
   "noteList.createNote": "Create new note",
   "noteList.bulkSelect.enter": "Select notes",

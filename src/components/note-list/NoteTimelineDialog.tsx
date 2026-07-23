@@ -26,6 +26,8 @@ interface NoteTimelineDialogProps {
   /** Heading describing the charted set (e.g. the active filter or search). */
   title?: string
   locale?: AppLocale
+  /** Called when a populated bar is clicked, so the caller can jump the note list to it. Empty buckets aren't clickable. */
+  onSelectBucket?: (bucket: TimelineBucket) => void
 }
 
 const GRANULARITY_LABEL_KEYS = {
@@ -90,10 +92,12 @@ function TimelineBars({
   data,
   locale,
   dateDisplayFormat,
+  onSelectBucket,
 }: {
   data: TimelineData
   locale: AppLocale
   dateDisplayFormat: DateDisplayFormat
+  onSelectBucket?: (bucket: TimelineBucket) => void
 }) {
   return (
     <TooltipProvider delayDuration={80}>
@@ -101,20 +105,36 @@ function TimelineBars({
         {data.buckets.map((bucket) => {
           const pct = data.maxCount > 0 ? (bucket.count / data.maxCount) * 100 : 0
           const detail = bucketDetail(locale, data.granularity, bucket, dateDisplayFormat)
+          const barContent = (
+            <div
+              className={cn('w-full rounded-t-sm', bucket.count > 0 ? 'bg-primary hover:bg-primary/80' : 'bg-muted')}
+              style={{ height: bucket.count > 0 ? `max(3px, ${pct}%)` : '2px' }}
+            />
+          )
           return (
             <Tooltip key={bucket.startMs}>
               <TooltipTrigger asChild>
-                <div
-                  className="flex h-full flex-1 flex-col justify-end"
-                  aria-label={detail}
-                  data-testid="timeline-bar"
-                  data-count={bucket.count}
-                >
+                {bucket.count > 0 && onSelectBucket ? (
+                  <button
+                    type="button"
+                    className="flex h-full flex-1 flex-col justify-end"
+                    aria-label={detail}
+                    data-testid="timeline-bar"
+                    data-count={bucket.count}
+                    onClick={() => onSelectBucket(bucket)}
+                  >
+                    {barContent}
+                  </button>
+                ) : (
                   <div
-                    className={cn('w-full rounded-t-sm', bucket.count > 0 ? 'bg-primary hover:bg-primary/80' : 'bg-muted')}
-                    style={{ height: bucket.count > 0 ? `max(3px, ${pct}%)` : '2px' }}
-                  />
-                </div>
+                    className="flex h-full flex-1 flex-col justify-end"
+                    aria-label={detail}
+                    data-testid="timeline-bar"
+                    data-count={bucket.count}
+                  >
+                    {barContent}
+                  </div>
+                )}
               </TooltipTrigger>
               <TooltipContent>{detail}</TooltipContent>
             </Tooltip>
@@ -142,7 +162,15 @@ function TimelineAxis({ buckets }: { buckets: TimelineBucket[] }) {
   )
 }
 
-function TimelineChart({ entries, locale }: { entries: VaultEntry[]; locale: AppLocale }) {
+function TimelineChart({
+  entries,
+  locale,
+  onSelectBucket,
+}: {
+  entries: VaultEntry[]
+  locale: AppLocale
+  onSelectBucket?: (bucket: TimelineBucket) => void
+}) {
   const dateDisplayFormat = useDateDisplayFormat()
   const auto = useMemo(() => buildAutoTimeline(entries), [entries])
   const [granularity, setGranularity] = useState<TimelineGranularity>(auto.granularity)
@@ -172,13 +200,13 @@ function TimelineChart({ entries, locale }: { entries: VaultEntry[]; locale: App
         </p>
         <GranularityToggle value={granularity} onChange={setGranularity} locale={locale} />
       </div>
-      <TimelineBars data={data} locale={locale} dateDisplayFormat={dateDisplayFormat} />
+      <TimelineBars data={data} locale={locale} dateDisplayFormat={dateDisplayFormat} onSelectBucket={onSelectBucket} />
       <TimelineAxis buckets={data.buckets} />
     </div>
   )
 }
 
-export function NoteTimelineDialog({ open, onClose, entries, title, locale = 'en' }: NoteTimelineDialogProps) {
+export function NoteTimelineDialog({ open, onClose, entries, title, locale = 'en', onSelectBucket }: NoteTimelineDialogProps) {
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose() }}>
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[960px]">
@@ -188,7 +216,7 @@ export function NoteTimelineDialog({ open, onClose, entries, title, locale = 'en
             {translate(locale, 'noteList.timeline.title')}
           </DialogDescription>
         </DialogHeader>
-        <TimelineChart entries={entries} locale={locale} />
+        <TimelineChart entries={entries} locale={locale} onSelectBucket={onSelectBucket} />
       </DialogContent>
     </Dialog>
   )

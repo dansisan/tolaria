@@ -975,6 +975,8 @@ interface UseNoteListInteractionsParams {
   noteListFilter: NoteListFilter
   isChangesView: boolean
   entityEntry: VaultEntry | null
+  listSort: SortOption
+  listDirection: SortDirection
   searchVisible: boolean
   toggleSearch: () => void
   focusSearchInput: () => void
@@ -1050,6 +1052,13 @@ function resolveKeyboardEntries(
     : searched
 }
 
+/** The VaultEntry date field a `SortOption` corresponds to, or `undefined` for non-date sorts (disables year-jump). */
+function jumpDateFieldForSort(listSort: SortOption): 'createdAt' | 'modifiedAt' | undefined {
+  if (listSort === 'created') return 'createdAt'
+  if (listSort === 'modified') return 'modifiedAt'
+  return undefined
+}
+
 function useKeyboardInteractionState({
   searched,
   searchedGroups,
@@ -1061,6 +1070,8 @@ function useKeyboardInteractionState({
   onReplaceActiveTab,
   onEnterNeighborhood,
   onOpenDeletedNote,
+  listSort,
+  listDirection,
 }: Pick<
   UseNoteListInteractionsParams,
   | 'searched'
@@ -1073,6 +1084,8 @@ function useKeyboardInteractionState({
   | 'onReplaceActiveTab'
   | 'onEnterNeighborhood'
   | 'onOpenDeletedNote'
+  | 'listSort'
+  | 'listDirection'
 >) {
   const keyboardEntries = useMemo(
     () => resolveKeyboardEntries(searched, searchedGroups, entityEntry),
@@ -1113,6 +1126,8 @@ function useKeyboardInteractionState({
     onFocusEditorOnEnter: handleFocusEditorOnEnter,
     // ArrowUp from the first result returns focus to the open search box.
     onExitTop: searchVisible ? focusSearchInput : undefined,
+    jumpDateField: jumpDateFieldForSort(listSort),
+    jumpDateListDirection: listDirection,
   })
 
   useEffect(() => {
@@ -1234,6 +1249,8 @@ export function useNoteListInteractions({
   onDiscardFile,
   openContextMenuForEntry,
   onCreateNote,
+  listSort,
+  listDirection,
 }: UseNoteListInteractionsParams) {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
   const { handleNeighborhoodOpen, multiSelect, noteListKeyboard } = useKeyboardInteractionState({
@@ -1247,6 +1264,8 @@ export function useNoteListInteractions({
     onReplaceActiveTab,
     onEnterNeighborhood,
     onOpenDeletedNote,
+    listSort,
+    listDirection,
   })
 
   useEffect(() => {

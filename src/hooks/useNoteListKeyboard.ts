@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import type { VirtuosoHandle } from 'react-virtuoso'
 import type { VaultEntry } from '../types'
 import { logKeyboardNavigationTrace } from '../utils/noteOpenPerformance'
+import { trackEvent } from '../lib/telemetry'
 
 /**
  * Diagnostic only: logs the elapsed time from an ArrowUp/ArrowDown press in
@@ -27,6 +28,12 @@ function logNextRenderAfterArrowKey(path: string, pressedAt: number): void {
   window.addEventListener('laputa:editor-tab-swapped', handleSwap)
 }
 
+/** A VaultEntry date field a note list can be sorted/navigated by. */
+type JumpDateField = 'createdAt' | 'modifiedAt'
+
+/** The list's current sort direction — determines which physical direction (up/down the list) moves forward vs backward in time. */
+type JumpDateListDirection = 'asc' | 'desc'
+
 interface NoteListKeyboardOptions {
   items: VaultEntry[]
   selectedNotePath: string | null
@@ -39,6 +46,10 @@ interface NoteListKeyboardOptions {
   onFocusEditorOnEnter?: (path: string) => void
   /** Called when ArrowUp is pressed while the first item is highlighted (e.g. to return focus to a search input above the list). */
   onExitTop?: () => void
+  /** The date field the list is currently sorted by, enabling Cmd+Shift+Up/Down year-jump. `undefined` disables it (e.g. sorted by title/status). */
+  jumpDateField?: JumpDateField
+  /** The list's current sort direction — 'desc' (newest first) means jumping toward the bottom of the list goes further back in time. Defaults to 'desc'. */
+  jumpDateListDirection?: JumpDateListDirection
 }
 
 interface ItemIndex {
@@ -308,6 +319,93 @@ function useMoveHighlight({
   }, [highlightedPathRef, items, onExitTop, onPrefetch, scheduleOpen, selectedNotePath, syncHighlightedPath, virtuosoRef])
 }
 
+function entryDateMs(entry: VaultEntry, field: JumpDateField): number | null {
+  const seconds = entry[field]
+  return seconds == null ? null : seconds * 1000
+}
+
+/** The entry (and its index) whose `field` value is closest to `targetMs`, ignoring entries without that field. */
+function findNearestByDate(
+  items: VaultEntry[],
+  targetMs: number,
+  field: JumpDateField,
+): { entry: VaultEntry; index: number } | null {
+  let best: { entry: VaultEntry; index: number; diff: number } | null = null
+
+  items.forEach((entry, index) => {
+    const ms = entryDateMs(entry, field)
+    if (ms === null) return
+    const diff = Math.abs(ms - targetMs)
+    if (!best || diff < best.diff) best = { entry, index, diff }
+  })
+
+  return best && { entry: best.entry, index: best.index }
+}
+
+function useJumpToDate({
+  items,
+  syncHighlightedPath,
+  virtuosoRef,
+  onPrefetch,
+  scheduleOpen,
+}: {
+  items: VaultEntry[]
+  syncHighlightedPath: (nextPath: string | null) => void
+  virtuosoRef: React.RefObject<VirtuosoHandle | null>
+  onPrefetch?: (entry: VaultEntry) => void
+  scheduleOpen: (entry: VaultEntry) => void
+}) {
+  return useCallback((targetMs: number, field: JumpDateField) => {
+    const nearest = findNearestByDate(items, targetMs, field)
+    if (!nearest) return
+
+    syncHighlightedPath(nearest.entry.path)
+    virtuosoRef.current?.scrollToIndex({ index: nearest.index, align: 'center', behavior: 'auto' })
+    scheduleOpen(nearest.entry)
+    onPrefetch?.(nearest.entry)
+  }, [items, onPrefetch, scheduleOpen, syncHighlightedPath, virtuosoRef])
+}
+
+/**
+ * `direction` is always physical (which way through the currently displayed list), not
+ * temporal — matching how ArrowUp/ArrowDown already navigate the list regardless of sort
+ * direction. Whether "toward the bottom" means older or newer depends on `listDirection`:
+ * descending (newest first) means down the list is further into the past.
+ */
+function yearDeltaForJump(direction: 'up' | 'down', listDirection: JumpDateListDirection): 1 | -1 {
+  const towardBottom = direction === 'down'
+  const bottomIsForward = listDirection === 'asc'
+  return towardBottom === bottomIsForward ? 1 : -1
+}
+
+function useJumpByYear({
+  items,
+  selectedNotePath,
+  highlightedPathRef,
+  jumpDateField,
+  jumpDateListDirection = 'desc',
+  jumpToDate,
+}: {
+  items: VaultEntry[]
+  selectedNotePath: string | null
+  highlightedPathRef: React.RefObject<string | null>
+  jumpDateField?: JumpDateField
+  jumpDateListDirection?: JumpDateListDirection
+  jumpToDate: (targetMs: number, field: JumpDateField) => void
+}) {
+  return useCallback((direction: 'up' | 'down') => {
+    if (!jumpDateField) return
+
+    const currentEntry = resolveHighlightedEntry(items, highlightedPathRef.current ?? selectedNotePath)
+    const currentMs = currentEntry ? entryDateMs(currentEntry, jumpDateField) : null
+    if (currentMs === null) return
+
+    const target = new Date(currentMs)
+    target.setFullYear(target.getFullYear() + yearDeltaForJump(direction, jumpDateListDirection))
+    jumpToDate(target.getTime(), jumpDateField)
+  }, [highlightedPathRef, items, jumpDateField, jumpDateListDirection, jumpToDate, selectedNotePath])
+}
+
 type ListEdge = 'top' | 'bottom'
 
 function useJumpToEdge({
@@ -344,6 +442,23 @@ function resolveJumpEdge(
   if (event.key === 'End' && !event.metaKey && !event.ctrlKey) return 'bottom'
   if (usesCommandModifier(event) && event.key === 'ArrowUp') return 'top'
   if (usesCommandModifier(event) && event.key === 'ArrowDown') return 'bottom'
+  return null
+}
+
+type JumpYearDirection = 'up' | 'down'
+
+/**
+ * Cmd+Shift+Up/Down jump a year through the list, physically (same up/down-the-list
+ * sense as plain arrow navigation) — whether that's back or forward in time depends on
+ * sort direction, resolved in `yearDeltaForJump`. Distinguished from Cmd+Up/Down (edge
+ * jump) by the Shift key.
+ */
+function resolveJumpYearDirection(
+  event: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'>,
+): JumpYearDirection | null {
+  if (!usesCommandModifier(event) || !event.shiftKey || event.altKey) return null
+  if (event.key === 'ArrowUp') return 'up'
+  if (event.key === 'ArrowDown') return 'down'
   return null
 }
 
@@ -424,6 +539,7 @@ function useProcessKeyDown({
   highlightedPathRef,
   moveHighlight,
   jumpToEdge,
+  jumpByYear,
   flushOpen,
   cancelOpen,
   onEnterNeighborhood,
@@ -436,6 +552,7 @@ function useProcessKeyDown({
   highlightedPathRef: React.RefObject<string | null>
   moveHighlight: (direction: 1 | -1) => void
   jumpToEdge: (edge: ListEdge) => void
+  jumpByYear: (direction: JumpYearDirection) => void
   flushOpen: (entry?: VaultEntry) => void
   cancelOpen: () => void
   onEnterNeighborhood?: (entry: VaultEntry) => void | Promise<void>
@@ -469,13 +586,21 @@ function useProcessKeyDown({
       jumpToEdge(jumpEdge)
       return
     }
+    // Cmd+Shift+Up/Down jump a year back/forward — same early position as jumpEdge above.
+    const jumpYearDirection = resolveJumpYearDirection(event)
+    if (jumpYearDirection) {
+      event.preventDefault()
+      jumpByYear(jumpYearDirection)
+      trackEvent('note_list_year_jump', { direction: jumpYearDirection, via: 'keyboard' })
+      return
+    }
     if (shouldIgnoreListKeyboardEvent(event)) return
     if (handleArrowNavigation(event, moveHighlight)) return
 
     const pendingPath = event.key === 'Enter' ? highlightedPathRef.current : null
     handleEnterShortcutEvent(event, items, highlightedPathRef, flushOpen)
     if (pendingPath) onFocusEditorOnEnter?.(pendingPath)
-  }, [cancelOpen, enabled, flushOpen, highlightedPathRef, items, jumpToEdge, moveHighlight, onEnterNeighborhood, onEscapeWhileSearching, onFocusEditorOnEnter, onToggleSearchShortcut])
+  }, [cancelOpen, enabled, flushOpen, highlightedPathRef, items, jumpByYear, jumpToEdge, moveHighlight, onEnterNeighborhood, onEscapeWhileSearching, onFocusEditorOnEnter, onToggleSearchShortcut])
 }
 
 function useFocusHandlers({
@@ -706,6 +831,8 @@ export function useNoteListKeyboard({
   enabled,
   onFocusEditorOnEnter,
   onExitTop,
+  jumpDateField,
+  jumpDateListDirection,
 }: NoteListKeyboardOptions) {
   const virtuosoRef = useRef<VirtuosoHandle>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -742,6 +869,21 @@ export function useNoteListKeyboard({
     onPrefetch,
     scheduleOpen,
   })
+  const jumpToDate = useJumpToDate({
+    items,
+    syncHighlightedPath,
+    virtuosoRef,
+    onPrefetch,
+    scheduleOpen,
+  })
+  const jumpByYear = useJumpByYear({
+    items,
+    selectedNotePath,
+    highlightedPathRef,
+    jumpDateField,
+    jumpDateListDirection,
+    jumpToDate,
+  })
   const handleEscapeWhileSearching = useCallback(() => {
     if (!searchVisible || !toggleSearch) return false
     // Mirror the search box's own Escape: clear the query, hide the bar, and
@@ -756,6 +898,7 @@ export function useNoteListKeyboard({
     highlightedPathRef,
     moveHighlight,
     jumpToEdge,
+    jumpByYear,
     flushOpen,
     cancelOpen,
     onEnterNeighborhood,
@@ -795,5 +938,8 @@ export function useNoteListKeyboard({
     panelRef,
     toggleSearchShortcut: handleToggleSearchShortcut,
     virtuosoRef,
+    jumpToDate,
+    jumpByYear,
+    canJumpByYear: jumpDateField !== undefined,
   }
 }

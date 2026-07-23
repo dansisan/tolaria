@@ -5,6 +5,7 @@ import { NoteListHeader } from './NoteListHeader'
 import { NoteTimelineDialog } from './NoteTimelineDialog'
 import { EntityView, ListView } from './NoteListViews'
 import { trackEvent } from '../../lib/telemetry'
+import type { TimelineBucket } from '../../utils/noteTimeline'
 import type { useNoteListModel } from './useNoteListModel'
 
 type NoteListLayoutProps = ReturnType<typeof useNoteListModel> & {
@@ -296,6 +297,9 @@ function NoteListLayoutHeader({
   toggleSearch,
   setSearch,
   handleSearchKeyDown,
+  canJumpByYear,
+  jumpByYear,
+  jumpToDate,
 }: Pick<
   NoteListLayoutProps,
   | 'title'
@@ -326,11 +330,20 @@ function NoteListLayoutHeader({
   | 'toggleSearch'
   | 'setSearch'
   | 'handleSearchKeyDown'
+  | 'canJumpByYear'
+  | 'jumpByYear'
+  | 'jumpToDate'
 >) {
   const [showTimeline, setShowTimeline] = useState(false)
   const openTimeline = () => {
     trackEvent('note_timeline_opened', { count: searched.length })
     setShowTimeline(true)
+  }
+  // Timeline buckets are always charted by createdAt (see buildTimelineBuckets), regardless of listSort.
+  const handleSelectBucket = (bucket: TimelineBucket) => {
+    jumpToDate(bucket.startMs, 'createdAt')
+    trackEvent('note_timeline_bucket_selected', { count: bucket.count })
+    setShowTimeline(false)
   }
   return (
     <>
@@ -360,6 +373,8 @@ function NoteListLayoutHeader({
       onOpenType={onOpenType}
       onToggleSearch={toggleSearch}
       onOpenTimeline={openTimeline}
+      canJumpByYear={canJumpByYear}
+      onJumpByYear={jumpByYear}
       onSearchChange={setSearch}
       onSearchKeyDown={handleSearchKeyDown}
     />
@@ -368,6 +383,7 @@ function NoteListLayoutHeader({
       onClose={() => setShowTimeline(false)}
       entries={searched}
       locale={locale}
+      onSelectBucket={handleSelectBucket}
     />
     </>
   )
