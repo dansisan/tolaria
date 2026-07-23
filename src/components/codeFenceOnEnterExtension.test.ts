@@ -27,6 +27,7 @@ function createView(paragraphText: string, overrides: Record<string, unknown> = 
             textContent: paragraphText,
             type: { name: 'paragraph' },
           },
+          parentOffset: paragraphText.length,
         },
       },
     },
@@ -35,9 +36,33 @@ function createView(paragraphText: string, overrides: Record<string, unknown> = 
   }
 }
 
+function createCodeBlockView(text: string, parentOffset: number, overrides: Record<string, unknown> = {}) {
+  return {
+    isDestroyed: false,
+    composing: false,
+    dispatch: vi.fn(),
+    state: {
+      tr: { insertText: vi.fn() },
+      selection: {
+        empty: true,
+        $from: {
+          parent: {
+            isTextblock: true,
+            textContent: text,
+            type: { name: 'codeBlock' },
+          },
+          parentOffset,
+        },
+      },
+    },
+    ...overrides,
+  }
+}
+
 function createFixture(paragraphText: string, options: {
   blockType?: string
   view?: ReturnType<typeof createView>
+  nextBlock?: { id: string; type: string } | undefined
 } = {}) {
   const listeners = new Map<string, EventListener>()
   const view = options.view ?? createView(paragraphText)
@@ -61,11 +86,15 @@ function createFixture(paragraphText: string, options: {
   const block = { id: 'block-1', type: options.blockType ?? 'paragraph' }
   const updateBlock = vi.fn()
   const setTextCursorPosition = vi.fn()
+  const removeBlocks = vi.fn()
+  const insertBlocks = vi.fn(() => [{ id: 'block-2', type: 'codeBlock' }])
   const editor = {
     prosemirrorView: view,
-    getTextCursorPosition: vi.fn(() => ({ block })),
+    getTextCursorPosition: vi.fn(() => ({ block, nextBlock: options.nextBlock })),
     updateBlock,
     setTextCursorPosition,
+    removeBlocks,
+    insertBlocks,
   }
   const extension = createCodeFenceOnEnterExtension()({ editor: editor as never })
   const dom = {
@@ -80,9 +109,12 @@ function createFixture(paragraphText: string, options: {
     block,
     setTextCursorPosition,
     updateBlock,
+    removeBlocks,
+    insertBlocks,
     view,
     fireEnter: (event: Partial<KeyboardEvent> = {}) => fireKey('Enter', event),
     fireSpace: (event: Partial<KeyboardEvent> = {}) => fireKey(' ', event),
+    fireDelete: (event: Partial<KeyboardEvent> = {}) => fireKey('Delete', event),
   }
 }
 
@@ -216,17 +248,6 @@ describe('createCodeFenceOnEnterExtension', () => {
     expect(fixture.updateBlock).not.toHaveBeenCalled()
   })
 
-  it('ignores fences outside paragraphs (e.g. inside an existing code block)', () => {
-    const view = createView('```')
-    view.state.selection.$from.parent.type.name = 'codeBlock'
-    const fixture = createFixture('```', { view })
-
-    const event = fixture.fireEnter()
-
-    expect(fixture.updateBlock).not.toHaveBeenCalled()
-    expect(event.preventDefault).not.toHaveBeenCalled()
-  })
-
   it('does not convert when the BlockNote block is not a paragraph', () => {
     const fixture = createFixture('```', { blockType: 'heading' })
 
@@ -263,5 +284,176 @@ describe('createCodeFenceOnEnterExtension', () => {
 
     expect(fixture.view.dispatch).not.toHaveBeenCalled()
     expect(event.preventDefault).not.toHaveBeenCalled()
+  })
+})
+
+describe('Delete before a code block', () => {
+  it('removes an empty paragraph and moves the cursor into the following code block', () => {
+    const fixture = createFixture('', { nextBlock: { id: 'block-2', type: 'codeBlock' } })
+
+    const event = fixture.fireDelete()
+
+    expect(fixture.removeBlocks).toHaveBeenCalledWith([fixture.block])
+    expect(fixture.setTextCursorPosition).toHaveBeenCalledWith({ id: 'block-2', type: 'codeBlock' }, 'start')
+    expect(event.preventDefault).toHaveBeenCalled()
+    expect(event.stopPropagation).toHaveBeenCalled()
+  })
+
+  it('does nothing when the paragraph is not empty', () => {
+    const fixture = createFixture('hello', { nextBlock: { id: 'block-2', type: 'codeBlock' } })
+
+    const event = fixture.fireDelete()
+
+    expect(fixture.removeBlocks).not.toHaveBeenCalled()
+    expect(event.preventDefault).not.toHaveBeenCalled()
+  })
+
+  it('does nothing when the next block is not a code block', () => {
+    const fixture = createFixture('', { nextBlock: { id: 'block-2', type: 'paragraph' } })
+
+    const event = fixture.fireDelete()
+
+    expect(fixture.removeBlocks).not.toHaveBeenCalled()
+    expect(event.preventDefault).not.toHaveBeenCalled()
+  })
+
+  it('does nothing when there is no next block', () => {
+    const fixture = createFixture('', { nextBlock: undefined })
+
+    const event = fixture.fireDelete()
+
+    expect(fixture.removeBlocks).not.toHaveBeenCalled()
+    expect(event.preventDefault).not.toHaveBeenCalled()
+  })
+
+  it('does nothing when the current block is not a paragraph', () => {
+    const view = createView('')
+    view.state.selection.$from.parent.type.name = 'heading'
+    const fixture = createFixture('', { view, nextBlock: { id: 'block-2', type: 'codeBlock' } })
+
+    const event = fixture.fireDelete()
+
+    expect(fixture.removeBlocks).not.toHaveBeenCalled()
+    expect(event.preventDefault).not.toHaveBeenCalled()
+  })
+
+  it('ignores Delete with modifier keys', () => {
+    const fixture = createFixture('', { nextBlock: { id: 'block-2', type: 'codeBlock' } })
+
+    fixture.fireDelete({ shiftKey: true })
+    fixture.fireDelete({ metaKey: true })
+
+    expect(fixture.removeBlocks).not.toHaveBeenCalled()
+  })
+})
+
+describe('splitting a code block at an internal fence line on Enter', () => {
+  it('keeps earlier lines above and moves later lines into a new code block below', () => {
+    const text = 'const a = 1\n```\nconst b = 2'
+    const view = createCodeBlockView(text, 'const a = 1\n```'.length)
+    const fixture = createFixture(text, { view })
+
+    const event = fixture.fireEnter()
+
+    expect(fixture.updateBlock).toHaveBeenCalledWith(fixture.block, { content: 'const a = 1' })
+    expect(fixture.insertBlocks).toHaveBeenCalledWith(
+      [{ type: 'codeBlock', props: {}, content: 'const b = 2' }],
+      fixture.block,
+      'after',
+    )
+    expect(fixture.setTextCursorPosition).toHaveBeenCalledWith({ id: 'block-2', type: 'codeBlock' }, 'start')
+    expect(event.preventDefault).toHaveBeenCalled()
+    expect(event.stopPropagation).toHaveBeenCalled()
+    expect(trackEvent).toHaveBeenCalledWith('code_block_fence_split', { has_language: 0, has_nowrap: 0 })
+  })
+
+  it('carries language and nowrap from the fence line into the new block, leaving the original untouched', () => {
+    const text = 'const a = 1\n```python nowrap\nconst b = 2'
+    const view = createCodeBlockView(text, 'const a = 1\n```python nowrap'.length)
+    const fixture = createFixture(text, { view })
+
+    fixture.fireEnter()
+
+    expect(fixture.updateBlock).toHaveBeenCalledWith(fixture.block, { content: 'const a = 1' })
+    expect(fixture.insertBlocks).toHaveBeenCalledWith(
+      [{ type: 'codeBlock', props: { language: 'python', nowrap: true }, content: 'const b = 2' }],
+      fixture.block,
+      'after',
+    )
+    expect(trackEvent).toHaveBeenCalledWith('code_block_fence_split', { has_language: 1, has_nowrap: 1 })
+  })
+
+  it('leaves the original block empty when the fence is the first line', () => {
+    const text = '```\nconst b = 2'
+    const view = createCodeBlockView(text, 3)
+    const fixture = createFixture(text, { view })
+
+    fixture.fireEnter()
+
+    expect(fixture.updateBlock).toHaveBeenCalledWith(fixture.block, { content: '' })
+    expect(fixture.insertBlocks).toHaveBeenCalledWith(
+      [{ type: 'codeBlock', props: {}, content: 'const b = 2' }],
+      fixture.block,
+      'after',
+    )
+  })
+
+  it('creates an empty new block when the fence is the last line', () => {
+    const text = 'const a = 1\n```'
+    const view = createCodeBlockView(text, text.length)
+    const fixture = createFixture(text, { view })
+
+    fixture.fireEnter()
+
+    expect(fixture.updateBlock).toHaveBeenCalledWith(fixture.block, { content: 'const a = 1' })
+    expect(fixture.insertBlocks).toHaveBeenCalledWith(
+      [{ type: 'codeBlock', props: {}, content: '' }],
+      fixture.block,
+      'after',
+    )
+  })
+
+  it('splits into two empty blocks when the fence is the entire code block', () => {
+    const text = '```'
+    const view = createCodeBlockView(text, text.length)
+    const fixture = createFixture(text, { view })
+
+    fixture.fireEnter()
+
+    expect(fixture.updateBlock).toHaveBeenCalledWith(fixture.block, { content: '' })
+    expect(fixture.insertBlocks).toHaveBeenCalledWith(
+      [{ type: 'codeBlock', props: {}, content: '' }],
+      fixture.block,
+      'after',
+    )
+  })
+
+  it('does not intercept Enter when the current code-block line is not a bare fence', () => {
+    const text = 'const a = 1'
+    const view = createCodeBlockView(text, text.length)
+    const fixture = createFixture(text, { view })
+
+    const event = fixture.fireEnter()
+
+    expect(fixture.updateBlock).not.toHaveBeenCalled()
+    expect(fixture.insertBlocks).not.toHaveBeenCalled()
+    expect(event.preventDefault).not.toHaveBeenCalled()
+  })
+
+  it('splits at the cursor even when the fence line already has trailing text after it', () => {
+    // The user typed "```" right before existing content, without a newline
+    // in between yet — only the text before the cursor needs to be the fence.
+    const text = 'const a = 1\n```const b = 2'
+    const view = createCodeBlockView(text, 'const a = 1\n```'.length)
+    const fixture = createFixture(text, { view })
+
+    fixture.fireEnter()
+
+    expect(fixture.updateBlock).toHaveBeenCalledWith(fixture.block, { content: 'const a = 1' })
+    expect(fixture.insertBlocks).toHaveBeenCalledWith(
+      [{ type: 'codeBlock', props: {}, content: 'const b = 2' }],
+      fixture.block,
+      'after',
+    )
   })
 })
