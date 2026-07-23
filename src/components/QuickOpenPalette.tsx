@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react'
 import type { VaultEntry } from '../types'
 import { NoteSearchList } from './NoteSearchList'
 import { useNoteSearch } from '../hooks/useNoteSearch'
@@ -93,27 +93,44 @@ function useQuickOpenKeyboard({
   handleKeyDown: (e: KeyboardEvent) => void
   createFromQuery: () => void | Promise<void>
 }) {
+  // Read via a ref kept in sync via useLayoutEffect (not useEffect) rather
+  // than closing over these directly: re-subscribing the window listener on
+  // every dependency change (every keystroke, every arrow-key move) left a
+  // window where a fast state transition — e.g. the debounced search
+  // settling to zero results right as Enter is pressed — could be caught by
+  // a listener holding stale `results`/`selectedIndex`/`createFromQuery`
+  // before the effect had re-run, misrouting Enter to `onSelect` instead of
+  // creating the note. A plain `useEffect` is a passive effect deferred past
+  // a scheduler boundary, so it doesn't close that window either — the ref
+  // must update inside the same synchronous commit as the render, which only
+  // `useLayoutEffect` guarantees.
+  const latestRef = useRef({ results, selectedIndex, onSelect, onClose, handleKeyDown, createFromQuery })
+  useLayoutEffect(() => {
+    latestRef.current = { results, selectedIndex, onSelect, onClose, handleKeyDown, createFromQuery }
+  })
+
   useEffect(() => {
     if (!open) return
     const handler = (e: KeyboardEvent) => {
-      handleKeyDown(e)
+      const current = latestRef.current
+      current.handleKeyDown(e)
       if (e.key === 'Escape') {
         e.preventDefault()
-        onClose()
+        current.onClose()
       } else if (e.key === 'Enter') {
         e.preventDefault()
-        const selected = results.at(selectedIndex)
+        const selected = current.results.at(current.selectedIndex)
         if (selected) {
-          onSelect(selected.entry)
-          onClose()
+          current.onSelect(selected.entry)
+          current.onClose()
         } else {
-          void createFromQuery()
+          void current.createFromQuery()
         }
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [open, results, selectedIndex, onSelect, onClose, handleKeyDown, createFromQuery])
+  }, [open])
 }
 
 export function QuickOpenPalette({ open, entries, isLoading = false, onSelect, onCreateNote, onClose, locale = 'en' }: QuickOpenPaletteProps) {
