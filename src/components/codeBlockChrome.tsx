@@ -219,6 +219,11 @@ export function CodeBlockFenceLine({
     if (!newBlockId) return false
     editor.setTextCursorPosition?.(newBlockId, 'start')
     editor.focus?.()
+    // BlockNote's insertBlocks/setTextCursorPosition never scroll the new
+    // block into view (unlike its own native Enter/Backspace commands), so
+    // a paragraph inserted above a code block at the top of a long note can
+    // land above the visible viewport.
+    document.querySelector<HTMLElement>(`[data-id="${newBlockId}"]`)?.scrollIntoView({ block: 'nearest' })
     return true
   }, [editor, target.blockId])
 

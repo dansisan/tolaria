@@ -296,6 +296,34 @@ describe('CodeBlockFenceLine', () => {
     expect(focus).toHaveBeenCalled()
   })
 
+  it('scrolls the newly inserted paragraph into view on Enter at the fence start', () => {
+    const setTextCursorPosition = vi.fn()
+    const insertBlocks = vi.fn(() => [{ id: 'new-paragraph' }])
+    const focus = vi.fn()
+    const newParagraph = document.createElement('div')
+    newParagraph.setAttribute('data-id', 'new-paragraph')
+    document.body.appendChild(newParagraph)
+    const scrollIntoView = vi.fn()
+    newParagraph.scrollIntoView = scrollIntoView
+
+    render(
+      <CodeBlockFenceLine
+        target={fenceTargetFor()}
+        editor={{ setTextCursorPosition, insertBlocks, focus }}
+        locale="en"
+        onBeginEditing={vi.fn()}
+        onEndEditing={vi.fn()}
+      />,
+    )
+
+    const input = screen.getByLabelText('Code fence line') as HTMLInputElement
+    input.focus()
+    input.setSelectionRange(0, 0)
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' })
+  })
+
   it('moves the cursor into the code on Enter when the caret is not at the fence start', () => {
     const setTextCursorPosition = vi.fn()
     const insertBlocks = vi.fn(() => [{ id: 'new-paragraph' }])
