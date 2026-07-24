@@ -8,6 +8,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { buildTypeEntryMap, getTypeColor, getTypeLightColor } from '../../utils/typeColors'
+import { sortFavorites } from '../../utils/favorites'
 import { NoteTitleIcon } from '../NoteTitleIcon'
 import { isSelectionActive } from '../SidebarParts'
 import { SidebarGroupHeader } from './SidebarGroupHeader'
@@ -77,12 +78,6 @@ function SortableFavoriteItem({
       </button>
     </div>
   )
-}
-
-function sortFavorites(entries: VaultEntry[]) {
-  return entries
-    .filter((entry) => entry.favorite && !entry.archived)
-    .sort((a, b) => (a.favoriteIndex ?? Infinity) - (b.favoriteIndex ?? Infinity))
 }
 
 function reorderFavoriteIds(favoriteIds: string[], event: DragEndEvent) {

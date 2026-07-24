@@ -109,6 +109,7 @@ import { isWindows } from './utils/platform'
 import { getPulledVaultUpdateOptions, refreshPulledVaultState } from './utils/pulledVaultRefresh'
 import { applyWatcherPartialRefresh } from './utils/watcherPartialRefresh'
 import { findByNotePath, notePathsMatch } from './utils/notePathIdentity'
+import { sortFavorites } from './utils/favorites'
 import { hasEverOpenedAiWorkspaceWindow, isAiWorkspaceWindow, isNoteWindow, getNoteWindowParams, type NoteWindowParams } from './utils/windowMode'
 import type { NotePdfExportSource } from './utils/notePdfExport'
 import { GitSetupDialog } from './components/GitRequiredModal'
@@ -888,6 +889,16 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     await handleReplaceActiveTab(entry)
     handleEnterNeighborhood(entry)
   }, [handleEnterNeighborhood, handleReplaceActiveTab])
+
+  const handleJumpToFavorite = useCallback((index: number) => {
+    const entry = sortFavorites(visibleEntries)[index - 1]
+    if (!entry) return
+    // Reveal in place rather than entering Neighborhood mode (handleOpenFavorite):
+    // switch to All Notes so the note list can scroll the row into view instead
+    // of narrowing the list down to just this note's neighborhood.
+    handleSetSelection({ kind: 'filter', filter: 'all' })
+    void handleReplaceActiveTab(entry)
+  }, [visibleEntries, handleSetSelection, handleReplaceActiveTab])
 
   const vaultBridge = useVaultBridge({
     entriesByPath,
@@ -2033,6 +2044,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     onCopyActiveDeepLink: deepLinks.copyPathDeepLink,
     onOpenActiveFileExternal: fileActions.openExternalFile,
     onToggleFavorite: entryActions.handleToggleFavorite,
+    onJumpToFavorite: handleJumpToFavorite,
     onToggleOrganized: toggleOrganizedCommand,
     onToggleBulkSelect: () => multiSelectionCommandRef.current?.toggleBulkMode?.(),
     onCustomizeNoteListColumns: handleCustomizeNoteListColumns,

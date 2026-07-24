@@ -45,6 +45,7 @@ function makeHandlers(): AppCommandHandlers {
     onZoomReset: vi.fn(),
     onToggleOrganized: vi.fn(),
     onToggleFavorite: vi.fn(),
+    onJumpToFavorite: vi.fn(),
     onArchiveNote: vi.fn(),
     onDeleteNote: vi.fn(),
     onSearch: vi.fn(),
@@ -212,6 +213,8 @@ describe('appCommandDispatcher', () => {
   })
 
   it('resolves event modifiers through the shared shortcut catalog', () => {
+    expectShortcutEventCommand({ key: '1', metaKey: true }, APP_COMMAND_IDS.favoriteJump1)
+    expectShortcutEventCommand({ key: '1', metaKey: true, shiftKey: true }, APP_COMMAND_IDS.viewEditorOnly)
     expectShortcutEventCommand({ key: 'o', code: 'KeyO', metaKey: true }, APP_COMMAND_IDS.fileQuickOpen)
     expectShortcutEventCommand({ key: '¬', code: 'KeyL', metaKey: true, shiftKey: true }, APP_COMMAND_IDS.viewToggleAiChat)
     expectShortcutEventCommand({ key: 'I', code: 'KeyI', metaKey: true, shiftKey: true }, APP_COMMAND_IDS.viewToggleProperties)
@@ -344,6 +347,23 @@ describe('appCommandDispatcher', () => {
     const handlers = makeHandlers()
     expect(dispatchAppCommand(APP_COMMAND_IDS.goChanges, handlers)).toBe(true)
     expect(handlers.onSelectFilter).toHaveBeenCalledWith('changes')
+  })
+
+  it('maps Cmd+1 through Cmd+9 to the favorite-jump commands', () => {
+    expect(findShortcutCommandId('command-or-ctrl', '1')).toBe(APP_COMMAND_IDS.favoriteJump1)
+    expect(findShortcutCommandId('command-or-ctrl', '9')).toBe(APP_COMMAND_IDS.favoriteJump9)
+  })
+
+  it('dispatches favorite-jump commands with their 1-based index', () => {
+    const handlers = makeHandlers()
+    expect(dispatchAppCommand(APP_COMMAND_IDS.favoriteJump1, handlers)).toBe(true)
+    expect(dispatchAppCommand(APP_COMMAND_IDS.favoriteJump9, handlers)).toBe(true)
+    expect(handlers.onJumpToFavorite).toHaveBeenNthCalledWith(1, 1)
+    expect(handlers.onJumpToFavorite).toHaveBeenNthCalledWith(2, 9)
+  })
+
+  it('keeps favorite-jump shortcuts off the native menu', () => {
+    expect(isNativeMenuCommandId(APP_COMMAND_IDS.favoriteJump1)).toBe(false)
   })
 
   it('suppresses a native-menu echo after renderer keyboard dispatch', () => {

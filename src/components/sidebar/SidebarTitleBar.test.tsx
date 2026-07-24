@@ -26,7 +26,7 @@ describe('SidebarTitleBar', () => {
     const back = screen.getByRole('button', { name: 'Go Back' })
     const forward = screen.getByRole('button', { name: 'Go Forward' })
 
-    expect(collapse).toHaveAttribute('title', expect.stringMatching(/^Collapse sidebar \((⌘|Ctrl\+)2\)$/))
+    expect(collapse).toHaveAttribute('title', expect.stringMatching(/^Collapse sidebar \((⌘⇧|Ctrl\+Shift\+)2\)$/))
     expect(back).toHaveAttribute('title', expect.stringMatching(/^Go Back \((⌘←|Ctrl\+Left)\)$/))
     expect(forward).toHaveAttribute('title', expect.stringMatching(/^Go Forward \((⌘→|Ctrl\+Right)\)$/))
     expect(forward).toBeDisabled()

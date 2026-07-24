@@ -83,6 +83,7 @@ type AppCommandRoute =
   | { kind: 'filter'; value: SidebarFilter }
   | { kind: 'handler'; handler: SimpleHandlerKey }
   | { kind: 'active-tab-handler'; handler: ActiveTabHandlerKey }
+  | { kind: 'favorite-jump'; index: number }
 
 interface AppCommandShortcutDefinition {
   combo: AppCommandShortcutCombo

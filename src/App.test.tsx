@@ -265,6 +265,21 @@ function configureNeighborhoodFavoritesVault() {
   mockCommandResults.get_note_content = ({ path }: { path: string }) => neighborhoodContent[path] ?? ''
 }
 
+function configureNeighborhoodMultiFavoritesVault() {
+  const favoriteIndexByPath: Record<string, number> = {
+    '/vault/alpha.md': 0,
+    '/vault/beta.md': 1,
+    '/vault/gamma.md': 2,
+  }
+  mockCommandResults.list_vault = neighborhoodEntries.map((entry) => ({
+    ...entry,
+    favorite: true,
+    favoriteIndex: favoriteIndexByPath[entry.path],
+  }))
+  mockCommandResults.get_all_content = neighborhoodContent
+  mockCommandResults.get_note_content = ({ path }: { path: string }) => neighborhoodContent[path] ?? ''
+}
+
 function getHeaderForNoteList(noteListContainer: HTMLElement) {
   return within(noteListContainer.parentElement as HTMLElement).getByRole('heading', { level: 3 })
 }
@@ -1189,6 +1204,36 @@ describe('App', () => {
     expect(screen.getByText('Beta')).toBeInTheDocument()
   })
 
+  it('Cmd+1/2/3 jump to favorites in list order without entering Neighborhood mode', async () => {
+    configureNeighborhoodMultiFavoritesVault()
+
+    render(<App />)
+    await waitFor(() => {
+      expect(screen.getByText('All Notes')).toBeInTheDocument()
+    })
+
+    const noteListContainer = await screen.findByTestId('note-list-container')
+
+    fireEvent.keyDown(window, { key: '1', metaKey: true })
+    await waitFor(() => {
+      expect(window.__laputaTest?.activeTabPath).toBe('/vault/alpha.md')
+    })
+    expect(getHeaderForNoteList(noteListContainer)).toHaveTextContent('Notes')
+
+    fireEvent.keyDown(window, { key: '2', metaKey: true })
+    await waitFor(() => {
+      expect(window.__laputaTest?.activeTabPath).toBe('/vault/beta.md')
+    })
+    expect(getHeaderForNoteList(noteListContainer)).toHaveTextContent('Notes')
+
+    fireEvent.keyDown(window, { key: '3', metaKey: true })
+    await waitFor(() => {
+      expect(window.__laputaTest?.activeTabPath).toBe('/vault/gamma.md')
+    })
+    expect(getHeaderForNoteList(noteListContainer)).toHaveTextContent('Notes')
+    expect(screen.queryByText('Related to')).not.toBeInTheDocument()
+  })
+
   it('defaults to All Notes when explicit organization is disabled in vault config', async () => {
     const workVaultPath = '/Users/mock/Documents/Work'
     mockCommandResults.load_vault_list = {
@@ -1351,7 +1396,7 @@ describe('App', () => {
     })
   })
 
-  it('Cmd+1 hides sidebar and note list (editor-only mode)', async () => {
+  it('Cmd+Shift+1 hides sidebar and note list (editor-only mode)', async () => {
     render(<App />)
     await waitFor(() => {
       expect(screen.getByText('All Notes')).toBeInTheDocument()
@@ -1361,41 +1406,41 @@ describe('App', () => {
     expect(document.querySelector('.app__sidebar')).toBeInTheDocument()
     expect(document.querySelector('.app__note-list')).toBeInTheDocument()
 
-    // Cmd+1 → editor-only
-    fireEvent.keyDown(window, { key: '1', metaKey: true })
+    // Cmd+Shift+1 → editor-only
+    fireEvent.keyDown(window, { key: '1', metaKey: true, shiftKey: true })
     await waitFor(() => {
       expect(document.querySelector('.app__sidebar')).not.toBeInTheDocument()
       expect(document.querySelector('.app__note-list')).not.toBeInTheDocument()
     })
   })
 
-  it('Cmd+2 shows editor + note list (sidebar hidden)', async () => {
+  it('Cmd+Shift+2 shows editor + note list (sidebar hidden)', async () => {
     render(<App />)
     await waitFor(() => {
       expect(screen.getByText('All Notes')).toBeInTheDocument()
     })
 
-    fireEvent.keyDown(window, { key: '2', metaKey: true })
+    fireEvent.keyDown(window, { key: '2', metaKey: true, shiftKey: true })
     await waitFor(() => {
       expect(document.querySelector('.app__sidebar')).not.toBeInTheDocument()
       expect(document.querySelector('.app__note-list')).toBeInTheDocument()
     })
   })
 
-  it('Cmd+3 restores all panels after Cmd+1', async () => {
+  it('Cmd+Shift+3 restores all panels after Cmd+Shift+1', async () => {
     render(<App />)
     await waitFor(() => {
       expect(screen.getByText('All Notes')).toBeInTheDocument()
     })
 
     // Switch to editor-only first
-    fireEvent.keyDown(window, { key: '1', metaKey: true })
+    fireEvent.keyDown(window, { key: '1', metaKey: true, shiftKey: true })
     await waitFor(() => {
       expect(document.querySelector('.app__sidebar')).not.toBeInTheDocument()
     })
 
-    // Cmd+3 → all panels
-    fireEvent.keyDown(window, { key: '3', metaKey: true })
+    // Cmd+Shift+3 → all panels
+    fireEvent.keyDown(window, { key: '3', metaKey: true, shiftKey: true })
     await waitFor(() => {
       expect(document.querySelector('.app__sidebar')).toBeInTheDocument()
       expect(document.querySelector('.app__note-list')).toBeInTheDocument()
@@ -1413,7 +1458,7 @@ describe('App', () => {
     invoke.mockClear()
 
     // Editor-only min width plus the inspector, which defaults to open.
-    fireEvent.keyDown(window, { key: '1', metaKey: true })
+    fireEvent.keyDown(window, { key: '1', metaKey: true, shiftKey: true })
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith('update_current_window_min_size', {
         minWidth: 760,
@@ -1424,7 +1469,7 @@ describe('App', () => {
 
     invoke.mockClear()
 
-    fireEvent.keyDown(window, { key: '3', metaKey: true })
+    fireEvent.keyDown(window, { key: '3', metaKey: true, shiftKey: true })
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith('update_current_window_min_size', {
         minWidth: 1310,

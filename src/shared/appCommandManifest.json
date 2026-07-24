@@ -182,10 +182,10 @@
       "route": { "kind": "view-mode", "value": "editor-only" },
       "menuOwned": true,
       "shortcut": {
-        "combo": "command-or-ctrl",
+        "combo": "command-or-ctrl-shift",
         "key": "1",
-        "display": "⌘1",
-        "accelerator": "CmdOrCtrl+1"
+        "display": "⌘⇧1",
+        "accelerator": "CmdOrCtrl+Shift+1"
       }
     },
     "viewEditorList": {
@@ -193,10 +193,10 @@
       "route": { "kind": "view-mode", "value": "editor-list" },
       "menuOwned": true,
       "shortcut": {
-        "combo": "command-or-ctrl",
+        "combo": "command-or-ctrl-shift",
         "key": "2",
-        "display": "⌘2",
-        "accelerator": "CmdOrCtrl+2"
+        "display": "⌘⇧2",
+        "accelerator": "CmdOrCtrl+Shift+2"
       }
     },
     "viewAll": {
@@ -204,10 +204,10 @@
       "route": { "kind": "view-mode", "value": "all" },
       "menuOwned": true,
       "shortcut": {
-        "combo": "command-or-ctrl",
+        "combo": "command-or-ctrl-shift",
         "key": "3",
-        "display": "⌘3",
-        "accelerator": "CmdOrCtrl+3"
+        "display": "⌘⇧3",
+        "accelerator": "CmdOrCtrl+Shift+3"
       }
     },
     "viewToggleProperties": {
@@ -371,6 +371,105 @@
         "display": "⌘D",
         "accelerator": "CmdOrCtrl+D",
         "requiresManualNativeAcceleratorQa": true
+      }
+    },
+    "favoriteJump1": {
+      "id": "favorite-jump-1",
+      "route": { "kind": "favorite-jump", "index": 1 },
+      "menuOwned": false,
+      "shortcut": {
+        "combo": "command-or-ctrl",
+        "key": "1",
+        "display": "⌘1",
+        "accelerator": "CmdOrCtrl+1"
+      }
+    },
+    "favoriteJump2": {
+      "id": "favorite-jump-2",
+      "route": { "kind": "favorite-jump", "index": 2 },
+      "menuOwned": false,
+      "shortcut": {
+        "combo": "command-or-ctrl",
+        "key": "2",
+        "display": "⌘2",
+        "accelerator": "CmdOrCtrl+2"
+      }
+    },
+    "favoriteJump3": {
+      "id": "favorite-jump-3",
+      "route": { "kind": "favorite-jump", "index": 3 },
+      "menuOwned": false,
+      "shortcut": {
+        "combo": "command-or-ctrl",
+        "key": "3",
+        "display": "⌘3",
+        "accelerator": "CmdOrCtrl+3"
+      }
+    },
+    "favoriteJump4": {
+      "id": "favorite-jump-4",
+      "route": { "kind": "favorite-jump", "index": 4 },
+      "menuOwned": false,
+      "shortcut": {
+        "combo": "command-or-ctrl",
+        "key": "4",
+        "display": "⌘4",
+        "accelerator": "CmdOrCtrl+4"
+      }
+    },
+    "favoriteJump5": {
+      "id": "favorite-jump-5",
+      "route": { "kind": "favorite-jump", "index": 5 },
+      "menuOwned": false,
+      "shortcut": {
+        "combo": "command-or-ctrl",
+        "key": "5",
+        "display": "⌘5",
+        "accelerator": "CmdOrCtrl+5"
+      }
+    },
+    "favoriteJump6": {
+      "id": "favorite-jump-6",
+      "route": { "kind": "favorite-jump", "index": 6 },
+      "menuOwned": false,
+      "shortcut": {
+        "combo": "command-or-ctrl",
+        "key": "6",
+        "display": "⌘6",
+        "accelerator": "CmdOrCtrl+6"
+      }
+    },
+    "favoriteJump7": {
+      "id": "favorite-jump-7",
+      "route": { "kind": "favorite-jump", "index": 7 },
+      "menuOwned": false,
+      "shortcut": {
+        "combo": "command-or-ctrl",
+        "key": "7",
+        "display": "⌘7",
+        "accelerator": "CmdOrCtrl+7"
+      }
+    },
+    "favoriteJump8": {
+      "id": "favorite-jump-8",
+      "route": { "kind": "favorite-jump", "index": 8 },
+      "menuOwned": false,
+      "shortcut": {
+        "combo": "command-or-ctrl",
+        "key": "8",
+        "display": "⌘8",
+        "accelerator": "CmdOrCtrl+8"
+      }
+    },
+    "favoriteJump9": {
+      "id": "favorite-jump-9",
+      "route": { "kind": "favorite-jump", "index": 9 },
+      "menuOwned": false,
+      "shortcut": {
+        "combo": "command-or-ctrl",
+        "key": "9",
+        "display": "⌘9",
+        "accelerator": "CmdOrCtrl+9"
       }
     },
     "noteArchive": {

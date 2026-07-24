@@ -43,6 +43,7 @@ export interface AppCommandHandlers {
   onZoomReset: () => void
   onToggleOrganized?: (path: string) => void
   onToggleFavorite?: (path: string) => void
+  onJumpToFavorite?: (index: number) => void
   onArchiveNote: (path: string) => void
   onDeleteNote: (path: string) => void
   onFindInNote?: () => void
@@ -278,6 +279,9 @@ function dispatchDefinition(
       return true
     case 'filter':
       handlers.onSelectFilter?.(definition.route.value)
+      return true
+    case 'favorite-jump':
+      handlers.onJumpToFavorite?.(definition.route.index)
       return true
     case 'handler': {
       runSimpleHandler(definition.route.handler as SimpleHandlerKey, handlers)

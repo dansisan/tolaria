@@ -36,6 +36,7 @@ export type KeyboardActions = Pick<
   | 'onToggleRawEditor'
   | 'onToggleInspector'
   | 'onToggleFavorite'
+  | 'onJumpToFavorite'
   | 'onToggleOrganized'
   | 'onOpenInNewWindow'
   | 'onToggleBulkSelect'

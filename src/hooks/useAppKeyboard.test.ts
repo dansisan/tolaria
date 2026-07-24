@@ -46,6 +46,7 @@ function makeActions() {
     onDeleteNote: vi.fn(),
     onArchiveNote: vi.fn(),
     onToggleOrganized: vi.fn(),
+    onJumpToFavorite: vi.fn(),
     onSetViewMode: vi.fn(),
     onZoomIn: vi.fn(),
     onZoomOut: vi.fn(),
@@ -75,24 +76,24 @@ describe('useAppKeyboard', () => {
     vi.restoreAllMocks()
   })
 
-  it('Cmd+1 sets view mode to editor-only', () => {
+  it('Cmd+Shift+1 sets view mode to editor-only', () => {
     const actions = makeActions()
     renderHook(() => useAppKeyboard(actions))
-    fireKey('1', { metaKey: true })
+    fireKey('1', { metaKey: true, shiftKey: true })
     expect(actions.onSetViewMode).toHaveBeenCalledWith('editor-only')
   })
 
-  it('Cmd+2 sets view mode to editor-list', () => {
+  it('Cmd+Shift+2 sets view mode to editor-list', () => {
     const actions = makeActions()
     renderHook(() => useAppKeyboard(actions))
-    fireKey('2', { metaKey: true })
+    fireKey('2', { metaKey: true, shiftKey: true })
     expect(actions.onSetViewMode).toHaveBeenCalledWith('editor-list')
   })
 
-  it('Cmd+3 sets view mode to all', () => {
+  it('Cmd+Shift+3 sets view mode to all', () => {
     const actions = makeActions()
     renderHook(() => useAppKeyboard(actions))
-    fireKey('3', { metaKey: true })
+    fireKey('3', { metaKey: true, shiftKey: true })
     expect(actions.onSetViewMode).toHaveBeenCalledWith('all')
   })
 
@@ -100,6 +101,14 @@ describe('useAppKeyboard', () => {
     const actions = makeActions()
     renderHook(() => useAppKeyboard(actions))
     fireKey('1', { metaKey: true, altKey: true })
+    expect(actions.onSetViewMode).not.toHaveBeenCalled()
+  })
+
+  it.each([1, 2, 3, 4, 5, 6, 7, 8, 9])('Cmd+%i jumps to favorite #%i', (n) => {
+    const actions = makeActions()
+    renderHook(() => useAppKeyboard(actions))
+    fireKey(String(n), { metaKey: true })
+    expect(actions.onJumpToFavorite).toHaveBeenCalledWith(n)
     expect(actions.onSetViewMode).not.toHaveBeenCalled()
   })
 

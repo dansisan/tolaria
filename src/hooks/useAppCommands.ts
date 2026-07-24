@@ -134,6 +134,7 @@ interface AppCommandsConfig {
   onRevealSelectedFolder?: () => void
   onCopySelectedFolderPath?: () => void
   onToggleFavorite?: (path: string) => void
+  onJumpToFavorite?: (index: number) => void
   onToggleOrganized?: (path: string) => void
   onToggleBulkSelect?: () => void
   onCustomizeNoteListColumns?: () => void
@@ -312,6 +313,7 @@ function createKeyboardActions(
     onToggleRawEditor: config.onToggleRawEditor,
     onToggleInspector: config.onToggleInspector,
     onToggleFavorite: config.onToggleFavorite,
+    onJumpToFavorite: config.onJumpToFavorite,
     onToggleOrganized: config.onToggleOrganized,
     onOpenInNewWindow: config.onOpenInNewWindow,
     onToggleBulkSelect: config.onToggleBulkSelect,
