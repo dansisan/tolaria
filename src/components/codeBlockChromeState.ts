@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { CODE_LINE_NUMBER_CLASS } from './codeBlockLineNumberExtension'
 import { readCodeFence, resolveFenceLanguage } from './codeFenceOnEnterExtension'
 
@@ -242,11 +243,20 @@ export function useActiveCodeBlockFence(
     if (!enabled || !container) return
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!isPlainArrowUp(event) || !fenceTargetRef.current) return
+      if (!isPlainArrowUp(event)) return
       // The fence input handles its own arrows; the ProseMirror selection is
       // still parked on the first code line while it has focus.
       if (event.target instanceof HTMLElement && event.target.hasAttribute('data-editor-code-fence-input')) return
       if (!caretOnFirstCodeBlockLine(readEditorView(editor))) return
+
+      // Some note-content swaps (the cached-doc fast path) install a fresh
+      // EditorState without dispatching a transaction, so onSelectionChange/
+      // onChange never ran and fenceTargetRef is still null even though the
+      // caret already sits on the first code line. Compute it now instead of
+      // giving up — flushSync forces the fence input to actually mount so it
+      // can be focused below in this same keystroke.
+      if (!fenceTargetRef.current) flushSync(updateFenceTarget)
+      if (!fenceTargetRef.current) return
 
       const input = container.querySelector<HTMLInputElement>('[data-editor-code-fence-input]')
       if (!input) return
@@ -258,7 +268,7 @@ export function useActiveCodeBlockFence(
 
     container.addEventListener('keydown', handleKeyDown, { capture: true })
     return () => container.removeEventListener('keydown', handleKeyDown, { capture: true })
-  }, [containerRef, editor, enabled])
+  }, [containerRef, editor, enabled, updateFenceTarget])
 
   const beginFenceEditing = useCallback(() => {
     editingFenceRef.current = true

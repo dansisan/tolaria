@@ -597,6 +597,49 @@ describe('useActiveCodeBlockFence', () => {
     expect(event.defaultPrevented).toBe(false)
   })
 
+  it('computes the fence target on demand when ArrowUp fires before any selection/change event (regression: cached-doc note swap leaves fenceTarget stale/null)', () => {
+    // Regression: applyCachedDocState (the cached-doc note-swap fast path)
+    // installs a fresh EditorState via view.updateState directly, which never
+    // fires onChange/onSelectionChange. If the swapped-in note's first block
+    // is a code block, the cursor lands on its first line with fenceTarget
+    // still null — until now, that left ArrowUp/ArrowLeft unhandled here, so
+    // they fell through to native/title-navigation behavior instead of
+    // opening the fence line.
+    const { container } = buildCodeBlockDom()
+    const input = document.createElement('input')
+    input.setAttribute('data-editor-code-fence-input', '')
+    input.value = '```js'
+    container.appendChild(input)
+    const containerRef = { current: container as HTMLDivElement }
+    const editor: CodeBlockChromeEditor = {
+      prosemirrorView: {
+        state: {
+          selection: {
+            empty: true,
+            $from: { parent: { type: { name: 'codeBlock' }, textContent: 'first\nsecond' }, parentOffset: 0 },
+          },
+        },
+      },
+      getTextCursorPosition: () => ({
+        block: { id: 'block-1', type: 'codeBlock', props: { language: 'js', nowrap: false } },
+      }),
+      onSelectionChange: () => () => {},
+    }
+
+    renderHook(() => useActiveCodeBlockFence(editor, containerRef, true))
+    // No onSelectionChange/onChange listener is ever invoked here, simulating
+    // the cached-doc fast path where the cursor lands in the code block
+    // without a real selection transaction.
+
+    const event = new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true })
+    act(() => {
+      container.dispatchEvent(event)
+    })
+
+    expect(document.activeElement).toBe(input)
+    expect(event.defaultPrevented).toBe(true)
+  })
+
   it('clears the target when the cursor leaves code blocks', () => {
     const { container } = buildCodeBlockDom()
     const containerRef = { current: container as HTMLDivElement }
