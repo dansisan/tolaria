@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import type { VaultEntry } from '../../types'
+import { logExpensiveCall, startExpensiveCall } from '../../utils/expensiveCallLog'
 import { wikilinkTarget } from '../../utils/wikilink'
 import type { ReferencedByItem, BacklinkItem } from '../InspectorPanels'
 
@@ -161,7 +162,16 @@ export function getInspectorLinkIndex(entries: VaultEntry[]): InspectorLinkIndex
   const cached = inspectorLinkIndexCache.get(entries)
   if (cached) return cached
 
+  // Cache miss: the whole link graph is rebuilt. Expected once per new entries
+  // array; a burst here means something is handing the inspector a fresh array
+  // identity on every render.
+  const startedAt = startExpensiveCall()
   const built = buildInspectorLinkIndex(entries)
+  logExpensiveCall({
+    name: 'inspector.buildLinkIndex',
+    startedAt,
+    detail: `entries=${entries.length} backlinkTargets=${built.backlinks.size}`,
+  })
   inspectorLinkIndexCache.set(entries, built)
   return built
 }

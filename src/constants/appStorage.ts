@@ -11,6 +11,7 @@ export const APP_STORAGE_KEYS = {
   sidebarCollapsed: 'tolaria:sidebar-collapsed',
   layoutPanels: 'tolaria:layout-panels',
   welcomeDismissed: 'tolaria_welcome_dismissed',
+  perfLogging: 'tolaria:perf-logging',
 } as const
 
 export const LEGACY_APP_STORAGE_KEYS = {

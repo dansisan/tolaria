@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { isTauri, mockInvoke } from '../mock-tauri'
 import type { FolderNode, GitPushResult, VaultEntry, ViewFile } from '../types'
 import type { VaultOption } from '../components/status-bar/types'
+import { logExpensiveCall, startExpensiveCall } from '../utils/expensiveCallLog'
 import { normalizeVaultEntries, normalizeViewFiles } from '../utils/vaultMetadataNormalization'
 import { workspaceIdentityFromVault } from '../utils/workspaces'
 
@@ -68,8 +69,27 @@ export async function checkVaultPathAvailability({ vaultPath }: VaultPathOptions
   }
 }
 
-function loadVaultEntriesWithCommand({ vaultPath, command }: VaultPathOptions & { command: string }): Promise<VaultEntry[]> {
+/**
+ * The one place a whole-vault scan crosses the IPC boundary. `reload_vault`
+ * rescans every file from disk, so an unexpected extra call here is one of the
+ * most expensive things the app can do — instrumented for exactly that reason.
+ */
+function scanVaultEntries({ command, vaultPath }: VaultPathOptions & { command: string }): Promise<unknown> {
+  const startedAt = startExpensiveCall()
   return tauriCall<unknown>({ command, tauriArgs: { path: vaultPath } })
+    .then((entries) => {
+      logExpensiveCall({
+        name: `vault.${command}`,
+        key: `vault.${command}:${vaultPath}`,
+        startedAt,
+        detail: `vault=${vaultPath} entries=${Array.isArray(entries) ? entries.length : 'n/a'}`,
+      })
+      return entries
+    })
+}
+
+function loadVaultEntriesWithCommand({ vaultPath, command }: VaultPathOptions & { command: string }): Promise<VaultEntry[]> {
+  return scanVaultEntries({ command, vaultPath })
     .then((entries) => normalizeVaultEntries(entries, vaultPath))
 }
 
@@ -98,7 +118,7 @@ function loadWorkspaceEntriesWithCommand(
   defaultWorkspacePath?: string | null,
 ): Promise<VaultEntry[]> {
   const workspace = workspaceIdentityFromVault(vault, { defaultWorkspacePath })
-  return tauriCall<unknown>({ command, tauriArgs: { path: vault.path } })
+  return scanVaultEntries({ command, vaultPath: vault.path })
     .then((entries) => normalizeVaultEntries(entries, vault.path, workspace))
 }
 

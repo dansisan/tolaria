@@ -5,6 +5,7 @@ import {
 } from './blankLineSeparators'
 import { compactMarkdown } from './compact-markdown'
 import { serializeDurableEditorBlocks } from './editorDurableMarkdown'
+import { logExpensiveCall, startExpensiveCall } from './expensiveCallLog'
 import { portableFileAttachmentUrls } from './fileAttachmentMarkdown'
 import { portableImageUrls } from './vaultImages'
 import { restoreWikilinksInBlocks, splitFrontmatter } from './wikilinks'
@@ -13,10 +14,17 @@ export function serializeRichEditorBodyToMarkdown(
   editor: ReturnType<typeof useCreateBlockNote>,
   vaultPath?: string,
 ): string {
+  const startedAt = startExpensiveCall()
   const restored = markBlankSeparatorBlocksForSerialization(restoreWikilinksInBlocks(editor.document))
-  return restoreBlankLineSeparators(
+  const markdown = restoreBlankLineSeparators(
     compactMarkdown(serializeDurableEditorBlocks(editor, restored, vaultPath)),
   )
+  logExpensiveCall({
+    name: 'richEditor.serializeBody',
+    startedAt,
+    detail: `blocks=${editor.document.length} chars=${markdown.length}`,
+  })
+  return markdown
 }
 
 const cachedBodyByDoc = new WeakMap<object, string>()

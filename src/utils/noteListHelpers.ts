@@ -14,6 +14,7 @@ import {
   formatTimestampForDateDisplay,
   type DateDisplayFormat,
 } from './dateDisplay'
+import { logExpensiveCall, startExpensiveCall } from './expensiveCallLog'
 import { evaluateView } from './viewFilters'
 import { viewMatchesSelection } from './viewIdentity'
 import { wikilinkTarget, resolveEntry } from './wikilink'
@@ -479,7 +480,17 @@ function entriesScopedToView(entries: VaultEntry[], view: ViewFile): VaultEntry[
 }
 
 export function filterEntriesForViewFile(entries: VaultEntry[], view: ViewFile): VaultEntry[] {
-  return evaluateView(view.definition, entriesScopedToView(entries, view).filter(isMarkdown))
+  const startedAt = startExpensiveCall()
+  const matched = evaluateView(view.definition, entriesScopedToView(entries, view).filter(isMarkdown))
+  // Keyed per view: one pass per sidebar view item is expected, a repeat pass for
+  // the same view inside the burst window is a re-render that should have memoized.
+  logExpensiveCall({
+    name: 'noteList.filterEntriesForView',
+    key: `noteList.filterEntriesForView:${view.rootPath ?? ''}/${view.filename}`,
+    startedAt,
+    detail: `view=${view.filename} entries=${entries.length} matched=${matched.length}`,
+  })
+  return matched
 }
 
 function filterViewEntries(entries: VaultEntry[], selection: Extract<SidebarSelection, { kind: 'view' }>, views?: ViewFile[]): VaultEntry[] {

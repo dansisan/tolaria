@@ -3,6 +3,7 @@ import { preProcessWikilinks, injectWikilinks } from '../utils/wikilinks'
 import { injectBlankLineSeparatorBlocks, preProcessBlankLineSeparators } from '../utils/blankLineSeparators'
 import { preProcessMathMarkdown, injectMathInBlocks } from '../utils/mathMarkdown'
 import { injectDurableEditorMarkdownBlocks, preProcessDurableEditorMarkdown } from '../utils/editorDurableMarkdown'
+import { logExpensiveCall, startExpensiveCall } from '../utils/expensiveCallLog'
 import { resolveImageUrls } from '../utils/vaultImages'
 import { separateImageBlockLines } from '../utils/imageBlockSeparators'
 import { repairMalformedEditorBlocks } from './editorBlockRepair'
@@ -122,16 +123,26 @@ export function startsWithEmptyHeading(options: { content: NoteContent }): boole
   return extractBodyRemainderAfterEmptyH1(options) !== null
 }
 
-async function parseMarkdownBlocks(
-  editor: ReturnType<typeof useCreateBlockNote>,
-  preprocessed: PreprocessedMarkdown,
-): Promise<EditorBlocks> {
-  const result = editor.tryParseMarkdownToBlocks(preprocessed)
+function awaitParsedBlocks(result: ReturnType<ReturnType<typeof useCreateBlockNote>['tryParseMarkdownToBlocks']>): Promise<EditorBlocks> | EditorBlocks {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- tryParseMarkdownToBlocks returns sync or async BlockNote blocks
   if (result && typeof (result as any).then === 'function') {
     return (result as unknown as Promise<EditorBlocks>)
   }
   return result as EditorBlocks
+}
+
+async function parseMarkdownBlocks(
+  editor: ReturnType<typeof useCreateBlockNote>,
+  preprocessed: PreprocessedMarkdown,
+): Promise<EditorBlocks> {
+  const startedAt = startExpensiveCall()
+  const blocks = await awaitParsedBlocks(editor.tryParseMarkdownToBlocks(preprocessed))
+  logExpensiveCall({
+    name: 'editor.parseMarkdownToBlocks',
+    startedAt,
+    detail: `chars=${preprocessed.length} blocks=${blocks.length}`,
+  })
+  return blocks
 }
 
 function preProcessEditorMarkdown(
