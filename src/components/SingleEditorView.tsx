@@ -28,7 +28,7 @@ import { useImageLightbox } from '../hooks/useImageLightbox'
 import { createTranslator, type AppLocale } from '../lib/i18n'
 import { buildTypeEntryMap } from '../utils/typeColors'
 import { searchEmojis, type EmojiEntry } from '../utils/emoji'
-import { preFilterWikilinks, deduplicateByPath, MIN_QUERY_LENGTH } from '../utils/wikilinkSuggestions'
+import { preFilterWikilinks, deduplicateByPath, recentWikilinkCandidates, MIN_QUERY_LENGTH } from '../utils/wikilinkSuggestions'
 import { filterPersonMentions, PERSON_MENTION_MIN_QUERY } from '../utils/personMentionSuggestions'
 import { attachClickHandlers, enrichSuggestionItems, hasMultipleSuggestionWorkspaces } from '../utils/suggestionEnrichment'
 import { observeNativeTextAssistanceDisabled } from '../lib/nativeTextAssistance'
@@ -962,6 +962,7 @@ function useSuggestionMenuItems(options: {
   entries: VaultEntry[]
   insertWikilink: (target: string) => void
   locale: AppLocale
+  recentPaths?: string[]
   runEditorAction: (action: SuggestionAction) => void
   sourceEntry?: VaultEntry
   typeEntryMap: Record<string, VaultEntry>
@@ -973,6 +974,7 @@ function useSuggestionMenuItems(options: {
     entries,
     insertWikilink,
     locale,
+    recentPaths = [],
     runEditorAction,
     sourceEntry,
     typeEntryMap,
@@ -995,11 +997,18 @@ function useSuggestionMenuItems(options: {
   const buildItems = useCallback((query: string, triggerCharacter: '[[' | '@') => {
     const normalizedQuery = normalizeSuggestionQuery(query, triggerCharacter)
     const minLength = triggerCharacter === '[[' ? MIN_QUERY_LENGTH : PERSON_MENTION_MIN_QUERY
-    if (normalizedQuery.length < minLength) return null
+    const hasMinLength = normalizedQuery.length >= minLength
 
-    const candidates = triggerCharacter === '[['
-      ? preFilterWikilinks(baseItems, normalizedQuery)
-      : filterPersonMentions(baseItems, normalizedQuery)
+    // Below MIN_QUERY_LENGTH, the [[ menu defaults to recently-viewed notes
+    // instead of staying empty until the user types enough to filter on.
+    const candidates = hasMinLength
+      ? (triggerCharacter === '[['
+        ? preFilterWikilinks(baseItems, normalizedQuery)
+        : filterPersonMentions(baseItems, normalizedQuery))
+      : (triggerCharacter === '[['
+        ? recentWikilinkCandidates(baseItems, recentPaths, sourceEntry?.path)
+        : [])
+    if (!hasMinLength && candidates.length === 0) return null
 
     const items = attachClickHandlers(candidates, insertWikilink, vaultPath ?? '', sourceEntry)
     return guardSuggestionMenuItems(
@@ -1008,7 +1017,7 @@ function useSuggestionMenuItems(options: {
       }),
       runEditorAction,
     )
-  }, [baseItems, insertWikilink, runEditorAction, sourceEntry, typeEntryMap, vaultPath])
+  }, [baseItems, insertWikilink, recentPaths, runEditorAction, sourceEntry, typeEntryMap, vaultPath])
 
   const getWikilinkItems = useCallback(async (query: string): Promise<WikilinkSuggestionItem[]> => (
     buildItems(query, '[[') ?? []
@@ -1261,9 +1270,10 @@ function useRichEditorPlainTextPasteTarget(options: {
 }
 
 /** Single BlockNote editor view — content is swapped via replaceBlocks */
-export function SingleEditorView({ editor, entries, onNavigateWikilink, onChange, sourceEntry, vaultPath, editable = true, locale = 'en', onClickTag, onInternalVaultWrite }: {
+export function SingleEditorView({ editor, entries, recentPaths, onNavigateWikilink, onChange, sourceEntry, vaultPath, editable = true, locale = 'en', onClickTag, onInternalVaultWrite }: {
   editor: ReturnType<typeof useCreateBlockNote>
   entries: VaultEntry[]
+  recentPaths?: string[]
   onNavigateWikilink: (target: string) => void
   onChange?: () => void
   sourceEntry?: VaultEntry | null
@@ -1370,6 +1380,7 @@ export function SingleEditorView({ editor, entries, onNavigateWikilink, onChange
     entries,
     insertWikilink,
     locale,
+    recentPaths,
     runEditorAction,
     sourceEntry: sourceEntry ?? undefined,
     typeEntryMap,

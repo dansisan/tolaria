@@ -21,6 +21,7 @@ const state = vi.hoisted(() => ({
   personMentionCandidates: [] as Record<string, unknown>[],
   wikilinkEntriesRef: { current: [] as VaultEntry[] },
   wikilinkCandidates: [] as Record<string, unknown>[],
+  recentWikilinkCandidates: [] as Record<string, unknown>[],
 }))
 
 vi.mock('@blocknote/react', () => ({
@@ -172,6 +173,7 @@ vi.mock('../utils/wikilinkSuggestions', () => ({
   MIN_QUERY_LENGTH: 2,
   deduplicateByPath: <T,>(items: T[]) => items,
   preFilterWikilinks: () => state.wikilinkCandidates,
+  recentWikilinkCandidates: () => state.recentWikilinkCandidates,
 }))
 
 vi.mock('../utils/personMentionSuggestions', () => ({
@@ -465,6 +467,7 @@ describe('SingleEditorView', () => {
     state.personMentionCandidates = []
     state.wikilinkEntriesRef.current = []
     state.wikilinkCandidates = []
+    state.recentWikilinkCandidates = []
     mockOpenExternalUrl.mockClear()
     mockOpenLocalFile.mockClear()
     document.documentElement.removeAttribute('data-theme')
@@ -793,6 +796,84 @@ describe('SingleEditorView', () => {
     expect(items).toHaveLength(1)
     expect(() => items[0].onItemClick()).not.toThrow()
     expect(staleItemClick).not.toHaveBeenCalled()
+  })
+
+  it('shows recently-viewed notes when the [[ query is empty', async () => {
+    state.recentWikilinkCandidates = [{ title: 'Recent Note', path: '/vault/project/recent.md' }]
+
+    render(
+      <SingleEditorView
+        editor={createEditor() as never}
+        entries={[makeEntry()]}
+        onNavigateWikilink={vi.fn()}
+        recentPaths={['/vault/project/recent.md']}
+      />,
+    )
+
+    const getItems = state.capturedSuggestionProps['[['].getItems as (
+      query: string
+    ) => Promise<Array<{ title: string }>>
+    const items = await getItems('')
+
+    expect(items).toEqual([{ title: 'Recent Note', path: '/vault/project/recent.md' }])
+  })
+
+  it('shows recently-viewed notes when the [[ query is a single character', async () => {
+    state.recentWikilinkCandidates = [{ title: 'Recent Note', path: '/vault/project/recent.md' }]
+
+    render(
+      <SingleEditorView
+        editor={createEditor() as never}
+        entries={[makeEntry()]}
+        onNavigateWikilink={vi.fn()}
+        recentPaths={['/vault/project/recent.md']}
+      />,
+    )
+
+    const getItems = state.capturedSuggestionProps['[['].getItems as (
+      query: string
+    ) => Promise<Array<{ title: string }>>
+    const items = await getItems('a')
+
+    expect(items).toEqual([{ title: 'Recent Note', path: '/vault/project/recent.md' }])
+  })
+
+  it('falls back to no results for an empty [[ query when there is no navigation history yet', async () => {
+    render(
+      <SingleEditorView
+        editor={createEditor() as never}
+        entries={[makeEntry()]}
+        onNavigateWikilink={vi.fn()}
+      />,
+    )
+
+    const getItems = state.capturedSuggestionProps['[['].getItems as (
+      query: string
+    ) => Promise<Array<{ title: string }>>
+    const items = await getItems('')
+
+    expect(items).toEqual([])
+  })
+
+  it('still uses normal fuzzy search once the query reaches MIN_QUERY_LENGTH, ignoring recentPaths', async () => {
+    state.recentWikilinkCandidates = [{ title: 'Recent Note', path: '/vault/project/recent.md' }]
+    state.wikilinkCandidates = [{ title: 'Alpha', path: '/vault/project/alpha.md' }]
+
+    render(
+      <SingleEditorView
+        editor={createEditor() as never}
+        entries={[makeEntry()]}
+        onNavigateWikilink={vi.fn()}
+        recentPaths={['/vault/project/recent.md']}
+      />,
+    )
+
+    const getItems = state.capturedSuggestionProps['[['].getItems as (
+      query: string
+    ) => Promise<Array<{ title: string }>>
+    const items = await getItems('al')
+
+    expect(items).toEqual([{ title: 'Alpha', path: '/vault/project/alpha.md' }])
   })
 
   it('passes the active document theme to BlockNote', () => {

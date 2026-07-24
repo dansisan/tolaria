@@ -69,5 +69,6 @@ export function useAppNavigation({
     canGoBack: navHistory.canGoBack,
     canGoForward: navHistory.canGoForward,
     entriesByPath,
+    recentPaths: navHistory.recentPaths,
   }
 }

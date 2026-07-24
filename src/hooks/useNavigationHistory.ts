@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 interface HistoryState {
   stack: string[]
@@ -7,8 +7,22 @@ interface HistoryState {
 
 const EMPTY: HistoryState = { stack: [], cursor: -1 }
 const MAX_HISTORY = 200
+const MAX_RECENT_PATHS = 20
 const BACKWARD = -1
 const FORWARD = 1
+
+/** Most-recently-visited paths first, deduped by most recent visit position. */
+function recentPathsFromStack(stack: string[]): string[] {
+  const seen = new Set<string>()
+  const recent: string[] = []
+  for (let i = stack.length - 1; i >= 0 && recent.length < MAX_RECENT_PATHS; i--) {
+    const path = stack[i]
+    if (seen.has(path)) continue
+    seen.add(path)
+    recent.push(path)
+  }
+  return recent
+}
 
 interface HistoryTarget {
   cursor: number
@@ -95,5 +109,7 @@ export function useNavigationHistory() {
     })
   }, [])
 
-  return { canGoBack, canGoForward, push, goBack, goForward, removePath }
+  const recentPaths = useMemo(() => recentPathsFromStack(state.stack), [state.stack])
+
+  return { canGoBack, canGoForward, push, goBack, goForward, removePath, recentPaths }
 }

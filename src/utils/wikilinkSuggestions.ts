@@ -30,6 +30,29 @@ export function preFilterWikilinks<T extends WikilinkBaseItem>(
   )
 }
 
+/**
+ * Map recently-visited paths to their matching items, in visit order.
+ * Used to populate the wikilink suggestion menu before the user has typed
+ * enough of a query to filter on. Skips `excludePath` (the currently open
+ * note) and paths with no matching item (deleted/renamed since last visit).
+ */
+export function recentWikilinkCandidates<T extends WikilinkBaseItem & { path: string }>(
+  items: T[],
+  recentPaths: string[],
+  excludePath?: string,
+  max = MAX_RESULTS,
+): T[] {
+  const byPath = new Map(items.map(item => [item.path, item]))
+  const result: T[] = []
+  for (const path of recentPaths) {
+    if (result.length >= max) break
+    if (path === excludePath) continue
+    const item = byPath.get(path)
+    if (item) result.push(item)
+  }
+  return result
+}
+
 /** Remove duplicate items by path, keeping the first occurrence. */
 export function deduplicateByPath<T extends { path: string }>(items: T[]): T[] {
   const seen = new Set<string>()

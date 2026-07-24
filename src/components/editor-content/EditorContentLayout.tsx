@@ -389,6 +389,7 @@ function EditorCanvas({
   editor,
   activeTab,
   entries,
+  recentPaths,
   onNavigateWikilink,
   onEditorChange,
   isDeletedPreview,
@@ -403,6 +404,7 @@ function EditorCanvas({
   | 'editor'
   | 'activeTab'
   | 'entries'
+  | 'recentPaths'
   | 'onNavigateWikilink'
   | 'onEditorChange'
   | 'isDeletedPreview'
@@ -422,6 +424,7 @@ function EditorCanvas({
         <SingleEditorView
           editor={editor}
           entries={entries}
+          recentPaths={recentPaths}
           onNavigateWikilink={onNavigateWikilink}
           onChange={onEditorChange}
           sourceEntry={activeTab?.entry ?? null}
@@ -475,6 +478,7 @@ export function EditorContentLayout(model: EditorContentModel) {
     loadingTab,
     isLoadingNewTab,
     entries,
+    recentPaths,
     editor,
     diffMode,
     diffContent,
@@ -566,6 +570,7 @@ export function EditorContentLayout(model: EditorContentModel) {
             vaultPath={vaultPath}
             editor={editor}
             entries={entries}
+            recentPaths={recentPaths}
             onNavigateWikilink={onNavigateWikilink}
             onEditorChange={onEditorChange}
             isDeletedPreview={isDeletedPreview}

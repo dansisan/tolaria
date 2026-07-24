@@ -60,6 +60,7 @@ interface EditorProps {
   activeTabPath: string | null
   isVaultLoading?: boolean
   entries: VaultEntry[]
+  recentPaths?: string[]
   onNavigateWikilink: (target: string) => void
   onUnsupportedAiPaste?: (message: string) => void
   onLoadDiff?: (path: string) => Promise<string>
@@ -374,6 +375,7 @@ function EditorLayout({
   isLoadingNewTab,
   isVaultLoading,
   entries,
+  recentPaths,
   editor,
   diffMode,
   diffContent,
@@ -450,6 +452,7 @@ function EditorLayout({
   isLoadingNewTab: boolean
   isVaultLoading?: boolean
   entries: VaultEntry[]
+  recentPaths?: string[]
   editor: ReturnType<typeof useCreateBlockNote>
   diffMode: boolean
   diffContent: string | null
@@ -545,6 +548,7 @@ function EditorLayout({
               isLoadingNewTab={isLoadingNewTab}
               isVaultLoading={isVaultLoading}
               entries={entries}
+              recentPaths={recentPaths}
               editor={editor}
               diffMode={diffMode}
               diffContent={diffContent}

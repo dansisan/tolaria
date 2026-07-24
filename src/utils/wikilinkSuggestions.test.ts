@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { preFilterWikilinks, deduplicateByPath, disambiguateTitles, MIN_QUERY_LENGTH, MAX_RESULTS, type WikilinkBaseItem } from './wikilinkSuggestions'
+import { preFilterWikilinks, deduplicateByPath, disambiguateTitles, recentWikilinkCandidates, MIN_QUERY_LENGTH, MAX_RESULTS, type WikilinkBaseItem } from './wikilinkSuggestions'
 
 let pathCounter = 0
 function makeItem(title: string, aliases: string[] = [], group = 'Note', path?: string): WikilinkBaseItem {
@@ -169,5 +169,45 @@ describe('disambiguateTitles', () => {
 
   it('returns empty array for empty input', () => {
     expect(disambiguateTitles([])).toEqual([])
+  })
+})
+
+describe('recentWikilinkCandidates', () => {
+  const alpha = makeItem('Alpha', [], 'Note', '/vault/alpha.md')
+  const beta = makeItem('Beta', [], 'Note', '/vault/beta.md')
+  const gamma = makeItem('Gamma', [], 'Note', '/vault/gamma.md')
+  const items = [alpha, beta, gamma]
+
+  it('returns items in recentPaths order', () => {
+    const result = recentWikilinkCandidates(items, ['/vault/gamma.md', '/vault/alpha.md'])
+    expect(result).toEqual([gamma, alpha])
+  })
+
+  it('excludes the given excludePath', () => {
+    const result = recentWikilinkCandidates(
+      items,
+      ['/vault/gamma.md', '/vault/alpha.md', '/vault/beta.md'],
+      '/vault/alpha.md',
+    )
+    expect(result).toEqual([gamma, beta])
+  })
+
+  it('skips paths with no matching item (deleted/renamed notes)', () => {
+    const result = recentWikilinkCandidates(items, ['/vault/deleted.md', '/vault/beta.md'])
+    expect(result).toEqual([beta])
+  })
+
+  it('respects the max cap', () => {
+    const result = recentWikilinkCandidates(
+      items,
+      ['/vault/gamma.md', '/vault/alpha.md', '/vault/beta.md'],
+      undefined,
+      2,
+    )
+    expect(result).toEqual([gamma, alpha])
+  })
+
+  it('returns empty array when recentPaths is empty', () => {
+    expect(recentWikilinkCandidates(items, [])).toEqual([])
   })
 })

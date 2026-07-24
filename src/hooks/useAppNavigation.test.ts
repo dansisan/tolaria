@@ -100,4 +100,22 @@ describe('useAppNavigation', () => {
       expect(onSelectNote).toHaveBeenCalledWith(entries[1])
     })
   })
+
+  // --- recentPaths passthrough ---
+
+  describe('recentPaths', () => {
+    it('reflects visited paths most-recent-first as activeTabPath changes', () => {
+      const entries = [makeEntry('/a.md'), makeEntry('/b.md')]
+
+      const { result, rerender } = renderHook(
+        ({ activeTabPath }) =>
+          useAppNavigation({ entries, activeTabPath, onSelectNote }),
+        { initialProps: { activeTabPath: '/a.md' as string | null } },
+      )
+
+      rerender({ activeTabPath: '/b.md' })
+
+      expect(result.current.recentPaths).toEqual(['/b.md', '/a.md'])
+    })
+  })
 })

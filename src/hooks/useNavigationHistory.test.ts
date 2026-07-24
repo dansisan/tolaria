@@ -180,4 +180,33 @@ describe('useNavigationHistory', () => {
     }
     expect(result.current.canGoForward).toBe(false)
   })
+
+  describe('recentPaths', () => {
+    it('is empty initially', () => {
+      const { result } = renderHook(() => useNavigationHistory())
+      expect(result.current.recentPaths).toEqual([])
+    })
+
+    it('lists visited paths most-recent-first', () => {
+      const { result } = renderHook(() => useNavigationHistory())
+      act(() => { result.current.push('/a'); result.current.push('/b'); result.current.push('/c') })
+      expect(result.current.recentPaths).toEqual(['/c', '/b', '/a'])
+    })
+
+    it('dedupes repeated visits, keeping the most recent position', () => {
+      const { result } = renderHook(() => useNavigationHistory())
+      act(() => { result.current.push('/a'); result.current.push('/b'); result.current.push('/a') })
+      expect(result.current.recentPaths).toEqual(['/a', '/b'])
+    })
+
+    it('caps the list length for very long navigation chains', () => {
+      const { result } = renderHook(() => useNavigationHistory())
+      act(() => {
+        for (let i = 0; i < 30; i++) result.current.push(`/${i}`)
+      })
+      expect(result.current.recentPaths.length).toBeLessThanOrEqual(20)
+      expect(result.current.recentPaths[0]).toBe('/29')
+      expect(result.current.recentPaths).not.toContain('/0')
+    })
+  })
 })

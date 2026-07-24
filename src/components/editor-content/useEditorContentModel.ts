@@ -18,6 +18,7 @@ export interface EditorContentProps {
   isLoadingNewTab: boolean
   isVaultLoading?: boolean
   entries: VaultEntry[]
+  recentPaths?: string[]
   editor: ReturnType<typeof useCreateBlockNote>
   diffMode: boolean
   diffContent: string | null

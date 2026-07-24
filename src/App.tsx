@@ -878,7 +878,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     })
   }, [visibleEntries, notes.setTabs]) // eslint-disable-line react-hooks/exhaustive-deps -- notes.setTabs is stable (useState setter)
 
-  const { handleGoBack, handleGoForward, canGoBack, canGoForward, entriesByPath } = useAppNavigation({
+  const { handleGoBack, handleGoForward, canGoBack, canGoForward, entriesByPath, recentPaths } = useAppNavigation({
     entries: visibleEntries,
     activeTabPath: notes.activeTabPath,
     onSelectNote: notes.handleSelectNote,
@@ -2236,6 +2236,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
               activeTabPath={notes.activeTabPath}
               isVaultLoading={isVaultContentLoading}
               entries={visibleEntries}
+              recentPaths={recentPaths}
               onNavigateWikilink={notes.handleNavigateWikilink}
               onLoadDiff={loadDiffForPath}
               onLoadDiffAtCommit={loadDiffAtCommitForPath}
