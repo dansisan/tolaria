@@ -167,45 +167,82 @@ function injectEditorMarkdownBlocks(blocks: EditorBlocks): EditorBlocks {
   return injectDurableEditorMarkdownBlocks(withMath) as EditorBlocks
 }
 
-function repairParsedMarkdownBlocks(parsed: MarkdownParseResult): EditorBlocks {
+function repairParsedMarkdownBlocks(parsed: MarkdownParseResult, targetPath: NotePath): EditorBlocks {
+  const startedAt = startExpensiveCall()
   const parseSafeBlocks = repairMalformedEditorBlocks(parsed.blocks) as EditorBlocks
-  if (parsed.usedSourceFallback) return parseSafeBlocks
-  return inferCodeBlockLanguages(
-    repairMalformedEditorBlocks(injectEditorMarkdownBlocks(parseSafeBlocks)) as EditorBlocks,
-  ) as EditorBlocks
+  const repaired = parsed.usedSourceFallback
+    ? parseSafeBlocks
+    : inferCodeBlockLanguages(
+      repairMalformedEditorBlocks(injectEditorMarkdownBlocks(parseSafeBlocks)) as EditorBlocks,
+    ) as EditorBlocks
+  logExpensiveCall({
+    name: 'editor.repairParsedBlocks',
+    key: `editor.repairParsedBlocks:${targetPath}`,
+    startedAt,
+    detail: `blocks=${repaired.length} fallback=${parsed.usedSourceFallback}`,
+  })
+  return repaired
 }
 
-export async function resolveBlocksForTarget(
-  options: {
-    editor: ReturnType<typeof useCreateBlockNote>
-    cache: Map<NotePath, CachedTabState>
-    targetPath: NotePath
-    content: NoteContent
-    vaultPath?: VaultPath
-  },
-): Promise<CachedTabState> {
+function preProcessEditorMarkdownTraced(
+  body: MarkdownBody,
+  vaultPath: VaultPath | undefined,
+  targetPath: NotePath,
+): PreprocessedMarkdown {
+  const startedAt = startExpensiveCall()
+  const preprocessed = preProcessEditorMarkdown(body, vaultPath, targetPath)
+  logExpensiveCall({
+    name: 'editor.preProcessMarkdown',
+    key: `editor.preProcessMarkdown:${targetPath}`,
+    startedAt,
+    detail: `chars=${body.length}`,
+  })
+  return preprocessed
+}
+
+/** Which route a block resolution took — the cheap routes are why an otherwise
+ * identical note switch can cost 1ms or 500ms. */
+type ResolvedBlocksRoute = 'tab-cache' | 'parsed-cache' | 'fast-path' | 'full-parse'
+
+interface ResolveBlocksOptions {
+  editor: ReturnType<typeof useCreateBlockNote>
+  cache: Map<NotePath, CachedTabState>
+  targetPath: NotePath
+  content: NoteContent
+  vaultPath?: VaultPath
+}
+
+async function resolveBlocksRoute(
+  options: ResolveBlocksOptions,
+): Promise<{ state: CachedTabState; route: ResolvedBlocksRoute }> {
   const { editor, cache, targetPath, content, vaultPath } = options
   const cached = cache.get(targetPath)
-  if (cached?.sourceContent === content) return cached
+  if (cached?.sourceContent === content) return { state: cached, route: 'tab-cache' }
 
   const parsedCache = readParsedNoteBlocks({ path: targetPath, content, vaultPath })
   if (parsedCache) {
-    return cacheResolvedEditorState(cache, targetPath, {
-      blocks: parsedCache.blocks,
-      scrollTop: parsedCache.scrollTop,
-      sourceContent: content,
-    }, vaultPath)
+    return {
+      state: cacheResolvedEditorState(cache, targetPath, {
+        blocks: parsedCache.blocks,
+        scrollTop: parsedCache.scrollTop,
+        sourceContent: content,
+      }, vaultPath),
+      route: 'parsed-cache',
+    }
   }
 
   const body = extractEditorBody(content)
-  const preprocessed = preProcessEditorMarkdown(body, vaultPath, targetPath)
+  const preprocessed = preProcessEditorMarkdownTraced(body, vaultPath, targetPath)
   const fastPathBlocks = buildFastPathBlocks({ preprocessed })
   if (fastPathBlocks) {
-    return cacheResolvedEditorState(cache, targetPath, {
-      blocks: repairMalformedEditorBlocks(fastPathBlocks) as EditorBlocks,
-      scrollTop: 0,
-      sourceContent: content,
-    }, vaultPath)
+    return {
+      state: cacheResolvedEditorState(cache, targetPath, {
+        blocks: repairMalformedEditorBlocks(fastPathBlocks) as EditorBlocks,
+        scrollTop: 0,
+        sourceContent: content,
+      }, vaultPath),
+      route: 'fast-path',
+    }
   }
 
   const parsed = await parseMarkdownBlocksWithFallback({
@@ -214,11 +251,28 @@ export async function resolveBlocksForTarget(
     sourceMarkdown: body,
     context: targetPath,
   })
-  return cacheResolvedEditorState(cache, targetPath, {
-    blocks: repairParsedMarkdownBlocks(parsed),
-    scrollTop: 0,
-    sourceContent: content,
-  }, vaultPath)
+  return {
+    state: cacheResolvedEditorState(cache, targetPath, {
+      blocks: repairParsedMarkdownBlocks(parsed, targetPath),
+      scrollTop: 0,
+      sourceContent: content,
+    }, vaultPath),
+    route: 'full-parse',
+  }
+}
+
+export async function resolveBlocksForTarget(options: ResolveBlocksOptions): Promise<CachedTabState> {
+  const startedAt = startExpensiveCall()
+  const { state, route } = await resolveBlocksRoute(options)
+  // Keyed per note: arrow-keying a list resolves a different note each time, so a
+  // burst here means the same note is being re-resolved.
+  logExpensiveCall({
+    name: 'editor.resolveBlocks',
+    key: `editor.resolveBlocks:${options.targetPath}`,
+    startedAt,
+    detail: `route=${route} blocks=${state.blocks.length} chars=${options.content.length}`,
+  })
+  return state
 }
 
 export async function resolveEmptyHeadingBlocks(
@@ -237,5 +291,5 @@ export async function resolveEmptyHeadingBlocks(
     sourceMarkdown: remainder,
     context: targetPath,
   })
-  return [emptyHeadingBlock(), ...repairParsedMarkdownBlocks(parsed)] as EditorBlocks
+  return [emptyHeadingBlock(), ...repairParsedMarkdownBlocks(parsed, targetPath)] as EditorBlocks
 }

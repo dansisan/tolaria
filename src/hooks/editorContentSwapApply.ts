@@ -2,6 +2,7 @@ import type { MutableRefObject } from 'react'
 import { EditorState, type Transaction } from 'prosemirror-state'
 import type { Node as ProseMirrorNode } from 'prosemirror-model'
 import type { useCreateBlockNote } from '@blocknote/react'
+import { logExpensiveCall, startExpensiveCall } from '../utils/expensiveCallLog'
 import { blankParagraphBlocks } from './editorTabContent'
 import { EDITOR_CONTAINER_SELECTOR } from './editorDomSelection'
 import { resetTextSelectionBeforeContentSwap } from './editorTiptapSelection'
@@ -109,17 +110,40 @@ interface ApplyMarkupStateToEditorOptions extends Omit<AppliedEditorContentCommi
   markup: string
 }
 
+/** Which commit route the swap took. `cachedDoc` reinstalls a prebuilt
+ * ProseMirror doc; `replaceBlocks` pays the full transaction/revalidation cost. */
+type ApplyRoute = 'cachedDoc' | 'replaceBlocks' | 'htmlFallback'
+
+function logAppliedBlocks(options: {
+  startedAt: number
+  route: ApplyRoute
+  targetPath: string
+  blockCount: number
+}): void {
+  const { startedAt, route, targetPath, blockCount } = options
+  logExpensiveCall({
+    name: 'editor.applyBlocks',
+    key: `editor.applyBlocks:${targetPath}`,
+    startedAt,
+    detail: `route=${route} blocks=${blockCount}`,
+  })
+}
+
 export function applyBlocksToEditor(options: ApplyBlocksToEditorOptions): boolean {
   const {
     editor,
     blocks,
     suppressChangeRef,
+    targetPath,
   } = options
+  const startedAt = startExpensiveCall()
   suppressChangeRef.current = true
   if (applyCachedDocState(editor, blocks)) {
     commitAppliedEditorContent(options)
+    logAppliedBlocks({ startedAt, route: 'cachedDoc', targetPath, blockCount: blocks.length })
     return true
   }
+  let route: ApplyRoute = 'replaceBlocks'
   const safeBlocks = repairMalformedEditorBlocks(blocks)
   try {
     resetTextSelectionBeforeContentSwap(editor)
@@ -140,6 +164,7 @@ export function applyBlocksToEditor(options: ApplyBlocksToEditorOptions): boolea
     })
   } catch (err) {
     console.error('applyBlocks failed, trying fallback:', err)
+    route = 'htmlFallback'
     try {
       const markup = editor.blocksToHTMLLossy(safeBlocks)
       editor._tiptapEditor.commands.setContent(markup)
@@ -152,6 +177,7 @@ export function applyBlocksToEditor(options: ApplyBlocksToEditorOptions): boolea
 
   rememberBuiltDoc(editor, blocks)
   commitAppliedEditorContent(options)
+  logAppliedBlocks({ startedAt, route, targetPath, blockCount: safeBlocks.length })
   return true
 }
 
