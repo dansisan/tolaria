@@ -179,7 +179,20 @@
 }
 
 /* --- Bullet lists --- */
-/* BlockNote renders bullet as ::before on [data-content-type="bulletListItem"] 
+/* BlockNote's base .bn-block-content rule adds 3px top/bottom padding to every
+   block. For list items that stacks with --lists-item-spacing below, making
+   the gap between items roughly double what the theme setting implies. Zero
+   it out here so --lists-item-spacing is the only knob controlling the gap
+   between list items. */
+.editor__blocknote-container :is(
+  [data-content-type="bulletListItem"],
+  [data-content-type="numberedListItem"],
+  [data-content-type="checkListItem"]
+) {
+  padding-block: 0 !important;
+}
+
+/* BlockNote renders bullet as ::before on [data-content-type="bulletListItem"]
    with content: "•", display: flex, width: 24px */
 .editor__blocknote-container [data-content-type="bulletListItem"] {
   padding-inline-start: var(--lists-padding-left);
