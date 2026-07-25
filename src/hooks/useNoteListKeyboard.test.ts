@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react'
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest'
-import { useNoteListKeyboard } from './useNoteListKeyboard'
+import { NOTE_OPEN_SETTLE_MS, useNoteListKeyboard } from './useNoteListKeyboard'
 import { trackEvent } from '../lib/telemetry'
 import type { VaultEntry } from '../types'
 
@@ -61,6 +61,13 @@ function installAnimationFrameStub() {
   }
 }
 
+/** Rapid moves defer the open until the highlight settles; isolated moves still
+ * open on the next frame. Flushing both covers either path. */
+function flushOpenSchedule(flushAnimationFrame: () => void): void {
+  flushAnimationFrame()
+  vi.advanceTimersByTime(NOTE_OPEN_SETTLE_MS)
+}
+
 describe('useNoteListKeyboard', () => {
   const items = [makeEntry('/a.md', 'A'), makeEntry('/b.md', 'B'), makeEntry('/c.md', 'C')]
   const onOpen = vi.fn()
@@ -68,10 +75,14 @@ describe('useNoteListKeyboard', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    // Only timers are faked: the settle delay is measured with performance.now(),
+    // which must keep advancing for traversal detection to behave realistically.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     ;({ flushAnimationFrame } = installAnimationFrameStub())
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.unstubAllGlobals()
   })
 
@@ -94,7 +105,7 @@ describe('useNoteListKeyboard', () => {
     expect(open).toHaveBeenCalledWith(items[0])
   })
 
-  it('ArrowDown advances highlight and opens the latest highlighted note on the next frame', () => {
+  it('ArrowDown advances highlight and opens only the latest highlighted note', () => {
     const open = vi.fn()
     const { result } = renderHook(() =>
       useNoteListKeyboard({ items, selectedNotePath: null, onOpen: open, enabled: true }),
@@ -103,7 +114,7 @@ describe('useNoteListKeyboard', () => {
     act(() => result.current.handleKeyDown(keyEvent('ArrowDown')))
     expect(result.current.highlightedPath).toBe('/b.md')
     expect(open).not.toHaveBeenCalled()
-    act(() => flushAnimationFrame())
+    act(() => flushOpenSchedule(flushAnimationFrame))
     expect(open).toHaveBeenCalledTimes(1)
     expect(open).toHaveBeenCalledWith(items[1])
   })
@@ -118,7 +129,7 @@ describe('useNoteListKeyboard', () => {
     act(() => result.current.handleKeyDown(keyEvent('ArrowDown')))
     act(() => result.current.handleKeyDown(keyEvent('ArrowDown')))
     expect(result.current.highlightedPath).toBe('/c.md')
-    act(() => flushAnimationFrame())
+    act(() => flushOpenSchedule(flushAnimationFrame))
     expect(open).toHaveBeenCalledTimes(1)
     expect(open).toHaveBeenCalledWith(items[2])
   })
@@ -381,10 +392,78 @@ describe('useNoteListKeyboard', () => {
     expect(result.current.highlightedPath).toBe('/c.md')
     expect(open).not.toHaveBeenCalled()
 
+    // Mid-traversal the open waits for the highlight to settle, so flushing a frame
+    // alone must not open anything — otherwise every note passed over is installed.
     act(() => flushAnimationFrame())
+    expect(open).not.toHaveBeenCalled()
+
+    act(() => vi.advanceTimersByTime(NOTE_OPEN_SETTLE_MS))
 
     expect(open).toHaveBeenCalledTimes(1)
     expect(open).toHaveBeenCalledWith(items[2])
+  })
+
+  it('never opens the notes passed over mid-traversal', () => {
+    const open = vi.fn()
+    const { result } = renderHook(() =>
+      useNoteListKeyboard({ items, selectedNotePath: null, onOpen: open, enabled: true }),
+    )
+
+    // The first move is isolated by definition, so it still opens on the next frame.
+    act(() => result.current.handleKeyDown(keyEvent('ArrowDown')))
+    act(() => flushAnimationFrame())
+    expect(open).toHaveBeenCalledTimes(1)
+    expect(open).toHaveBeenCalledWith(items[0])
+
+    // Continuing the traversal defers instead of opening each note stepped over.
+    for (let press = 0; press < 2; press += 1) {
+      act(() => result.current.handleKeyDown(keyEvent('ArrowDown')))
+      act(() => vi.advanceTimersByTime(NOTE_OPEN_SETTLE_MS - 40))
+      act(() => flushAnimationFrame())
+    }
+    expect(open).toHaveBeenCalledTimes(1)
+
+    act(() => vi.advanceTimersByTime(NOTE_OPEN_SETTLE_MS))
+
+    // Two opens for a three-note traversal, and the note merely passed over
+    // (items[1]) was never installed into the editor.
+    expect(open).toHaveBeenCalledTimes(2)
+    expect(open).toHaveBeenLastCalledWith(items[2])
+    expect(open).not.toHaveBeenCalledWith(items[1])
+  })
+
+  it('Enter opens immediately without waiting for the settle delay', () => {
+    const open = vi.fn()
+    const { result } = renderHook(() =>
+      useNoteListKeyboard({ items, selectedNotePath: null, onOpen: open, enabled: true }),
+    )
+
+    act(() => result.current.handleKeyDown(keyEvent('ArrowDown')))
+    act(() => result.current.handleKeyDown(keyEvent('ArrowDown')))
+    act(() => result.current.handleKeyDown(keyEvent('Enter')))
+
+    expect(open).toHaveBeenCalledTimes(1)
+    expect(open).toHaveBeenCalledWith(items[1])
+
+    // The superseded pending open must not fire afterwards.
+    act(() => vi.advanceTimersByTime(NOTE_OPEN_SETTLE_MS * 2))
+    expect(open).toHaveBeenCalledTimes(1)
+  })
+
+  it('drops a pending settle open when the list is disabled', () => {
+    const open = vi.fn()
+    const { result, rerender } = renderHook(
+      ({ enabled }: { enabled: boolean }) =>
+        useNoteListKeyboard({ items, selectedNotePath: null, onOpen: open, enabled }),
+      { initialProps: { enabled: true } },
+    )
+
+    act(() => result.current.handleKeyDown(keyEvent('ArrowDown')))
+    act(() => result.current.handleKeyDown(keyEvent('ArrowDown')))
+    rerender({ enabled: false })
+
+    act(() => vi.advanceTimersByTime(NOTE_OPEN_SETTLE_MS * 2))
+    expect(open).not.toHaveBeenCalled()
   })
 
   describe('jumpByYear', () => {

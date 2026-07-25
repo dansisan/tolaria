@@ -209,16 +209,40 @@ function useSelectionSync(
   }, [itemsRef, selectedNotePathRef, syncHighlightedPath])
 }
 
+/**
+ * Two consecutive highlight moves closer together than this means the list is being
+ * traversed rather than stepped through deliberately.
+ */
+export const NOTE_OPEN_BURST_WINDOW_MS = 250
+
+/**
+ * How long the highlight must stay put during a traversal before the note is opened.
+ *
+ * Opening a note installs its whole document into the editor, which for a large one
+ * costs hundreds of milliseconds — so arrowing through ten notes used to pay for ten
+ * document installs the reader never looked at. Waiting for the selection to settle
+ * spends that once. Isolated presses are unaffected and still open on the next frame.
+ */
+export const NOTE_OPEN_SETTLE_MS = 140
+
 interface ScheduledOpenState {
   entry: VaultEntry | null
   frameId: number | null
+  timerId: ReturnType<typeof setTimeout> | null
+  lastScheduledAt: number
+}
+
+function clearPendingOpenTimers(stateRef: React.RefObject<ScheduledOpenState>): void {
+  const { frameId, timerId } = stateRef.current
+  if (frameId !== null) cancelAnimationFrame(frameId)
+  if (timerId !== null) clearTimeout(timerId)
+  stateRef.current.frameId = null
+  stateRef.current.timerId = null
 }
 
 function cancelScheduledOpen(stateRef: React.RefObject<ScheduledOpenState>): void {
-  const frameId = stateRef.current.frameId
-  if (frameId !== null) cancelAnimationFrame(frameId)
+  clearPendingOpenTimers(stateRef)
   stateRef.current.entry = null
-  stateRef.current.frameId = null
 }
 
 function flushScheduledOpen(
@@ -230,10 +254,15 @@ function flushScheduledOpen(
   const nextEntry = stateRef.current.entry
   if (!nextEntry) return
 
-  if (stateRef.current.frameId !== null) cancelAnimationFrame(stateRef.current.frameId)
+  clearPendingOpenTimers(stateRef)
   stateRef.current.entry = null
-  stateRef.current.frameId = null
   onOpen(nextEntry)
+}
+
+/** True when the previous move was recent enough to count as continued traversal. */
+function isTraversing(stateRef: React.RefObject<ScheduledOpenState>, now: number): boolean {
+  const previous = stateRef.current.lastScheduledAt
+  return previous > 0 && now - previous < NOTE_OPEN_BURST_WINDOW_MS
 }
 
 function scheduleOpenForNextFrame(
@@ -241,16 +270,34 @@ function scheduleOpenForNextFrame(
   onOpen: (entry: VaultEntry) => void,
   entry: VaultEntry,
 ): void {
+  const now = performance.now()
+  const traversing = isTraversing(stateRef, now)
+  stateRef.current.lastScheduledAt = now
   stateRef.current.entry = entry
-  if (stateRef.current.frameId !== null) return
 
+  if (traversing) {
+    // Mid-traversal: drop any pending open and wait for the highlight to settle, so
+    // the notes passed over are never installed into the editor at all.
+    clearPendingOpenTimers(stateRef)
+    stateRef.current.timerId = setTimeout(() => {
+      flushScheduledOpen(stateRef, onOpen)
+    }, NOTE_OPEN_SETTLE_MS)
+    return
+  }
+
+  if (stateRef.current.frameId !== null) return
   stateRef.current.frameId = requestAnimationFrame(() => {
     flushScheduledOpen(stateRef, onOpen)
   })
 }
 
 function useScheduledOpen(onOpen: (entry: VaultEntry) => void, enabled: boolean) {
-  const stateRef = useRef<ScheduledOpenState>({ entry: null, frameId: null })
+  const stateRef = useRef<ScheduledOpenState>({
+    entry: null,
+    frameId: null,
+    timerId: null,
+    lastScheduledAt: 0,
+  })
 
   const scheduleOpen = useCallback((entry: VaultEntry) => {
     scheduleOpenForNextFrame(stateRef, onOpen, entry)
