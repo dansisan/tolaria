@@ -1,11 +1,5 @@
 /** Utility functions for parsing wikilink syntax: [[target|display]] */
 
-import {
-  isEntryResolutionMeasured,
-  measureEntryResolution,
-  recordEntryResolutionPhases,
-} from './entryResolutionStats'
-import { elapsedSince, startExpensiveCall } from './expensiveCallLog'
 import type { VaultEntry } from '../types'
 import { slugifyNoteStem } from './noteSlug'
 import { workspaceForEntry, workspacePathForEntry } from './workspaces'
@@ -194,24 +188,12 @@ function findEntryByHumanizedTitle(entries: VaultEntry[], resolutionKey: Resolut
  *   5. Humanized title match (kebab-case → words)
  */
 export function resolveEntry(entries: VaultEntry[], rawTarget: WikilinkTarget, sourceEntry?: VaultEntry): VaultEntry | undefined {
-  return measureEntryResolution(() => resolveEntryUncounted(entries, rawTarget, sourceEntry))
-}
-
-function collectWorkspaceAliases(entries: VaultEntry[]): Set<string> {
-  return new Set(entries.map((entry) => workspaceForEntry(entry)?.alias.toLowerCase()).filter((alias): alias is string => !!alias))
-}
-
-function resolutionCandidates(
-  entries: VaultEntry[],
-  resolutionKey: ResolutionKey,
-  sourceEntry?: VaultEntry,
-): VaultEntry[] {
-  return resolutionKey.workspaceAlias
-    ? filterEntriesByWorkspace(entries, resolutionKey.workspaceAlias)
+  const workspaceAliases = new Set(entries.map((entry) => workspaceForEntry(entry)?.alias.toLowerCase()).filter((alias): alias is string => !!alias))
+  const resolutionKey = buildResolutionKey(rawTarget, workspaceAliases)
+  const workspaceScopedEntries = filterEntriesByWorkspace(entries, resolutionKey.workspaceAlias)
+  const candidates = resolutionKey.workspaceAlias
+    ? workspaceScopedEntries
     : prioritizeSourceWorkspace(entries, sourceEntry)
-}
-
-function findResolvedEntry(candidates: VaultEntry[], resolutionKey: ResolutionKey): VaultEntry | undefined {
   return (
     findEntryByPathSuffix(candidates, resolutionKey)
     ?? findEntryByFilename(candidates, resolutionKey)
@@ -219,30 +201,4 @@ function findResolvedEntry(candidates: VaultEntry[], resolutionKey: ResolutionKe
     ?? findEntryByTitle(candidates, resolutionKey)
     ?? findEntryByHumanizedTitle(candidates, resolutionKey)
   )
-}
-
-function resolveEntryUncounted(entries: VaultEntry[], rawTarget: WikilinkTarget, sourceEntry?: VaultEntry): VaultEntry | undefined {
-  if (!isEntryResolutionMeasured()) {
-    const resolutionKey = buildResolutionKey(rawTarget, collectWorkspaceAliases(entries))
-    return findResolvedEntry(resolutionCandidates(entries, resolutionKey, sourceEntry), resolutionKey)
-  }
-
-  const aliasStartedAt = startExpensiveCall()
-  const workspaceAliases = collectWorkspaceAliases(entries)
-  const aliasScanMs = elapsedSince(aliasStartedAt)
-
-  const keyStartedAt = startExpensiveCall()
-  const resolutionKey = buildResolutionKey(rawTarget, workspaceAliases)
-  const keyBuildMs = elapsedSince(keyStartedAt)
-
-  const candidatesStartedAt = startExpensiveCall()
-  const candidates = resolutionCandidates(entries, resolutionKey, sourceEntry)
-  const candidatesMs = elapsedSince(candidatesStartedAt)
-
-  const findStartedAt = startExpensiveCall()
-  const resolved = findResolvedEntry(candidates, resolutionKey)
-  const findMs = elapsedSince(findStartedAt)
-
-  recordEntryResolutionPhases({ aliasScanMs, keyBuildMs, candidatesMs, findMs }, entries.length)
-  return resolved
 }
