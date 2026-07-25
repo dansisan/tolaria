@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  elapsedSince,
   isExpensiveCallLoggingEnabled,
   logExpensiveCall,
   resetExpensiveCallLog,
@@ -97,6 +98,13 @@ describe('expensiveCallLog', () => {
     logExpensiveCall({ name: 'vault.scan', startedAt: 0 })
 
     expect(warnSpy).toHaveBeenCalledWith('[perf] expensive vault.scan took=0.0ms calls=3 sinceLast=0.0ms repeat=burst')
+  })
+
+  it('measures elapsed phase time from a start timestamp', () => {
+    vi.spyOn(performance, 'now').mockReturnValueOnce(500).mockReturnValueOnce(512.5)
+
+    const startedAt = startExpensiveCall()
+    expect(elapsedSince(startedAt)).toBe(12.5)
   })
 
   it('stays silent under the vitest runtime unless explicitly enabled', () => {

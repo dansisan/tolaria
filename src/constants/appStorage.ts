@@ -12,6 +12,8 @@ export const APP_STORAGE_KEYS = {
   layoutPanels: 'tolaria:layout-panels',
   welcomeDismissed: 'tolaria_welcome_dismissed',
   perfLogging: 'tolaria:perf-logging',
+  perfSwapHiddenProbe: 'tolaria:perf-swap-hidden',
+  perfViewBuild: 'tolaria:perf-view-build',
 } as const
 
 export const LEGACY_APP_STORAGE_KEYS = {

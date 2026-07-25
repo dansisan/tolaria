@@ -95,6 +95,12 @@ export function startExpensiveCall(): number {
   return typeof performance === 'undefined' ? 0 : performance.now()
 }
 
+/** Milliseconds elapsed since a `startExpensiveCall()` timestamp, for breaking one
+ * logged operation into named phases. */
+export function elapsedSince(startedAt: number): number {
+  return startExpensiveCall() - startedAt
+}
+
 function recordCall(key: string, finishedAt: number): { count: number; sinceLast: number | null } {
   const previous = callRecords.get(key)
   const count = (previous?.count ?? 0) + 1

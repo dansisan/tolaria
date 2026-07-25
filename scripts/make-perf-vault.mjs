@@ -44,6 +44,21 @@ function giantBlockBody(marker, targetBytes) {
   return body
 }
 
+/**
+ * Thousands of SHORT single-spaced lines. Distinct from giantBlockBody: the editor
+ * cost of this shape tracks the number of line breaks, not the byte count, because
+ * every newline inside a block becomes its own hardBreak node for ProseMirror to
+ * build. Real-world journals hit ~9k lines in ~150KB; that is the 1s-switch case.
+ */
+function denseLineBody(marker, lineCount) {
+  const FRAGMENTS = ['ok', 'done', 'todo: ping', 'no change', 'follow up', 'shipped', 'waiting', 'n/a']
+  let body = ''
+  for (let i = 0; i < lineCount; i += 1) {
+    body += `${marker}-${i} ${FRAGMENTS[i % FRAGMENTS.length]}\n`
+  }
+  return body
+}
+
 function note(title, marker, body) {
   return `---\ntype: Note\n---\n\n# ${title}\n\nUNIQUE-MARKER: ${marker}\n\n${body}`
 }
@@ -57,6 +72,7 @@ const files = {
   'big-note-b.md': note('Big Note B', 'BIG-NOTE-B', paragraphBody('bravo', TARGET_BYTES)),
   'big-note-c.md': note('Big Note C', 'BIG-NOTE-C', paragraphBody('charlie', TARGET_BYTES)),
   'giant-block.md': note('Giant Block', 'GIANT-BLOCK', giantBlockBody('golf', TARGET_BYTES)),
+  'dense-lines.md': note('Dense Lines', 'DENSE-LINES', denseLineBody('delta', 9000)),
   'small-control.md': note('Small Control', 'SMALL-CONTROL', 'A small note for contrast.\n'),
   'README.md': [
     '# perf-vault — persistent big-note fixtures',
@@ -68,6 +84,8 @@ const files = {
     '- For manual QA, open this folder as a vault; `git checkout -- tests/fixtures/perf-vault`',
     '  restores it afterwards.',
     '- Regenerate or scale with `node scripts/make-perf-vault.mjs [--size-kb N]`.',
+    '- `dense-lines.md` is the worst case for document install: ~9k short single-spaced',
+    '  lines, so cost tracks line (hardBreak) count rather than bytes.',
     '',
     'Each note carries `UNIQUE-MARKER: <NAME>` plus per-paragraph prefixes so any',
     'cross-note content bleeding is detectable by grep.',

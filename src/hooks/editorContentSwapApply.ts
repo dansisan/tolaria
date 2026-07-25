@@ -2,11 +2,21 @@ import type { MutableRefObject } from 'react'
 import { EditorState, type Transaction } from 'prosemirror-state'
 import type { Node as ProseMirrorNode } from 'prosemirror-model'
 import type { useCreateBlockNote } from '@blocknote/react'
-import { logExpensiveCall, startExpensiveCall } from '../utils/expensiveCallLog'
+import {
+  elapsedSince,
+  isExpensiveCallLoggingEnabled,
+  logExpensiveCall,
+  startExpensiveCall,
+} from '../utils/expensiveCallLog'
 import { blankParagraphBlocks } from './editorTabContent'
 import { EDITOR_CONTAINER_SELECTOR } from './editorDomSelection'
 import { resetTextSelectionBeforeContentSwap } from './editorTiptapSelection'
 import { repairMalformedEditorBlocks } from './editorBlockRepair'
+import { drainEntryResolutionStats, formatEntryResolutionStats } from '../utils/entryResolutionStats'
+import { attributeDecorations, formatDecorationAttribution, formatDecorationTimings } from './editorDecorationAttribution'
+import { describeEditorDocShape, formatEditorDocShape } from './editorDocShape'
+import { withSwapHiddenProbe } from './editorSwapLayoutProbe'
+import { formatViewBuild, measureViewBuild } from './editorViewBuildProbe'
 
 type EditorBlocks = unknown[]
 
@@ -65,21 +75,63 @@ function stateSwapView(editor: ApplyBlocksToEditorOptions['editor']): StateSwapV
   return view
 }
 
+interface CachedDocApply {
+  applied: boolean
+  installMs: number
+  /** Building the EditorState — pure JS, touches no DOM. */
+  stateCreateMs: number
+  /** `view.updateState()` — DOM construction, plus any reflow it forces itself. */
+  viewUpdateMs: number
+  /** Selection reset + side-menu suppression before the swap. */
+  prepareMs: number
+  /** Whether the install ran under the hidden-container probe (layout skipped). */
+  hidden: boolean
+}
+
+const NOT_APPLIED: CachedDocApply = {
+  applied: false,
+  installMs: 0,
+  stateCreateMs: 0,
+  viewUpdateMs: 0,
+  prepareMs: 0,
+  hidden: false,
+}
+
 function applyCachedDocState(
   editor: ApplyBlocksToEditorOptions['editor'],
   blocks: EditorBlocks,
-): boolean {
+): CachedDocApply {
   const cachedDoc = builtDocsByBlocks.get(blocks as unknown as object)
-  if (!cachedDoc) return false
+  if (!cachedDoc) return NOT_APPLIED
   const view = stateSwapView(editor)
-  if (!view) return false
+  if (!view) return NOT_APPLIED
 
+  const prepareStartedAt = startExpensiveCall()
   resetTextSelectionBeforeContentSwap(editor)
   suppressSideMenuBeforeContentSwap(editor)
+  const prepareMs = elapsedSince(prepareStartedAt)
+
   // A whole-state swap also resets plugin state, which clears undo history —
   // the same isolation the addToHistory:false transaction below approximates.
-  view.updateState(EditorState.create({ doc: cachedDoc, plugins: view.state.plugins as EditorState['plugins'] }))
-  return true
+  const stateStartedAt = startExpensiveCall()
+  const nextState = EditorState.create({
+    doc: cachedDoc,
+    plugins: view.state.plugins as EditorState['plugins'],
+  })
+  const stateCreateMs = elapsedSince(stateStartedAt)
+
+  const viewStartedAt = startExpensiveCall()
+  const { hidden } = withSwapHiddenProbe(() => view.updateState(nextState))
+  const viewUpdateMs = elapsedSince(viewStartedAt)
+
+  return {
+    applied: true,
+    installMs: stateCreateMs + viewUpdateMs,
+    stateCreateMs,
+    viewUpdateMs,
+    prepareMs,
+    hidden,
+  }
 }
 
 function rememberBuiltDoc(editor: ApplyBlocksToEditorOptions['editor'], blocks: EditorBlocks): void {
@@ -114,18 +166,114 @@ interface ApplyMarkupStateToEditorOptions extends Omit<AppliedEditorContentCommi
  * ProseMirror doc; `replaceBlocks` pays the full transaction/revalidation cost. */
 type ApplyRoute = 'cachedDoc' | 'replaceBlocks' | 'htmlFallback'
 
+interface ApplyPhases {
+  /** Block-tree repair walk. Zero on the cachedDoc route, which skips it. */
+  repairMs: number
+  /** Installing the document into ProseMirror: updateState, or the replace transaction. */
+  installMs: number
+  /** cachedDoc route only: install split into its JS and DOM halves. */
+  stateCreateMs?: number
+  viewUpdateMs?: number
+  prepareMs?: number
+  hidden?: boolean
+}
+
+/**
+ * Flushes pending layout for the freshly installed document and reports what that
+ * cost, splitting "ProseMirror built the document" from "the browser laid it out".
+ * Those point at opposite fixes, so the split is the whole reason this exists.
+ *
+ * Reading `scrollHeight` forces the synchronous reflow. That work would happen at
+ * the next paint anyway, but forcing it early can provoke an extra reflow if more
+ * mutations follow, so it only runs when logging is switched on.
+ */
+function measureForcedLayout(): { layoutMs: number; height: number } | null {
+  if (!isExpensiveCallLoggingEnabled()) return null
+
+  const startedAt = startExpensiveCall()
+  const scrollEl = document.querySelector(EDITOR_CONTAINER_SELECTOR)
+  const height = scrollEl?.scrollHeight ?? 0
+  return { layoutMs: elapsedSince(startedAt), height }
+}
+
+function formatApplyDetail(options: {
+  route: ApplyRoute
+  blockCount: number
+  phases: ApplyPhases
+  docShape?: string
+}): string {
+  const { route, blockCount, phases } = options
+  const parts = [
+    `route=${route}`,
+    `blocks=${blockCount}`,
+    `repair=${phases.repairMs.toFixed(1)}ms`,
+    `install=${phases.installMs.toFixed(1)}ms`,
+  ]
+
+  if (phases.stateCreateMs !== undefined) parts.push(`stateCreate=${phases.stateCreateMs.toFixed(1)}ms`)
+  if (phases.viewUpdateMs !== undefined) parts.push(`viewUpdate=${phases.viewUpdateMs.toFixed(1)}ms`)
+  if (phases.prepareMs !== undefined) parts.push(`prepare=${phases.prepareMs.toFixed(1)}ms`)
+  if (phases.hidden) parts.push('hidden=true')
+
+  const layout = measureForcedLayout()
+  if (layout) {
+    parts.push(`layout=${layout.layoutMs.toFixed(1)}ms`, `height=${layout.height}`)
+  }
+  if (options.docShape) parts.push(options.docShape)
+  return parts.join(' ')
+}
+
+/** What the install had to build. Walks the document, so diagnostics-gated. */
+function describeInstalledDoc(editor: ApplyBlocksToEditorOptions['editor']): string | undefined {
+  if (!isExpensiveCallLoggingEnabled()) return undefined
+  const state = stateSwapView(editor)?.state as EditorState | undefined
+  const parts = [formatEditorDocShape(describeEditorDocShape(state?.doc))]
+  // Drained here so the counts belong to this install and do not leak into the next.
+  parts.push(formatEntryResolutionStats(drainEntryResolutionStats()))
+  const viewBuild = formatViewBuild(measureViewBuild(state?.doc))
+  if (viewBuild) parts.push(viewBuild)
+
+  const decorations = attributeDecorations(state)
+  const decorationSummary = formatDecorationAttribution(decorations)
+  if (decorationSummary) parts.push(decorationSummary)
+  const decorationTimings = formatDecorationTimings(decorations)
+  if (decorationTimings) parts.push(decorationTimings)
+  return parts.join(' ')
+}
+
 function logAppliedBlocks(options: {
   startedAt: number
   route: ApplyRoute
   targetPath: string
   blockCount: number
+  phases: ApplyPhases
+  editor: ApplyBlocksToEditorOptions['editor']
 }): void {
-  const { startedAt, route, targetPath, blockCount } = options
+  const { startedAt, route, targetPath, blockCount, phases, editor } = options
   logExpensiveCall({
     name: 'editor.applyBlocks',
     key: `editor.applyBlocks:${targetPath}`,
     startedAt,
-    detail: `route=${route} blocks=${blockCount}`,
+    detail: formatApplyDetail({ route, blockCount, phases, docShape: describeInstalledDoc(editor) }),
+  })
+}
+
+/**
+ * Time from the swap starting to the next animation frame — the closest proxy for
+ * what the user actually waits for, since it covers layout and paint rather than
+ * just the JS. Costs an extra frame callback, so it is logging-gated.
+ */
+function logAppliedBlocksFrame(options: { startedAt: number; route: ApplyRoute; targetPath: string }): void {
+  const { startedAt, route, targetPath } = options
+  if (!isExpensiveCallLoggingEnabled()) return
+
+  requestNextFrame(() => {
+    logExpensiveCall({
+      name: 'editor.applyBlocksFrame',
+      key: `editor.applyBlocksFrame:${targetPath}`,
+      startedAt,
+      detail: `route=${route}`,
+    })
   })
 }
 
@@ -138,13 +286,32 @@ export function applyBlocksToEditor(options: ApplyBlocksToEditorOptions): boolea
   } = options
   const startedAt = startExpensiveCall()
   suppressChangeRef.current = true
-  if (applyCachedDocState(editor, blocks)) {
+  const cachedDocApply = applyCachedDocState(editor, blocks)
+  if (cachedDocApply.applied) {
     commitAppliedEditorContent(options)
-    logAppliedBlocks({ startedAt, route: 'cachedDoc', targetPath, blockCount: blocks.length })
+    logAppliedBlocks({
+      startedAt,
+      route: 'cachedDoc',
+      targetPath,
+      editor,
+      blockCount: blocks.length,
+      phases: {
+        repairMs: 0,
+        installMs: cachedDocApply.installMs,
+        stateCreateMs: cachedDocApply.stateCreateMs,
+        viewUpdateMs: cachedDocApply.viewUpdateMs,
+        prepareMs: cachedDocApply.prepareMs,
+        hidden: cachedDocApply.hidden,
+      },
+    })
+    logAppliedBlocksFrame({ startedAt, route: 'cachedDoc', targetPath })
     return true
   }
   let route: ApplyRoute = 'replaceBlocks'
+  const repairStartedAt = startExpensiveCall()
   const safeBlocks = repairMalformedEditorBlocks(blocks)
+  const repairMs = elapsedSince(repairStartedAt)
+  const installStartedAt = startExpensiveCall()
   try {
     resetTextSelectionBeforeContentSwap(editor)
     suppressSideMenuBeforeContentSwap(editor)
@@ -175,9 +342,18 @@ export function applyBlocksToEditor(options: ApplyBlocksToEditorOptions): boolea
     }
   }
 
+  const installMs = elapsedSince(installStartedAt)
   rememberBuiltDoc(editor, blocks)
   commitAppliedEditorContent(options)
-  logAppliedBlocks({ startedAt, route, targetPath, blockCount: safeBlocks.length })
+  logAppliedBlocks({
+    startedAt,
+    route,
+    targetPath,
+    editor,
+    blockCount: safeBlocks.length,
+    phases: { repairMs, installMs },
+  })
+  logAppliedBlocksFrame({ startedAt, route, targetPath })
   return true
 }
 
