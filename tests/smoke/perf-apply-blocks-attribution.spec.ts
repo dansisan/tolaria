@@ -19,6 +19,13 @@
  * split script/style/layout and bisect the stylesheets. Prefer them over adding more
  * application-level instrumentation.
  *
+ * A caution learned the hard way: toggle stylesheets with `sheet.disabled`, never by
+ * rewriting rules with deleteRule/insertRule. Mutating a sheet's rules perturbs
+ * Chrome's rule-set state enough to corrupt the very measurement being taken — a
+ * per-rule bisect built that way attributed 330ms of style recalculation to a single
+ * animation-reset rule that, tested by injection into a separate sheet, costs ~4ms.
+ * For per-selector attribution use Chrome's Selector Stats tracing instead.
+ *
  * The assertions cover the shape (node counts, which are engine-independent and
  * deterministic); the timings are printed, not asserted, because Chromium here is
  * not WKWebView in the shipped app. Compare runs against each other.
@@ -172,7 +179,14 @@ test('diagnostic: build cost versus teardown cost by direction', async ({ page }
       + `route=${s.route.padEnd(14)} install=${String(s.install).padStart(7)}ms `
       + `blocks=${String(s.blocks).padStart(4)} took=${s.took}ms`
 
-    console.log('--- build versus teardown ---')
+    console.log('--- build versus teardown (raw lines show the phase split) ---')
+    for (const [label, sample] of [
+      ['small -> dense', smallToDense],
+      ['dense -> small', denseToSmall],
+      ['dense -> bigA', denseToBig],
+    ] as const) {
+      console.log(`${label}: ${sample.raw}`)
+    }
     console.log(row('small -> dense', smallToDense))
     console.log(row('dense -> small', denseToSmall))
     console.log(row('dense -> bigA', denseToBig))
@@ -232,48 +246,6 @@ test('diagnostic: arrow traversal installs only the notes it lands on', async ({
   }
 })
 
-/**
- * Pins the cost to a specific BlockNote call.
- *
- * Every block node view is constructed by BlockNote's block-spec `addNodeView()`,
- * whose render resolves the block via `editor.getBlock(id)`. That call opens a
- * transaction, searches the document for the id, then converts the node — including
- * all of its inline content — into a Block object. If timing it per block accounts
- * for the install, the bottleneck is that conversion rather than anything in our code.
- */
-test('diagnostic: cost of editor.getBlock per block', async ({ page }) => {
-  test.setTimeout(300_000)
-  const vaultDir = createPerfVaultCopy()
-  try {
-    await openFixtureVault(page, vaultDir, { expectedReadyTitle: 'Big Note A' })
-
-    for (const [title, marker] of [['Dense Lines', 'DENSE-LINES'], ['Big Note A', 'BIG-NOTE-A']] as const) {
-      await openNote(page, title, marker)
-      await page.waitForTimeout(1_000)
-
-      const result = await page.evaluate(() => {
-        const editor = (window as unknown as { __tolariaDebugEditor?: {
-          document: { id: string }[]
-          getBlock: (id: string) => unknown
-        } }).__tolariaDebugEditor
-        if (!editor) return null
-
-        const blocks = editor.document
-        const startedAt = performance.now()
-        for (const block of blocks) editor.getBlock(block.id)
-        const totalMs = performance.now() - startedAt
-        return { blocks: blocks.length, totalMs }
-      })
-
-      console.log(result
-        ? `${title}: ${result.blocks} blocks, getBlock total=${result.totalMs.toFixed(1)}ms `
-          + `(${(result.totalMs / result.blocks).toFixed(2)}ms per block)`
-        : `${title}: debug editor bridge unavailable`)
-    }
-  } finally {
-    removeFixtureVaultCopy(vaultDir)
-  }
-})
 
 /**
  * Attributes the swap to actual functions using V8's sampling profiler over CDP,
@@ -385,11 +357,15 @@ test('diagnostic: script versus style versus layout, and real DOM size', async (
       const dom = await countDom()
 
       const delta = (name: string) => ((after[name] ?? 0) - (before[name] ?? 0)) * 1000
+      const count = (name: string) => (after[name] ?? 0) - (before[name] ?? 0)
       console.log(`--- ${title} ---`)
       console.log(`  script=${delta('ScriptDuration').toFixed(0)}ms `
         + `recalcStyle=${delta('RecalcStyleDuration').toFixed(0)}ms `
         + `layout=${delta('LayoutDuration').toFixed(0)}ms `
         + `task=${delta('TaskDuration').toFixed(0)}ms`)
+      // Counts, not durations: a layout per insertion means something reads geometry
+      // mid-install, which is quadratic on a growing document. A handful means it does not.
+      console.log(`  layouts=${count('LayoutCount')} styleRecalcs=${count('RecalcStyleCount')}`)
       console.log(`  DOM: elements=${dom?.elements} br=${dom?.brs} textNodes=${dom?.textNodes} `
         + `p=${dom?.paragraphs} scrollHeight=${dom?.scrollHeight}px`)
     }
@@ -590,3 +566,46 @@ test('diagnostic: identify the expensive stylesheet', async ({ page }) => {
     removeFixtureVaultCopy(vaultDir)
   }
 })
+
+
+
+/** Lists every :has() rule on the page with its stylesheet, to find their origin. */
+test('diagnostic: inventory of :has rules', async ({ page }) => {
+  test.setTimeout(120_000)
+  const vaultDir = createPerfVaultCopy()
+  try {
+    await openFixtureVault(page, vaultDir, { expectedReadyTitle: 'Big Note A' })
+    const inventory = await page.evaluate(() => {
+      const found: Array<{ sheet: number; rules: number; selector: string }> = []
+      Array.from(document.styleSheets).forEach((sheet, sheetIndex) => {
+        let rules: CSSRule[]
+        try {
+          rules = Array.from(sheet.cssRules)
+        } catch {
+          return
+        }
+        for (const rule of rules) {
+          const selector = (rule as CSSStyleRule).selectorText
+          if (selector?.includes(':has(')) {
+            found.push({ sheet: sheetIndex, rules: rules.length, selector })
+          }
+        }
+      })
+      return found
+    })
+
+    console.log(`--- ${inventory.length} :has() rules ---`)
+    for (const entry of inventory) {
+      console.log(`sheet=${entry.sheet}(${entry.rules}) ${entry.selector.slice(0, 150)}`)
+    }
+    expect(inventory.length).toBeGreaterThan(0)
+  } finally {
+    removeFixtureVaultCopy(vaultDir)
+  }
+})
+
+
+
+
+
+
