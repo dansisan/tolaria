@@ -1,3 +1,4 @@
+import { Schema } from 'prosemirror-model'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { RICH_EDITOR_CHANGE_DEBOUNCE_MS, useEditorTabSwap } from './useEditorTabSwap'
@@ -30,6 +31,22 @@ function makeBlankBodyTab(path: string, title = 'Untitled Note 1') {
   }
 }
 
+/** A real ProseMirror document, so selection helpers under test can resolve positions
+ * against it instead of silently failing on a plain object. */
+const selectionSchema = new Schema({
+  nodes: {
+    doc: { content: 'paragraph+' },
+    paragraph: { content: 'text*', toDOM: () => ['p', 0] },
+    text: {},
+  },
+})
+const selectionDoc = selectionSchema.node('doc', null, [
+  selectionSchema.node('paragraph', null, [selectionSchema.text('mock')]),
+])
+
+/** The transaction most recently handed to `editor.transact` by the code under test. */
+const lastTransaction: { current: { setSelection: ReturnType<typeof vi.fn> } | null } = { current: null }
+
 function makeMockEditor(docRef: { current: unknown[] }) {
   const editor = {
     document: docRef.current,
@@ -37,7 +54,16 @@ function makeMockEditor(docRef: { current: unknown[] }) {
     onMount: (cb: () => void) => { cb(); return () => {} },
     replaceBlocks: vi.fn((_old, newBlocks) => { docRef.current = newBlocks }),
     insertBlocks: vi.fn(),
-    transact: vi.fn((cb: (tr: { setMeta: () => void }) => void) => cb({ setMeta: vi.fn() })),
+    // Records the transaction it hands out so tests can assert what the swap set on it.
+    transact: vi.fn(function (this: { lastTransaction?: unknown }, cb: (tr: unknown) => void) {
+      const transaction = {
+        setMeta: vi.fn(),
+        setSelection: vi.fn(),
+        doc: selectionDoc,
+      }
+      lastTransaction.current = transaction
+      return cb(transaction)
+    }),
     blocksToMarkdownLossy: vi.fn(() => ''),
     blocksToHTMLLossy: vi.fn(() => ''),
     tryParseMarkdownToBlocks: vi.fn(() => blocksA),
@@ -396,7 +422,7 @@ describe('useEditorTabSwap raw mode sync', () => {
     }
   })
 
-  it('resets stale TipTap selection before applying a switched note', async () => {
+  it('resets stale selection inside the swap transaction, not as a separate dispatch', async () => {
     const tabA = makeTab('a.md', 'Note A')
     const tabB = makeTab('b.md', 'Note B')
 
@@ -407,11 +433,16 @@ describe('useEditorTabSwap raw mode sync', () => {
       },
     })
     mockEditor._tiptapEditor.commands.setTextSelection.mockClear()
+    mockEditor.transact.mockClear()
 
     await rerenderWith({ tabs: [tabB], activeTabPath: 'b.md' })
 
-    expect(mockEditor._tiptapEditor.commands.setTextSelection).toHaveBeenCalledWith(1)
     expect(mockEditor.replaceBlocks).toHaveBeenCalled()
+    // The selection is reset on the transaction that replaces the content ...
+    expect(lastTransaction.current?.setSelection).toHaveBeenCalled()
+    // ... and never by dispatching a second transaction beforehand, which cost a whole
+    // extra view update on the outgoing note.
+    expect(mockEditor._tiptapEditor.commands.setTextSelection).not.toHaveBeenCalled()
   })
 
   it('ignores stale same-path parse results when tab content refreshes', async () => {

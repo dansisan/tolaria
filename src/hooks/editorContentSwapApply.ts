@@ -4,7 +4,7 @@ import type { Node as ProseMirrorNode } from 'prosemirror-model'
 import type { useCreateBlockNote } from '@blocknote/react'
 import { blankParagraphBlocks } from './editorTabContent'
 import { EDITOR_CONTAINER_SELECTOR } from './editorDomSelection'
-import { resetTextSelectionBeforeContentSwap } from './editorTiptapSelection'
+import { resetSelectionWithinTransaction, resetTextSelectionBeforeContentSwap } from './editorTiptapSelection'
 import { repairMalformedEditorBlocks } from './editorBlockRepair'
 import { logExpensiveCall, startExpensiveCall } from '../utils/expensiveCallLog'
 
@@ -74,8 +74,11 @@ function applyCachedDocState(
   const view = stateSwapView(editor)
   if (!view) return false
 
-  resetTextSelectionBeforeContentSwap(editor)
+  // No selection reset needed here: `EditorState.create` below starts the selection at
+  // the top of the new document. Dispatching a reset first cost a whole extra view
+  // update on the outgoing document — 82ms when leaving a large note.
   suppressSideMenuBeforeContentSwap(editor)
+
   // A whole-state swap also resets plugin state, which clears undo history —
   // the same isolation the addToHistory:false transaction below approximates.
   view.updateState(EditorState.create({ doc: cachedDoc, plugins: view.state.plugins as EditorState['plugins'] }))
@@ -154,13 +157,16 @@ export function applyBlocksToEditor(options: ApplyBlocksToEditorOptions): boolea
   }
   const safeBlocks = repairMalformedEditorBlocks(blocks)
   try {
-    resetTextSelectionBeforeContentSwap(editor)
     suppressSideMenuBeforeContentSwap(editor)
     // Load the note's content without recording it in the undo history. The
     // BlockNote editor instance is reused across notes, so a recordable swap
     // would let Cmd+Z undo the content load itself — emptying the note (or
     // reverting to a previously open note's content). Marking the transaction
     // `addToHistory: false` keeps undo scoped to the user's edits since open.
+    //
+    // Both `editor.document` and `replaceBlocks` only build steps on the pending
+    // transaction; transact() dispatches on the way out, and that dispatch — the view
+    // update — is where essentially all of a large note's swap time goes.
     editor.transact((tr: Transaction) => {
       tr.setMeta('addToHistory', false)
       const current = editor.document
@@ -169,6 +175,11 @@ export function applyBlocksToEditor(options: ApplyBlocksToEditorOptions): boolea
       } else if (safeBlocks.length > 0) {
         editor.insertBlocks(safeBlocks, current[0], 'before')
       }
+      // Reset the selection as part of this transaction rather than dispatching a
+      // separate one beforehand. A stale selection must not survive into the new note,
+      // but doing it separately meant two view updates instead of one, and on a large
+      // outgoing note the extra one cost 80-100ms.
+      resetSelectionWithinTransaction(tr)
     })
   } catch (err) {
     console.error('applyBlocks failed, trying fallback:', err)
