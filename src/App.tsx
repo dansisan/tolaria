@@ -159,6 +159,7 @@ import { useAppAiWorkspaceBridge } from './hooks/useAppAiWorkspaceBridge'
 import { publishAiWorkspaceWindowSharedContext } from './lib/aiWorkspaceWindowSharedContext'
 import type { AiWorkspaceWindowContext } from './utils/openAiWorkspaceWindow'
 import { cleanupTauriEventListeners, type TauriUnlisten } from './utils/tauriEventCleanup'
+import { subscribeToToasts } from './utils/toastEvent'
 import {
   AI_WORKSPACE_FILE_CREATED_EVENT,
   AI_WORKSPACE_FILE_MODIFIED_EVENT,
@@ -325,6 +326,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     noteListRef.current?.openSearchWithQuery(peopleSearchToken(query))
   }, [handleSetSelection])
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  useEffect(() => subscribeToToasts(setToastMessage), [])
   const dialogs = useDialogs()
   const { closeAIChat, openAIChat, showAIChat } = dialogs
   const [showFeedback, setShowFeedback] = useState(false)

@@ -3,6 +3,7 @@ import { render, screen, fireEvent, act, within } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { BreadcrumbBar } from './BreadcrumbBar'
 import { EDIT_NOTE_TITLE_EVENT } from '../utils/editNoteTitleEvent'
+import { subscribeToToasts } from '../utils/toastEvent'
 import type { VaultEntry } from '../types'
 
 const dragRegionMouseDown = vi.fn()
@@ -714,14 +715,33 @@ describe('BreadcrumbBar — filename controls', () => {
     expect(onRenameFilename).toHaveBeenCalledWith(entry.path, 'What now')
   })
 
-  it('skips the rename when nothing usable survives sanitizing', () => {
+  it('explains the skipped rename when nothing usable survives sanitizing', () => {
     const { onRenameFilename } = renderEditableFilenameBreadcrumb()
+    const onToast = vi.fn()
+    const unsubscribe = subscribeToToasts(onToast)
 
     const input = startFilenameRename()
     fireEvent.change(input, { target: { value: '???' } })
     fireEvent.keyDown(input, { key: 'Enter' })
 
     expect(onRenameFilename).not.toHaveBeenCalled()
+    expect(onToast).toHaveBeenCalledWith(expect.stringContaining('Filename unchanged'))
+    unsubscribe()
+  })
+
+  /** Clearing the field and pressing Enter is a plain cancel, not a failure. */
+  it('stays quiet when the rename is skipped for an empty or unchanged name', () => {
+    const { onRenameFilename } = renderEditableFilenameBreadcrumb()
+    const onToast = vi.fn()
+    const unsubscribe = subscribeToToasts(onToast)
+
+    const input = startFilenameRename()
+    fireEvent.change(input, { target: { value: '   ' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(onRenameFilename).not.toHaveBeenCalled()
+    expect(onToast).not.toHaveBeenCalled()
+    unsubscribe()
   })
 
   it('blur confirms the inline rename when the value changed', () => {

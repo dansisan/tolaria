@@ -6,6 +6,7 @@ import { APP_COMMAND_IDS, formatShortcutDisplay, getAppCommandShortcutDisplay } 
 import { extractFrontmatterTitleFromContent, extractH1TitleFromContent, isDefaultNoteType } from '../utils/noteTitle'
 import { EDIT_NOTE_TITLE_EVENT } from '../utils/editNoteTitleEvent'
 import { sanitizeFilenameStem } from '../utils/filenameStem'
+import { requestToast } from '../utils/toastEvent'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ActionTooltip, type ActionTooltipCopy } from '@/components/ui/action-tooltip'
@@ -105,10 +106,22 @@ function beginFilenameEditing(
   setIsEditing(true)
 }
 
-function resolveFilenameRenameTarget(draftStem: string, filenameStem: string): string | null {
+/**
+ * What a submitted rename should do. `unusable` is kept distinct from `skip`
+ * so the one case the user cannot diagnose — every character they typed was
+ * stripped — gets an explanation instead of a name that silently snaps back.
+ */
+type FilenameRenameOutcome =
+  | { kind: 'rename'; stem: string }
+  | { kind: 'skip' }
+  | { kind: 'unusable' }
+
+function resolveFilenameRenameTarget(draftStem: string, filenameStem: string): FilenameRenameOutcome {
+  const typed = draftStem.trim()
   const nextStem = normalizeFilenameStemInput(draftStem)
-  if (!nextStem || nextStem === filenameStem) return null
-  return nextStem
+  if (!nextStem) return typed === '' ? { kind: 'skip' } : { kind: 'unusable' }
+  if (nextStem === filenameStem) return { kind: 'skip' }
+  return { kind: 'rename', stem: nextStem }
 }
 
 function handleFilenameInputKeyDown(
@@ -448,10 +461,14 @@ function FilenameCrumb({ content, entry, locale = 'en', onRenameFilename }: Pick
 
   const submitRename = useCallback(() => {
     setIsEditing(false)
-    const nextStem = resolveFilenameRenameTarget(draftStem, filenameStem)
-    if (!nextStem) return
-    onRenameFilename?.(entry.path, nextStem)
-  }, [draftStem, filenameStem, onRenameFilename, entry.path])
+    const outcome = resolveFilenameRenameTarget(draftStem, filenameStem)
+    if (outcome.kind === 'unusable') {
+      requestToast(translate(locale, 'editor.filename.n.unusable'))
+      return
+    }
+    if (outcome.kind === 'skip') return
+    onRenameFilename?.(entry.path, outcome.stem)
+  }, [draftStem, filenameStem, locale, onRenameFilename, entry.path])
 
   // Enter/Escape return focus to the note body; blur-submit leaves focus alone
   // so clicking elsewhere doesn't yank the cursor back into the editor.

@@ -635,6 +635,7 @@
   "editor.filename.rename": "Rename filename",
   "editor.filename.renameToTitle": "Rename the file to match the title",
   "editor.filename.trigger": "Filename {filename}. Press Enter to rename",
+  "editor.filename.n.unusable": "Filename unchanged — a name needs at least one character other than < > : \" / \\ | ? *",
   "editor.banner.archived": "Archived",
   "editor.banner.unarchive": "Unarchive",
   "editor.banner.conflict": "This note has a merge conflict",
