@@ -116,6 +116,8 @@ describe('mockHandlers coverage', () => {
       release_channel: 'alpha',
       theme_mode: null,
       date_display_format: null,
+      note_list_description_property: null,
+      note_list_preview_fallback_lines: null,
       note_width_mode: null,
       note_body_font_size: null,
       code_font_size: null,

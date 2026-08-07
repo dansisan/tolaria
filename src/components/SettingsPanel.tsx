@@ -75,6 +75,11 @@ import {
   normalizeDateDisplayFormat,
   type DateDisplayFormat,
 } from '../utils/dateDisplay'
+import {
+  noteListPreviewDraft,
+  noteListPreviewFromDraft,
+  type NoteListPreviewDraft,
+} from '../utils/noteListPreview'
 import { Button } from './ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import type { NoteWidthMode } from '../types'
@@ -119,6 +124,7 @@ interface SettingsDraft {
   themeMode: ThemeMode
   uiLanguage: UiLanguagePreference
   dateDisplayFormat: DateDisplayFormat
+  noteListPreview: NoteListPreviewDraft
   defaultNoteWidth: NoteWidthMode
   noteBodyFontSize: number
   codeFontSize: number | null
@@ -169,6 +175,8 @@ interface SettingsBodyProps {
   setUiLanguage: (value: UiLanguagePreference) => void
   dateDisplayFormat: DateDisplayFormat
   setDateDisplayFormat: (value: DateDisplayFormat) => void
+  noteListPreview: NoteListPreviewDraft
+  setNoteListPreview: (value: NoteListPreviewDraft) => void
   defaultNoteWidth: NoteWidthMode
   setDefaultNoteWidth: (value: NoteWidthMode) => void
   noteBodyFontSize: number
@@ -240,6 +248,7 @@ function createSettingsDraft(
     themeMode: resolveSettingsDraftThemeMode(settings.theme_mode),
     uiLanguage: settings.ui_language ?? SYSTEM_UI_LANGUAGE,
     dateDisplayFormat: normalizeDateDisplayFormat(settings.date_display_format) ?? DEFAULT_DATE_DISPLAY_FORMAT,
+    noteListPreview: noteListPreviewDraft(settings),
     defaultNoteWidth: normalizeNoteWidthMode(settings.note_width_mode) ?? DEFAULT_NOTE_WIDTH_MODE,
     noteBodyFontSize: resolveNoteFontSize(settings.note_body_font_size, null),
     codeFontSize: normalizeCodeFontSize(settings.code_font_size),
@@ -293,6 +302,10 @@ function buildSettingsFromDraft(settings: Settings, draft: SettingsDraft): Setti
     theme_mode: draft.themeMode,
     ui_language: serializeUiLanguagePreference(draft.uiLanguage),
     date_display_format: draft.dateDisplayFormat,
+    // `''` rather than `null`: a cleared field is a deliberate "off", while
+    // `null` would read back as "never set" and resurrect the default key.
+    note_list_description_property: noteListPreviewFromDraft(draft.noteListPreview).descriptionProperty ?? '',
+    note_list_preview_fallback_lines: draft.noteListPreview.fallbackLines,
     note_width_mode: draft.defaultNoteWidth,
     note_body_font_size: draft.noteBodyFontSize,
     code_font_size: draft.codeFontSize,
@@ -605,6 +618,8 @@ function SettingsBodyFromDraft({
       setUiLanguage={(value) => updateDraft('uiLanguage', value)}
       dateDisplayFormat={draft.dateDisplayFormat}
       setDateDisplayFormat={(value) => updateDraft('dateDisplayFormat', value)}
+      noteListPreview={draft.noteListPreview}
+      setNoteListPreview={(value) => updateDraft('noteListPreview', value)}
       defaultNoteWidth={draft.defaultNoteWidth}
       setDefaultNoteWidth={(value) => updateDraft('defaultNoteWidth', value)}
       noteBodyFontSize={draft.noteBodyFontSize}
@@ -747,6 +762,8 @@ function SettingsContentSections({
   t,
   dateDisplayFormat,
   setDateDisplayFormat,
+  noteListPreview,
+  setNoteListPreview,
   defaultNoteWidth,
   setDefaultNoteWidth,
   noteBodyFontSize,
@@ -776,6 +793,8 @@ function SettingsContentSections({
         t={t}
         dateDisplayFormat={dateDisplayFormat}
         setDateDisplayFormat={setDateDisplayFormat}
+        noteListPreview={noteListPreview}
+        setNoteListPreview={setNoteListPreview}
         defaultNoteWidth={defaultNoteWidth}
         setDefaultNoteWidth={setDefaultNoteWidth}
         noteBodyFontSize={noteBodyFontSize}

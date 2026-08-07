@@ -12,6 +12,10 @@ import { serializeUiLanguagePreference } from '../lib/i18n'
 import { trackThemeModeChanged } from '../lib/productAnalytics'
 import { normalizeReleaseChannel, serializeReleaseChannel } from '../lib/releaseChannel'
 import { normalizeDateDisplayFormat } from '../utils/dateDisplay'
+import {
+  normalizeNoteListPreviewLines,
+  serializeNoteListDescriptionProperty,
+} from '../utils/noteListPreview'
 import { DEFAULT_THEME_MODE, normalizeThemeMode, type ThemeMode } from '../lib/themeMode'
 import type { Settings } from '../types'
 import { normalizeNoteWidthMode } from '../utils/noteWidth'
@@ -51,6 +55,8 @@ const EMPTY_SETTINGS: Settings = {
   theme_mode: null,
   ui_language: null,
   date_display_format: null,
+  note_list_description_property: null,
+  note_list_preview_fallback_lines: null,
   note_width_mode: null,
   note_body_font_size: null,
   code_font_size: null,
@@ -83,6 +89,8 @@ function normalizeSettings(settings: Settings): Settings {
     theme_mode: normalizeThemeMode(settings.theme_mode),
     ui_language: serializeUiLanguagePreference(settings.ui_language),
     date_display_format: normalizeDateDisplayFormat(settings.date_display_format),
+    note_list_description_property: serializeNoteListDescriptionProperty(settings.note_list_description_property),
+    note_list_preview_fallback_lines: normalizeNoteListPreviewLines(settings.note_list_preview_fallback_lines),
     note_width_mode: normalizeNoteWidthMode(settings.note_width_mode),
     note_body_font_size: normalizeNoteFontSize(settings.note_body_font_size),
     code_font_size: normalizeCodeFontSize(settings.code_font_size),

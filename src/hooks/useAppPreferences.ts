@@ -10,6 +10,7 @@ import {
 } from '../lib/i18n'
 import { DEFAULT_DATE_DISPLAY_FORMAT, normalizeDateDisplayFormat, type DateDisplayFormat } from '../utils/dateDisplay'
 import { resolveAllNotesFileVisibility } from '../utils/allNotesFileVisibility'
+import { DEFAULT_NOTE_LIST_PREVIEW, resolveNoteListPreview, type NoteListPreview } from '../utils/noteListPreview'
 import { useAiAgentPreferences } from './useAiAgentPreferences'
 import type { AiAgentsStatus } from '../lib/aiAgents'
 import { useDocumentThemeMode } from './useDocumentThemeMode'
@@ -26,10 +27,12 @@ interface AppPreferencesConfig {
 
 interface AppPreferenceValues {
   dateDisplayFormat: DateDisplayFormat
+  noteListPreview: NoteListPreview
 }
 
 const DEFAULT_APP_PREFERENCES: AppPreferenceValues = {
   dateDisplayFormat: DEFAULT_DATE_DISPLAY_FORMAT,
+  noteListPreview: DEFAULT_NOTE_LIST_PREVIEW,
 }
 
 const AppPreferencesContext = createContext<AppPreferenceValues>(DEFAULT_APP_PREFERENCES)
@@ -37,16 +40,22 @@ const AppPreferencesContext = createContext<AppPreferenceValues>(DEFAULT_APP_PRE
 export function AppPreferencesProvider({
   children,
   dateDisplayFormat = DEFAULT_DATE_DISPLAY_FORMAT,
+  noteListPreview = DEFAULT_NOTE_LIST_PREVIEW,
 }: {
   children: ReactNode
   dateDisplayFormat?: DateDisplayFormat
+  noteListPreview?: NoteListPreview
 }) {
-  const value = useMemo(() => ({ dateDisplayFormat }), [dateDisplayFormat])
+  const value = useMemo(() => ({ dateDisplayFormat, noteListPreview }), [dateDisplayFormat, noteListPreview])
   return createElement(AppPreferencesContext.Provider, { value }, children)
 }
 
 export function useDateDisplayFormat(): DateDisplayFormat {
   return useContext(AppPreferencesContext).dateDisplayFormat
+}
+
+export function useNoteListPreview(): NoteListPreview {
+  return useContext(AppPreferencesContext).noteListPreview
 }
 
 export function useAppPreferences({
@@ -70,6 +79,10 @@ export function useAppPreferences({
   )
   const allNotesFileVisibility = useMemo(
     () => resolveAllNotesFileVisibility(settings),
+    [settings],
+  )
+  const noteListPreview = useMemo(
+    () => resolveNoteListPreview(settings),
     [settings],
   )
   const selectedUiLanguage: UiLanguagePreference = settings.ui_language ?? SYSTEM_UI_LANGUAGE
@@ -110,6 +123,7 @@ export function useAppPreferences({
     handleSetThemeMode,
     handleSetUiLanguage,
     handleToggleThemeMode,
+    noteListPreview,
     selectedUiLanguage,
     systemLocale,
   }

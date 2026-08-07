@@ -4,6 +4,13 @@ import type { NoteWidthMode } from '../types'
 import { IMAGE_RENAME_MODES, type ImageRenameMode } from '../utils/imageRename'
 import type { AllNotesFileVisibility } from '../utils/allNotesFileVisibility'
 import { DATE_DISPLAY_FORMATS, type DateDisplayFormat } from '../utils/dateDisplay'
+import {
+  DEFAULT_NOTE_LIST_DESCRIPTION_PROPERTY,
+  DEFAULT_NOTE_LIST_PREVIEW_FALLBACK_LINES,
+  NOTE_LIST_PREVIEW_LINE_OPTIONS,
+  normalizeNoteListPreviewLines,
+  type NoteListPreviewDraft,
+} from '../utils/noteListPreview'
 import { NOTE_FONT_SIZE_OPTIONS } from '../utils/noteBodyFontSize'
 import { CODE_FONT_SIZE_OPTIONS, normalizeCodeFontSize } from '../utils/codeFontSize'
 import {
@@ -21,6 +28,8 @@ interface VaultContentSettingsSectionProps {
   t: Translate
   dateDisplayFormat: DateDisplayFormat
   setDateDisplayFormat: (value: DateDisplayFormat) => void
+  noteListPreview: NoteListPreviewDraft
+  setNoteListPreview: (value: NoteListPreviewDraft) => void
   defaultNoteWidth: NoteWidthMode
   setDefaultNoteWidth: (value: NoteWidthMode) => void
   noteBodyFontSize: number
@@ -97,10 +106,69 @@ function buildDateDisplayOptions(t: Translate): Array<{ value: DateDisplayFormat
   }))
 }
 
+function buildPreviewFallbackOptions(t: Translate): Array<{ value: string; label: string }> {
+  return NOTE_LIST_PREVIEW_LINE_OPTIONS.map((value) => ({
+    value: String(value),
+    label: value === 0
+      ? t('settings.noteListPreview.fallbackNone')
+      : t('settings.noteListPreview.fallbackOption', { count: value, plural: value === 1 ? '' : 's' }),
+  }))
+}
+
+/**
+ * The description field doubles as the on/off switch — a blank field means no
+ * note declares its own preview — so there is no separate toggle, and the
+ * fallback control only ever governs the note-body text.
+ */
+function NoteListPreviewRows({
+  t,
+  preview,
+  setPreview,
+}: {
+  t: Translate
+  preview: NoteListPreviewDraft
+  setPreview: (value: NoteListPreviewDraft) => void
+}) {
+  return (
+    <>
+      <SettingsRow
+        label={t('settings.noteListPreview.descriptionField')}
+        description={t('settings.noteListPreview.descriptionFieldDescription')}
+      >
+        <Input
+          value={preview.descriptionField}
+          onChange={(e) => setPreview({ ...preview, descriptionField: e.target.value })}
+          placeholder={DEFAULT_NOTE_LIST_DESCRIPTION_PROPERTY}
+          data-testid="settings-note-list-description-field"
+          className="w-32 bg-transparent"
+        />
+      </SettingsRow>
+
+      <SettingsRow
+        label={t('settings.noteListPreview.fallback')}
+        description={t('settings.noteListPreview.fallbackDescription')}
+      >
+        <SelectControl
+          ariaLabel={t('settings.noteListPreview.fallback')}
+          value={String(preview.fallbackLines)}
+          onValueChange={(value) => setPreview({
+            ...preview,
+            fallbackLines: normalizeNoteListPreviewLines(value) ?? DEFAULT_NOTE_LIST_PREVIEW_FALLBACK_LINES,
+          })}
+          options={buildPreviewFallbackOptions(t)}
+          testId="settings-note-list-preview-fallback"
+        />
+      </SettingsRow>
+    </>
+  )
+}
+
 export function VaultContentSettingsSection({
   t,
   dateDisplayFormat,
   setDateDisplayFormat,
+  noteListPreview,
+  setNoteListPreview,
   defaultNoteWidth,
   setDefaultNoteWidth,
   noteBodyFontSize,
@@ -148,6 +216,8 @@ export function VaultContentSettingsSection({
             testId="settings-date-display-format"
           />
         </SettingsRow>
+
+        <NoteListPreviewRows t={t} preview={noteListPreview} setPreview={setNoteListPreview} />
 
         <SettingsRow
           label={t('settings.noteWidth.default')}

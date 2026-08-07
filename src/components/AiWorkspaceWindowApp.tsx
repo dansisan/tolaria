@@ -262,7 +262,7 @@ export function AiWorkspaceWindowApp() {
   const handleVaultChanged = useMainWindowEvent<null>(AI_WORKSPACE_VAULT_CHANGED_EVENT)
 
   return (
-    <AppPreferencesProvider dateDisplayFormat={preferences.dateDisplayFormat}>
+    <AppPreferencesProvider dateDisplayFormat={preferences.dateDisplayFormat} noteListPreview={preferences.noteListPreview}>
       <div className="relative h-full w-full">
         {settingsLoaded ? (
           <AppAiWorkspaceSurface

@@ -9,6 +9,7 @@ import {
   trackGitFeaturesEnabledChanged,
   trackImageRenameModeChanged,
   trackNoteBodyFontSizeChanged,
+  trackNoteListPreviewChanged,
   trackSidebarTypePluralizationChanged,
 } from '../lib/productAnalytics'
 import { areAiFeaturesEnabled } from '../lib/aiFeatures'
@@ -19,6 +20,11 @@ import {
   type DateDisplayFormat,
 } from '../utils/dateDisplay'
 import { DEFAULT_NOTE_WIDTH_MODE, normalizeNoteWidthMode } from '../utils/noteWidth'
+import {
+  noteListPreviewFromDraft,
+  resolveNoteListPreview,
+  type NoteListPreviewDraft,
+} from '../utils/noteListPreview'
 import { resolveNoteFontSize } from '../utils/noteBodyFontSize'
 import { normalizeCodeFontSize } from '../utils/codeFontSize'
 import { normalizeImageRenameMode, type ImageRenameMode } from '../utils/imageRename'
@@ -27,6 +33,7 @@ export interface SettingsPreferenceDraft {
   analytics: boolean
   aiFeaturesEnabled: boolean
   dateDisplayFormat: DateDisplayFormat
+  noteListPreview: NoteListPreviewDraft
   defaultNoteWidth: NoteWidthMode
   noteBodyFontSize: number
   codeFontSize: number | null
@@ -56,6 +63,15 @@ export function trackSettingsPreferenceChanges(settings: Settings, draft: Settin
   const previousDateDisplayFormat = normalizeDateDisplayFormat(settings.date_display_format) ?? DEFAULT_DATE_DISPLAY_FORMAT
   if (previousDateDisplayFormat !== draft.dateDisplayFormat) {
     trackDateDisplayFormatChanged(draft.dateDisplayFormat)
+  }
+
+  const previousPreview = resolveNoteListPreview(settings)
+  const nextPreview = noteListPreviewFromDraft(draft.noteListPreview)
+  if (
+    previousPreview.descriptionProperty !== nextPreview.descriptionProperty
+    || previousPreview.fallbackLines !== nextPreview.fallbackLines
+  ) {
+    trackNoteListPreviewChanged(nextPreview)
   }
 
   const previousNoteWidth = normalizeNoteWidthMode(settings.note_width_mode) ?? DEFAULT_NOTE_WIDTH_MODE

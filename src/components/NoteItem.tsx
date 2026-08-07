@@ -18,7 +18,8 @@ import { PropertyChips } from './note-item/PropertyChips'
 import { ChangeNoteContent } from './note-item/ChangeNoteContent'
 import { workspaceForEntry } from '../utils/workspaces'
 import { WorkspaceInitialsBadge } from './WorkspaceInitialsBadge'
-import { useDateDisplayFormat } from '../hooks/useAppPreferences'
+import { useDateDisplayFormat, useNoteListPreview } from '../hooks/useAppPreferences'
+import { noteListPreviewRow } from '../utils/noteListPreview'
 
 const TYPE_ICON_MAP: Record<string, ComponentType<SVGAttributes<SVGSVGElement>>> = {
   Project: Wrench,
@@ -152,16 +153,29 @@ function BinaryFileSize({ fileSize }: { fileSize: number }) {
   )
 }
 
-function NoteSnippet({ snippet }: { snippet?: string | null }) {
-  if (!snippet) return null
+const CLAMPED_SNIPPET_STYLE: CSSProperties = {
+  display: '-webkit-box',
+  WebkitBoxOrient: 'vertical',
+  overflow: 'hidden',
+}
+
+/**
+ * The preview line(s) under the title. A curated description from the
+ * configured frontmatter field always renders in full; the note-body fallback
+ * is clamped to the line count chosen in Settings.
+ */
+function NoteSnippet({ entry }: { entry: VaultEntry }) {
+  const preview = useNoteListPreview()
+  const row = noteListPreviewRow(entry, preview)
+  if (!row) return null
 
   return (
     <div
       className="text-[12px] leading-[1.5] text-muted-foreground"
       data-testid="note-snippet"
-      style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+      style={row.clamped ? { ...CLAMPED_SNIPPET_STYLE, WebkitLineClamp: preview.fallbackLines } : undefined}
     >
-      {snippet}
+      {row.text}
     </div>
   )
 }
@@ -219,7 +233,7 @@ function InteractiveNoteDetails({
         isSelected={isSelected}
         noteStatus={noteStatus}
       />
-      <NoteSnippet snippet={entry.snippet} />
+      <NoteSnippet entry={entry} />
       <NotePropertySection
         entry={entry}
         displayProps={displayProps}

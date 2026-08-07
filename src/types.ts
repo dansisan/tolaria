@@ -125,6 +125,10 @@ export interface Settings {
   theme_mode?: ThemeMode | null
   ui_language?: AppLocale | null
   date_display_format?: DateDisplayFormat | null
+  /** Frontmatter key holding a curated note-list description. "" = switched off, null = default. */
+  note_list_description_property?: string | null
+  /** Lines of note body shown for notes without a curated description; 0 = none. */
+  note_list_preview_fallback_lines?: number | null
   note_width_mode?: NoteWidthMode | null
   note_body_font_size?: number | null
   code_font_size?: number | null

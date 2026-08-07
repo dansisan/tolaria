@@ -549,6 +549,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     handleSetThemeMode,
     handleSetUiLanguage,
     handleToggleThemeMode,
+    noteListPreview,
     selectedUiLanguage,
     systemLocale,
   } = useAppPreferences({
@@ -2209,7 +2210,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
 
   if (aiWorkspaceWindow) {
     return (
-      <AppPreferencesProvider dateDisplayFormat={dateDisplayFormat}>
+      <AppPreferencesProvider dateDisplayFormat={dateDisplayFormat} noteListPreview={noteListPreview}>
         {aiWorkspaceSurface}
       </AppPreferencesProvider>
     )
@@ -2219,7 +2220,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
   const noteListModifiedFilesError = isChangesSelection ? gitSurfaces.changesModifiedFilesError : null
 
   return (
-    <AppPreferencesProvider dateDisplayFormat={dateDisplayFormat}>
+    <AppPreferencesProvider dateDisplayFormat={dateDisplayFormat} noteListPreview={noteListPreview}>
       <div className="app-shell">
         <div className="app">
           {sidebarVisible && (

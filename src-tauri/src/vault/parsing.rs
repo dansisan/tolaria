@@ -121,16 +121,16 @@ fn strip_ordered_marker(s: &str) -> Option<&str> {
     }
 }
 
-/// Truncate a string to `max_len` bytes at a valid UTF-8 boundary, appending "...".
-fn truncate_with_ellipsis(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        return s.to_string();
+/// Truncate a string to `max_chars` characters, appending "...".
+///
+/// Counting characters rather than bytes keeps the snippet the same visible
+/// length in every script: a byte budget would cut CJK prose to a third of the
+/// text it gives Latin prose, leaving multi-line previews half empty.
+fn truncate_with_ellipsis(s: &str, max_chars: usize) -> String {
+    match s.char_indices().nth(max_chars) {
+        None => s.to_string(),
+        Some((idx, _)) => format!("{}...", &s[..idx]),
     }
-    let mut idx = max_len;
-    while idx > 0 && !s.is_char_boundary(idx) {
-        idx -= 1;
-    }
-    format!("{}...", &s[..idx])
 }
 
 /// Count the number of words in the note body (excluding frontmatter and H1 title).
@@ -145,7 +145,12 @@ pub(super) fn count_body_words(content: &str) -> u32 {
         .count() as u32
 }
 
-/// Extract a snippet: first ~160 chars of content after frontmatter/title, stripped of markdown.
+/// How much snippet text the note list may need: enough prose to fill the
+/// widest three-line preview a user can select in Settings.
+const SNIPPET_MAX_CHARS: usize = 320;
+
+/// Extract a snippet: the first ~320 characters of content after
+/// frontmatter/title, stripped of markdown.
 pub(super) fn extract_snippet(content: &str) -> String {
     let without_fm = strip_frontmatter(content);
     let body = without_h1_line(without_fm).unwrap_or(without_fm);
@@ -158,7 +163,7 @@ pub(super) fn extract_snippet(content: &str) -> String {
     let stripped = strip_markdown_chars(&clean);
     let trimmed = stripped.trim();
     if !trimmed.is_empty() {
-        return truncate_with_ellipsis(trimmed, 160);
+        return truncate_with_ellipsis(trimmed, SNIPPET_MAX_CHARS);
     }
     // Fallback: collect sub-heading text when no paragraph content exists
     let heading_text: String = body
@@ -171,7 +176,7 @@ pub(super) fn extract_snippet(content: &str) -> String {
     if heading_trimmed.is_empty() {
         return String::new();
     }
-    truncate_with_ellipsis(heading_trimmed, 160)
+    truncate_with_ellipsis(heading_trimmed, SNIPPET_MAX_CHARS)
 }
 
 fn without_h1_line(s: &str) -> Option<&str> {
@@ -670,7 +675,17 @@ mod tests {
     fn test_extract_snippet_truncates() {
         let long_content = format!("# Title\n\n{}", "word ".repeat(100));
         let snippet = extract_snippet(&long_content);
-        assert!(snippet.len() <= 165); // 160 + "..."
+        assert_eq!(snippet.chars().count(), SNIPPET_MAX_CHARS + 3); // 320 + "..."
+        assert!(snippet.ends_with("..."));
+    }
+
+    /// The budget is characters, not bytes, so a CJK note gets as much prose to
+    /// fill its multi-line preview as a Latin one.
+    #[test]
+    fn test_extract_snippet_budget_is_characters_not_bytes() {
+        let long_content = format!("# 标题\n\n{}", "字".repeat(500));
+        let snippet = extract_snippet(&long_content);
+        assert_eq!(snippet.chars().count(), SNIPPET_MAX_CHARS + 3);
         assert!(snippet.ends_with("..."));
     }
 

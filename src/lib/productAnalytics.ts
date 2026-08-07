@@ -4,6 +4,7 @@ import { trackEvent } from './telemetry'
 import type { AllNotesFileVisibility } from '../utils/allNotesFileVisibility'
 import type { DateDisplayFormat } from '../utils/dateDisplay'
 import type { FilePreviewKind } from '../utils/filePreview'
+import { DEFAULT_NOTE_LIST_DESCRIPTION_PROPERTY } from '../utils/noteListPreview'
 import type { NoteWidthMode } from '../types'
 import type { ThemeMode } from './themeMode'
 
@@ -90,6 +91,19 @@ export function trackDefaultNoteWidthChanged(mode: NoteWidthMode): void {
 
 export function trackDateDisplayFormatChanged(format: DateDisplayFormat): void {
   trackEvent('date_display_format_changed', { format })
+}
+
+/** Reports shape only: the user's own frontmatter key is vault-specific, so send whether it is set, not its value. */
+export function trackNoteListPreviewChanged(preview: { descriptionProperty: string | null; fallbackLines: number }): void {
+  trackEvent('note_list_preview_changed', {
+    fallbackLines: preview.fallbackLines,
+    descriptionField: describeDescriptionField(preview.descriptionProperty),
+  })
+}
+
+function describeDescriptionField(property: string | null): string {
+  if (property === null) return 'off'
+  return property === DEFAULT_NOTE_LIST_DESCRIPTION_PROPERTY ? 'default' : 'custom'
 }
 
 export function trackNoteBodyFontSizeChanged(fontSize: number): void {

@@ -20,7 +20,8 @@ use super::{is_md_file, parse_md_file, parse_non_md_file, scan_vault, VaultEntry
 /// Bump this when VaultEntry fields change to force a full rescan.
 /// v12: fix gray_matter YAML sanitization (unquoted colons / hash comments in list items)
 /// v14: preserve scalar-array custom frontmatter properties in VaultEntry
-const CACHE_VERSION: u32 = 16;
+/// v17: snippets extract 320 characters so multi-line note-list previews have text
+const CACHE_VERSION: u32 = 17;
 const CACHE_WRITE_LOCK_STALE_SECS: u64 = 30;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

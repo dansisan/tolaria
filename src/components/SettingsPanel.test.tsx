@@ -484,6 +484,63 @@ describe('SettingsPanel', () => {
     expect(trackEventMock).toHaveBeenCalledWith('date_display_format_changed', { format: 'iso' })
   })
 
+  it('defaults to the description field with a one-line body fallback', () => {
+    render(
+      <SettingsPanel open={true} settings={emptySettings} onSave={onSave} onClose={onClose} />
+    )
+
+    expect(screen.getByTestId('settings-note-list-description-field')).toHaveValue('description')
+    expect(screen.getByTestId('settings-note-list-preview-fallback')).toHaveAttribute('data-value', '1')
+  })
+
+  it('saves a custom description field and fallback line count', () => {
+    render(
+      <SettingsPanel open={true} settings={emptySettings} onSave={onSave} onClose={onClose} />
+    )
+
+    fireEvent.change(screen.getByTestId('settings-note-list-description-field'), { target: { value: 'summary' } })
+    fireEvent.pointerDown(screen.getByTestId('settings-note-list-preview-fallback'), { button: 0, pointerType: 'mouse' })
+    fireEvent.click(screen.getByRole('option', { name: '3 lines' }))
+    fireEvent.click(screen.getByTestId('settings-save'))
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      note_list_description_property: 'summary',
+      note_list_preview_fallback_lines: 3,
+    }))
+    expect(trackEventMock).toHaveBeenCalledWith('note_list_preview_changed', {
+      fallbackLines: 3,
+      descriptionField: 'custom',
+    })
+  })
+
+  it('persists a cleared description field as empty rather than reverting to the default', () => {
+    render(
+      <SettingsPanel open={true} settings={emptySettings} onSave={onSave} onClose={onClose} />
+    )
+
+    fireEvent.change(screen.getByTestId('settings-note-list-description-field'), { target: { value: '' } })
+    fireEvent.click(screen.getByTestId('settings-save'))
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ note_list_description_property: '' }))
+    expect(trackEventMock).toHaveBeenCalledWith('note_list_preview_changed', {
+      fallbackLines: 1,
+      descriptionField: 'off',
+    })
+  })
+
+  it('reopens a cleared description field as blank', () => {
+    render(
+      <SettingsPanel
+        open={true}
+        settings={{ ...emptySettings, note_list_description_property: '' }}
+        onSave={onSave}
+        onClose={onClose}
+      />
+    )
+
+    expect(screen.getByTestId('settings-note-list-description-field')).toHaveValue('')
+  })
+
   it('defaults the code font size to Default and saves a chosen size', () => {
     render(
       <SettingsPanel open={true} settings={emptySettings} onSave={onSave} onClose={onClose} />

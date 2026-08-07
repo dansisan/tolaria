@@ -500,6 +500,8 @@ Tolaria's app chrome uses an app-owned localization runtime in `src/lib/i18n.ts`
 
 `App.tsx` also resolves the installation-local date display format from `settings.date_display_format` and publishes it through `AppPreferencesProvider` in `src/hooks/useAppPreferences.ts`. Note rows, note-list property chips, inspector property cells, note info, table-of-contents metadata, and search result subtitles read that shared preference and render dates through `src/utils/dateDisplay.ts` so the visible style stays consistent. Date picker text entry remains ISO (`YYYY-MM-DD`) to preserve predictable manual input and frontmatter storage.
 
+The same provider carries the note-list preview preference. `src/utils/noteListPreview.ts` resolves `note_list_description_property` and `note_list_preview_fallback_lines` into one value that `NoteItem` reads via `useNoteListPreview()`. `noteListPreviewRow` returns `{text, clamped}`, or `null` when the row has no preview to show: a note that declares the configured description key owns its preview and renders unclamped (blank value means no preview at all), while every other note falls back to the backend body snippet (`extract_snippet` in `src-tauri/src/vault/parsing.rs`, 320 characters so three lines have prose to fill in any script) clamped to the configured line count. The Settings panel edits a separate `NoteListPreviewDraft` that keeps the key as raw text, so a cleared field survives editing and is persisted as `""` rather than collapsing back to the default.
+
 ## Vault Management
 
 ### Vault List

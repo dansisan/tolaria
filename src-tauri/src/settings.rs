@@ -11,6 +11,8 @@ const SUPPORTED_DEFAULT_AI_AGENTS: &[&str] =
 pub const DEFAULT_HIDE_GITIGNORED_FILES: bool = true;
 const SUPPORTED_NOTE_WIDTH_MODES: &[&str] = &["normal", "wide"];
 const SUPPORTED_DATE_DISPLAY_FORMATS: &[&str] = &["us", "european", "friendly", "iso"];
+/// Note-list preview text can be clamped to 0-3 lines; 0 hides it.
+const MAX_NOTE_LIST_PREVIEW_LINES: u32 = 3;
 const MIN_NOTE_FONT_SIZE: u32 = 12;
 const MAX_NOTE_FONT_SIZE: u32 = 22;
 const MIN_CODE_FONT_SIZE: u32 = 10;
@@ -93,6 +95,8 @@ pub struct Settings {
     pub theme_mode: Option<String>,
     pub ui_language: Option<String>,
     pub date_display_format: Option<String>,
+    pub note_list_description_property: Option<String>,
+    pub note_list_preview_fallback_lines: Option<u32>,
     pub note_width_mode: Option<String>,
     pub note_body_font_size: Option<u32>,
     pub code_font_size: Option<u32>,
@@ -194,6 +198,19 @@ pub fn normalize_date_display_format(value: Option<&str>) -> Option<String> {
     }
 }
 
+/// Keep the note-list fallback line count within the range the UI offers (0-3);
+/// drop anything outside it so the note list falls back to its default.
+pub fn normalize_note_list_preview_fallback_lines(value: Option<u32>) -> Option<u32> {
+    value.filter(|lines| *lines <= MAX_NOTE_LIST_PREVIEW_LINES)
+}
+
+/// Unlike other optional strings, an empty value is kept: it records that the
+/// user cleared the description field, which switches curated note-list
+/// descriptions off. `None` means "never set", which the UI reads as the default.
+pub fn normalize_note_list_description_property(value: Option<String>) -> Option<String> {
+    value.map(|candidate| candidate.trim().to_string())
+}
+
 pub const DEFAULT_FRONTMATTER_CREATED_KEY: &str = "created";
 
 pub fn effective_frontmatter_created_key(settings: &Settings) -> &str {
@@ -251,6 +268,12 @@ fn normalize_settings(settings: Settings) -> Settings {
         theme_mode: normalize_theme_mode(settings.theme_mode.as_deref()),
         ui_language: normalize_ui_language(settings.ui_language.as_deref()),
         date_display_format: normalize_date_display_format(settings.date_display_format.as_deref()),
+        note_list_description_property: normalize_note_list_description_property(
+            settings.note_list_description_property,
+        ),
+        note_list_preview_fallback_lines: normalize_note_list_preview_fallback_lines(
+            settings.note_list_preview_fallback_lines,
+        ),
         note_width_mode: normalize_note_width_mode(settings.note_width_mode.as_deref()),
         note_body_font_size: normalize_note_body_font_size(settings.note_body_font_size),
         code_font_size: normalize_code_font_size(settings.code_font_size),
@@ -493,6 +516,8 @@ mod tests {
             theme_mode: Some("dark".to_string()),
             ui_language: Some("zh-Hans".to_string()),
             date_display_format: Some("iso".to_string()),
+            note_list_description_property: Some("description".to_string()),
+            note_list_preview_fallback_lines: Some(2),
             note_width_mode: Some("wide".to_string()),
             note_body_font_size: Some(18),
             code_font_size: Some(13),
@@ -581,6 +606,49 @@ mod tests {
         assert_eq!(loaded.all_notes_show_pdfs, Some(true));
         assert_eq!(loaded.all_notes_show_images, Some(false));
         assert_eq!(loaded.all_notes_show_unsupported, Some(true));
+    }
+
+    #[test]
+    fn test_note_list_preview_round_trips() {
+        let loaded = save_and_reload(Settings {
+            note_list_description_property: Some("  Summary  ".to_string()),
+            note_list_preview_fallback_lines: Some(3),
+            ..Default::default()
+        });
+        assert_eq!(
+            loaded.note_list_description_property.as_deref(),
+            Some("Summary")
+        );
+        assert_eq!(loaded.note_list_preview_fallback_lines, Some(3));
+    }
+
+    /// A cleared description field must survive the round trip as an empty
+    /// string; collapsing it to `None` would resurrect the default key.
+    #[test]
+    fn test_cleared_note_list_description_property_stays_cleared() {
+        let loaded = save_and_reload(Settings {
+            note_list_description_property: Some("   ".to_string()),
+            ..Default::default()
+        });
+        assert_eq!(loaded.note_list_description_property.as_deref(), Some(""));
+    }
+
+    #[test]
+    fn test_note_list_preview_drops_unsupported_line_count() {
+        let loaded = save_and_reload(Settings {
+            note_list_preview_fallback_lines: Some(9),
+            ..Default::default()
+        });
+        assert_eq!(loaded.note_list_preview_fallback_lines, None);
+    }
+
+    #[test]
+    fn test_note_list_preview_keeps_zero_lines() {
+        let loaded = save_and_reload(Settings {
+            note_list_preview_fallback_lines: Some(0),
+            ..Default::default()
+        });
+        assert_eq!(loaded.note_list_preview_fallback_lines, Some(0));
     }
 
     #[test]
