@@ -152,6 +152,11 @@ The note list opportunistically preloads visible and adjacent markdown/text entr
 | Tests | Vitest (unit), Playwright (E2E/smoke), cargo test (Rust) | - |
 | Package manager | pnpm | - |
 
+The app carries two full editors: BlockNote (rich) and CodeMirror 6 (raw). What that
+duplication costs in bundle size and complexity, and the case for eventually consolidating on
+CodeMirror, is recorded in [EDITOR-STACK-COST.md](./EDITOR-STACK-COST.md). Nothing is planned
+off it.
+
 ## System Overview
 
 ```mermaid
