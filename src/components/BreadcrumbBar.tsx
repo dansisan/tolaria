@@ -5,6 +5,7 @@ import { translate, type AppLocale } from '../lib/i18n'
 import { APP_COMMAND_IDS, formatShortcutDisplay, getAppCommandShortcutDisplay } from '../hooks/appCommandCatalog'
 import { extractFrontmatterTitleFromContent, extractH1TitleFromContent, isDefaultNoteType } from '../utils/noteTitle'
 import { EDIT_NOTE_TITLE_EVENT } from '../utils/editNoteTitleEvent'
+import { sanitizeFilenameStem } from '../utils/filenameStem'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ActionTooltip, type ActionTooltipCopy } from '@/components/ui/action-tooltip'
@@ -234,8 +235,10 @@ function neighborhoodAction(
 }
 
 function normalizeFilenameStemInput(value: string): string {
-  const trimmed = value.trim()
-  return trimmed.replace(/\.md$/i, '').trim()
+  const trimmed = value.trim().replace(/\.md$/i, '')
+  // Strip path-unsafe characters rather than letting the backend reject the
+  // whole rename and snap the name back to what it was.
+  return sanitizeFilenameStem(trimmed)
 }
 
 function deriveSyncStem(entry: VaultEntry): string | null {

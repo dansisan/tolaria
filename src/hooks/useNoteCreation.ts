@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { isTauri, addMockEntry, mockInvoke } from '../mock-tauri'
 import type { VaultEntry } from '../types'
 import { slugifyNoteStem as slugify } from '../utils/noteSlug'
+import { sanitizeFilenameStem } from '../utils/filenameStem'
 import { resolveEntry } from '../utils/wikilink'
 import { trackEvent } from '../lib/telemetry'
 import { cacheNoteContent } from './useTabManagement'
@@ -285,18 +286,14 @@ export interface NewNoteParams {
  * Keep a typed filename close to what the user entered — preserve spaces and case
  * like the breadcrumb rename does, only stripping characters that are unsafe in a path.
  */
-function sanitizeFilenameStem(text: string): string {
-  const cleaned = text
-    .normalize('NFKC')
-    .replace(/[/\\:*?"<>|]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-  return cleaned || slugify(text)
+function resolveCreationStem(filenameStem: string | null | undefined, title: string): string {
+  if (!filenameStem) return slugify(title)
+  return sanitizeFilenameStem(filenameStem) || slugify(filenameStem)
 }
 
 export function resolveNewNote({ title, type, vaultPath, defaultWorkspacePath, vaults = [], template, defaults = [], createdDate, filenameStem }: NewNoteParams): { entry: VaultEntry; content: string } {
   const creationVaultPath = resolveCreationVaultPath(vaultPath, defaultWorkspacePath, vaults)
-  const slug = filenameStem ? sanitizeFilenameStem(filenameStem) : slugify(title)
+  const slug = resolveCreationStem(filenameStem, title)
   const status = null
   // The on-disk `created` frontmatter is a local wall-clock string (see
   // `formatLocalISODatetime`), but it represents the same real instant as

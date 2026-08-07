@@ -704,6 +704,26 @@ describe('BreadcrumbBar — filename controls', () => {
     expect(screen.queryByTestId('breadcrumb-filename-input')).not.toBeInTheDocument()
   })
 
+  it('strips path-unsafe characters instead of failing the rename', () => {
+    const { entry, onRenameFilename } = renderEditableFilenameBreadcrumb()
+
+    const input = startFilenameRename()
+    fireEvent.change(input, { target: { value: 'What now?' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(onRenameFilename).toHaveBeenCalledWith(entry.path, 'What now')
+  })
+
+  it('skips the rename when nothing usable survives sanitizing', () => {
+    const { onRenameFilename } = renderEditableFilenameBreadcrumb()
+
+    const input = startFilenameRename()
+    fireEvent.change(input, { target: { value: '???' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(onRenameFilename).not.toHaveBeenCalled()
+  })
+
   it('blur confirms the inline rename when the value changed', () => {
     const { entry, onRenameFilename } = renderEditableFilenameBreadcrumb()
 
