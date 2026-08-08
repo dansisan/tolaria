@@ -16,14 +16,14 @@ vi.mock('../mock-tauri', () => ({
 function renderGitSetupState(
   preference: GitSetupPreference = 'prompt',
   onGitSetupPreferenceChange = vi.fn(),
-  vaultLoading = false,
+  vaultPathSettled = true,
 ) {
   return renderHook(() => useGitSetupState({
     gitSetupPreference: preference,
     onGitSetupPreferenceChange,
     onToast: vi.fn(),
     resolvedPath: '/vault',
-    vaultLoading,
+    vaultPathSettled,
     windowMode: false,
   }))
 }
@@ -60,8 +60,11 @@ describe('useGitSetupState', () => {
     expect(result.current.shouldShowGitSetupDialog).toBe(true)
   })
 
-  it('does not auto-prompt while the vault is still loading', async () => {
-    const { result } = renderGitSetupState('prompt', vi.fn(), true)
+  // The active vault path is empty until the persisted vault list resolves.
+  // Prompting before then asks about whichever path happens to be in state,
+  // which is not the vault the user opened.
+  it('does not auto-prompt until the vault path is settled', async () => {
+    const { result } = renderGitSetupState('prompt', vi.fn(), false)
 
     await waitFor(() => {
       expect(result.current.gitRepoState).toBe('missing')
@@ -70,8 +73,8 @@ describe('useGitSetupState', () => {
     expect(result.current.shouldShowGitSetupDialog).toBe(false)
   })
 
-  it('still allows the dialog to be opened manually while the vault is loading', async () => {
-    const { result } = renderGitSetupState('prompt', vi.fn(), true)
+  it('still allows the dialog to be opened manually before the vault path settles', async () => {
+    const { result } = renderGitSetupState('prompt', vi.fn(), false)
 
     await waitFor(() => {
       expect(result.current.gitRepoState).toBe('missing')

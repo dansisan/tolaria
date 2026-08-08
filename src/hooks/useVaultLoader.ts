@@ -22,7 +22,6 @@ import {
   tauriCall,
 } from './vaultLoaderCommands'
 import { normalizeVaultEntry } from '../utils/vaultMetadataNormalization'
-import { isNoteWindow } from '../utils/windowMode'
 import { useUnavailableVaultState } from './useUnavailableVaultState'
 import { resetVaultState } from './vaultStateReset'
 import {
@@ -41,7 +40,7 @@ interface InitialVaultLoadStateOptions {
   folderVaults?: VaultOption[]
   handleVaultAvailable: (path: string) => void
   path: string
-  forceReload: boolean
+  reloadIfEmpty: boolean
   handleVaultUnavailable: (path: string) => void
   isCurrentVaultPath: (path: string) => boolean
   setEntries: Dispatch<SetStateAction<VaultEntry[]>>
@@ -89,7 +88,7 @@ async function loadInitialVaultChromeState(options: InitialVaultChromeOptions): 
 
 async function loadInitialVaultEntriesState(options: Pick<
   InitialVaultLoadStateOptions,
-  'defaultWorkspacePath' | 'forceReload' | 'handleVaultAvailable' | 'handleVaultUnavailable' | 'isCurrentVaultPath' | 'path' | 'setEntries' | 'vaults'
+  'defaultWorkspacePath' | 'reloadIfEmpty' | 'handleVaultAvailable' | 'handleVaultUnavailable' | 'isCurrentVaultPath' | 'path' | 'setEntries' | 'vaults'
 >): Promise<boolean> {
   const { handleVaultAvailable, handleVaultUnavailable, isCurrentVaultPath, path, setEntries } = options
 
@@ -98,7 +97,7 @@ async function loadInitialVaultEntriesState(options: Pick<
       vaultPath: path,
       vaults: initialVaultsForPath(path, options.vaults),
       defaultWorkspacePath: options.defaultWorkspacePath,
-      forceReload: options.forceReload,
+      reloadIfEmpty: options.reloadIfEmpty,
     })
     if (isCurrentVaultPath(path)) {
       handleVaultAvailable(path)
@@ -280,7 +279,7 @@ export function resolveNoteStatus({
 interface InitialVaultLoadOptions {
   defaultWorkspacePath?: string | null
   folderVaults?: VaultOption[]
-  forceReload: boolean
+  reloadIfEmpty: boolean
   handleVaultAvailable: (path: string) => void
   handleVaultUnavailable: (path: string) => void
   isWorkspacePathLoaded: (path: string) => boolean
@@ -300,7 +299,7 @@ interface InitialVaultLoadOptions {
 
 interface InitialVaultLoadSnapshot {
   defaultWorkspacePath?: string | null
-  forceReload: boolean
+  reloadIfEmpty: boolean
   vaults?: VaultOption[]
 }
 
@@ -312,13 +311,13 @@ interface InitialVaultLoadEffectOptions extends Omit<InitialVaultLoadOptions, 't
 function useInitialVaultLoadSnapshot(
   vaults: VaultOption[] | undefined,
   defaultWorkspacePath: string | null | undefined,
-  forceReload: boolean,
+  reloadIfEmpty: boolean,
 ) {
-  const loadOptionsRef = useRef<InitialVaultLoadSnapshot>({ vaults, defaultWorkspacePath, forceReload })
+  const loadOptionsRef = useRef<InitialVaultLoadSnapshot>({ vaults, defaultWorkspacePath, reloadIfEmpty })
 
   useEffect(() => {
-    loadOptionsRef.current = { vaults, defaultWorkspacePath, forceReload }
-  }, [defaultWorkspacePath, forceReload, vaults])
+    loadOptionsRef.current = { vaults, defaultWorkspacePath, reloadIfEmpty }
+  }, [defaultWorkspacePath, reloadIfEmpty, vaults])
 
   return loadOptionsRef
 }
@@ -382,7 +381,7 @@ function startFreshInitialVaultLoad(
     vaults: loadOptions.vaults,
     folderVaults: options.folderVaults,
     defaultWorkspacePath: loadOptions.defaultWorkspacePath,
-    forceReload: loadOptions.forceReload,
+    reloadIfEmpty: loadOptions.reloadIfEmpty,
     setEntries: options.setEntries,
     setFolders: options.setFolders,
     setIsLoading: options.setIsLoading,
@@ -409,9 +408,9 @@ function useInitialVaultLoad(options: InitialVaultLoadOptions) {
     vaults,
     defaultWorkspacePath,
     folderVaults,
-    forceReload,
+    reloadIfEmpty,
   } = options
-  const loadOptionsRef = useInitialVaultLoadSnapshot(vaults, defaultWorkspacePath, forceReload)
+  const loadOptionsRef = useInitialVaultLoadSnapshot(vaults, defaultWorkspacePath, reloadIfEmpty)
   const loadOptionsKey = useMemo(
     () => workspacePathSetKey(uniqueWorkspacePathsFromVaults(vaultPath, vaults)),
     [vaultPath, vaults],
@@ -427,7 +426,7 @@ function useInitialVaultLoad(options: InitialVaultLoadOptions) {
       clearNewPaths: tracker.clear,
       clearUnsaved: unsaved.clearAll,
       setEntries, setFolders, setIsLoading, setModifiedFiles, setModifiedFilesError, setViews,
-      vaultPath, vaults: loadOptions.vaults, folderVaults, forceReload,
+      vaultPath, vaults: loadOptions.vaults, folderVaults, reloadIfEmpty,
     }
     const reuseLoadedWorkspaceEntries = shouldReuseLoadedWorkspaceEntries(path, loadOptions, isWorkspacePathLoaded)
     const preserveWorkspaceEntries = reuseLoadedWorkspaceEntries || shouldPreserveWorkspaceEntries(loadOptions)
@@ -456,7 +455,7 @@ function useInitialVaultLoad(options: InitialVaultLoadOptions) {
     setEntries, setFolders, setIsLoading, setModifiedFiles, setModifiedFilesError, setViews,
     loadOptionsRef,
     loadOptionsKey,
-    forceReload,
+    reloadIfEmpty,
     folderVaults
   ])
 }
@@ -798,7 +797,7 @@ function useVaultUnavailable(vaultPath: string, state: ReturnType<typeof useVaul
 interface VaultLoaderStartupOptions {
   defaultWorkspacePath?: string | null
   folderVaults?: VaultOption[]
-  forceReload: boolean
+  reloadIfEmpty: boolean
   setInitialFolders: (folders: FolderNode[]) => void
   state: ReturnType<typeof useVaultState>
   unavailableVault: ReturnType<typeof useVaultUnavailable>
@@ -811,7 +810,7 @@ function useVaultLoaderStartup(options: VaultLoaderStartupOptions) {
   const {
     defaultWorkspacePath,
     folderVaults,
-    forceReload,
+    reloadIfEmpty,
     setInitialFolders,
     state,
     unavailableVault,
@@ -835,7 +834,7 @@ function useVaultLoaderStartup(options: VaultLoaderStartupOptions) {
     handleVaultUnavailable: unavailableVault.markVaultUnavailable,
     vaultPath,
     vaults,
-    forceReload,
+    reloadIfEmpty,
     folderVaults,
     defaultWorkspacePath,
     isWorkspacePathLoaded,
@@ -1041,7 +1040,6 @@ function loadMissingWorkspaceEntries({
   vaults?: VaultOption[]
 }) {
   void loadWorkspaceEntries(vault, defaultWorkspacePath, {
-    forceReload: vault.path === vaultPath,
     reloadIfEmpty: true,
   })
     .then((loadedEntries) => {
@@ -1219,7 +1217,6 @@ function useVaultLoaderResult({
 }
 
 export function useVaultLoader(vaultPath: string, vaults?: VaultOption[], defaultWorkspacePath?: string | null, folderVaults?: VaultOption[]) {
-  const forceInitialReload = useMemo(() => !isNoteWindow(), [])
   const state = useVaultState(vaultPath)
   const setInitialFolders = useInitialFolderSetter(folderVaults, state.setFolders)
   const entryMutations = useEntryMutations(state.setEntries, state.tracker.trackNew)
@@ -1245,7 +1242,10 @@ export function useVaultLoader(vaultPath: string, vaults?: VaultOption[], defaul
   useVaultLoaderStartup({
     defaultWorkspacePath,
     folderVaults,
-    forceReload: forceInitialReload,
+    // Startup always reads the on-disk cache. A vault that comes back empty
+    // falls back to a full reload, so a bad cache costs one extra scan
+    // instead of every launch paying for one.
+    reloadIfEmpty: true,
     setInitialFolders,
     state,
     unavailableVault,

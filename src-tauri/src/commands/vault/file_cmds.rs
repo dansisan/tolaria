@@ -300,13 +300,27 @@ pub async fn rename_pasted_image(
     .map_err(|e| format!("Task panicked: {e}"))?
 }
 
-#[tauri::command]
-pub async fn list_vault(path: PathBuf) -> Result<Vec<VaultEntry>, String> {
+pub(crate) async fn list_vault_entries(path: PathBuf) -> Result<Vec<VaultEntry>, String> {
     tokio::task::spawn_blocking(move || {
         with_expanded_vault_root(path.as_path(), scan_visible_vault_entries)
     })
     .await
     .map_err(|e| format!("Task panicked: {e}"))?
+}
+
+#[tauri::command]
+pub async fn list_vault(
+    app_handle: tauri::AppHandle,
+    path: PathBuf,
+) -> Result<Vec<VaultEntry>, String> {
+    // Startup lists the vault without invalidating the cache, so this is the
+    // only vault load the main window performs. `reload_vault` grants the
+    // asset scope the same way; without it here, images would not resolve on
+    // a cached start.
+    with_requested_root_path(path.as_path(), |requested_root| {
+        sync_image_asset_scope(&app_handle, requested_root)
+    })?;
+    list_vault_entries(path).await
 }
 
 #[tauri::command]
@@ -515,7 +529,7 @@ mod tests {
         );
         fs::write(dir.path().join("Projects/project.md"), "# Project\n").unwrap();
 
-        let entries = list_vault(root.clone()).await.unwrap();
+        let entries = list_vault_entries(root.clone()).await.unwrap();
         assert!(entries.iter().any(|entry| entry.filename == "root.md"));
         assert!(entries.iter().any(|entry| entry.filename == "project.md"));
 

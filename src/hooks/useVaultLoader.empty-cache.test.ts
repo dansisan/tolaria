@@ -61,6 +61,69 @@ describe('useVaultLoader empty cache recovery', () => {
     mockIsTauri = true
   })
 
+  it('starts the main window from the cached listing instead of invalidating it', async () => {
+    const commandResults = new Map<string, unknown>([
+      ['list_vault:/laputa', [makeEntry('/laputa/note/hello.md', 'Laputa Hello')]],
+      ['get_modified_files:', []],
+      ['list_vault_folders:', []],
+      ['list_views:', []],
+    ])
+    backendInvokeFn.mockImplementation((command: string, args?: Record<string, unknown>) => {
+      return Promise.resolve(commandResults.get(commandKey(command, args)) ?? null)
+    })
+
+    const { result } = renderHook(() => useVaultLoader('/laputa'))
+
+    await waitFor(() => {
+      expect(result.current.entries.map((entry) => entry.title)).toEqual(['Laputa Hello'])
+    })
+    expect(backendInvokeFn.mock.calls.filter(([command]) => command === 'reload_vault')).toEqual([])
+  })
+
+  it('falls back to reload_vault when the main window cached listing is empty', async () => {
+    const commandResults = new Map<string, unknown>([
+      ['list_vault:/laputa', []],
+      ['reload_vault:/laputa', [makeEntry('/laputa/note/hello.md', 'Laputa Hello')]],
+      ['get_modified_files:', []],
+      ['list_vault_folders:', []],
+      ['list_views:', []],
+    ])
+    backendInvokeFn.mockImplementation((command: string, args?: Record<string, unknown>) => {
+      return Promise.resolve(commandResults.get(commandKey(command, args)) ?? null)
+    })
+
+    const { result } = renderHook(() => useVaultLoader('/laputa'))
+
+    await waitFor(() => {
+      expect(result.current.entries.map((entry) => entry.title)).toEqual(['Laputa Hello'])
+    })
+    const loads = backendInvokeFn.mock.calls
+      .filter(([command, args]) => args?.path === '/laputa' && (command === 'list_vault' || command === 'reload_vault'))
+      .map(([command]) => command)
+    expect(loads).toEqual(['list_vault', 'reload_vault'])
+  })
+
+  it('starts an active mounted workspace from its cached listing', async () => {
+    const laputa = { label: 'Laputa', path: '/laputa', alias: 'laputa', available: true, mounted: true }
+    const commandResults = new Map<string, unknown>([
+      ['list_vault:/laputa', [makeEntry('/laputa/note/hello.md', 'Laputa Hello')]],
+      ['get_modified_files:', []],
+      ['list_vault_folders:', []],
+      ['list_views:', []],
+    ])
+    backendInvokeFn.mockImplementation((command: string, args?: Record<string, unknown>) => {
+      return Promise.resolve(commandResults.get(commandKey(command, args)) ?? null)
+    })
+
+    const vaults = [laputa]
+    const { result } = renderHook(() => useVaultLoader('/laputa', vaults, '/laputa', vaults))
+
+    await waitFor(() => {
+      expect(result.current.entries.map((entry) => entry.title)).toEqual(['Laputa Hello'])
+    })
+    expect(backendInvokeFn.mock.calls.filter(([command]) => command === 'reload_vault')).toEqual([])
+  })
+
   it('keeps mounted workspace entries visible while a newly active empty workspace loads', async () => {
     const laputa = { label: 'Laputa', path: '/laputa', alias: 'laputa', available: true, mounted: true }
     const refactoring = { label: 'Refactoring', path: '/refactoring', alias: 'refactoring', available: true, mounted: true }

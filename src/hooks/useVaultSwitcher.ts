@@ -503,7 +503,11 @@ function usePersistedVaultStorage(store: PersistedVaultStore) {
 }
 
 function usePersistedVaultState(onSwitchRef: MutableRefObject<() => void>): PersistedVaultState {
-  const [vaultPath, setVaultPath] = useState(STATIC_DEFAULT_PATH)
+  // Intentionally empty, not STATIC_DEFAULT_PATH: the active vault is only
+  // known once the persisted list resolves. Seeding a build-time guess makes
+  // every path-keyed surface run against a vault the user never opened.
+  // An empty path is the established "not yet known" state downstream.
+  const [vaultPath, setVaultPath] = useState('')
   const [selectedVaultPath, setSelectedVaultPath] = useState<string | null>(null)
   const [defaultWorkspacePath, setDefaultWorkspacePath] = useState<string | null>(null)
   const [extraVaults, setExtraVaults] = useState<VaultOption[]>([])

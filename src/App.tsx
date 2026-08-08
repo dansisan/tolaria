@@ -477,7 +477,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     onGitSetupPreferenceChange: handleGitSetupPreferenceChange,
     onToast: setToastMessage,
     resolvedPath,
-    vaultLoading: vault.isLoading,
+    vaultPathSettled: vaultSwitcher.loaded,
     windowMode: Boolean(noteWindowParams) || aiWorkspaceWindow,
   })
 
@@ -1952,7 +1952,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
   const commands = useAppCommands({
     activeTabPath: notes.activeTabPath, activeTabPathRef: notes.activeTabPathRef,
     entries: visibleEntries,
-    vaultLoading: vault.isLoading,
+    entriesPending: vault.isLoading || !vaultSwitcher.loaded,
     visibleNotesRef,
     multiSelectionCommandRef,
     modifiedCount: gitModifiedCount,

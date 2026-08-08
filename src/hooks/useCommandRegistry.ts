@@ -31,7 +31,7 @@ export { buildViewCommands } from './commands/viewCommands'
 interface CommandRegistryConfig {
   activeTabPath: string | null
   entries: VaultEntry[]
-  vaultLoading?: boolean
+  entriesPending?: boolean
   modifiedCount: number
   activeNoteHasIcon?: boolean
   mcpStatus?: string
@@ -155,7 +155,7 @@ function currentFolderCreateOptions(selection: SidebarSelection | undefined): Im
 
 export function useCommandRegistry(config: CommandRegistryConfig): import('./commands/types').CommandAction[] {
   const {
-    activeTabPath, entries, vaultLoading, modifiedCount,
+    activeTabPath, entries, entriesPending, modifiedCount,
     onQuickOpen, onCreateNote, onCreateNoteForDate, onCreateNoteOfType, onSave, onUndo, onRedo, canUndo, canRedo, undoLabel, redoLabel,
     onPastePlainText, onOpenSettings, onOpenFeedback,
     onDeleteNote, onArchiveNote, onUnarchiveNote,
@@ -198,7 +198,7 @@ export function useCommandRegistry(config: CommandRegistryConfig): import('./com
       : 'Customize Inbox columns'
   )
 
-  const vaultTypes = useMemo(() => extractVaultTypes(entries, { vaultLoading }), [entries, vaultLoading])
+  const vaultTypes = useMemo(() => extractVaultTypes(entries, { entriesPending }), [entries, entriesPending])
 
   const navigationCommands = useMemo(() => buildNavigationCommands({
     onQuickOpen,

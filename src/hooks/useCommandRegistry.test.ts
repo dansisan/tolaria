@@ -844,12 +844,12 @@ describe('extractVaultTypes', () => {
     expect(extractVaultTypes([])).toEqual(['Event', 'Person', 'Project', 'Note'])
   })
 
-  it('returns no types while the vault is still loading and entries are empty', () => {
-    expect(extractVaultTypes([], { vaultLoading: true })).toEqual([])
+  it('returns no types while the entry list is not authoritative yet', () => {
+    expect(extractVaultTypes([], { entriesPending: true })).toEqual([])
   })
 
   it('still returns default types for a genuinely empty, loaded vault', () => {
-    expect(extractVaultTypes([], { vaultLoading: false })).toEqual(['Event', 'Person', 'Project', 'Note'])
+    expect(extractVaultTypes([], { entriesPending: false })).toEqual(['Event', 'Person', 'Project', 'Note'])
   })
 
   it('extracts unique types from entries', () => {

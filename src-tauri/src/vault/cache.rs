@@ -537,6 +537,14 @@ fn prune_stale_entries(vault: &Path, entries: &mut Vec<VaultEntry>) -> bool {
     entries.len() != before
 }
 
+/// Prune entries whose files are gone and sort by modified_at descending.
+/// Returns whether pruning changed the set.
+fn prune_and_sort(vault: &Path, entries: &mut Vec<VaultEntry>) -> bool {
+    let pruned = prune_stale_entries(vault, entries);
+    entries.sort_by_key(|entry| std::cmp::Reverse(entry.modified_at));
+    pruned
+}
+
 /// Sort entries by modified_at descending and write the cache.
 fn finalize_and_cache(
     vault: &Path,
@@ -544,8 +552,17 @@ fn finalize_and_cache(
     hash: String,
     expected_previous: Option<CacheFileFingerprint>,
 ) -> Vec<VaultEntry> {
-    prune_stale_entries(vault, &mut entries);
-    entries.sort_by_key(|entry| std::cmp::Reverse(entry.modified_at));
+    prune_and_sort(vault, &mut entries);
+    write_entries_to_cache(vault, entries, hash, expected_previous)
+}
+
+/// Serialize `entries` into the cache file, logging why a write was skipped.
+fn write_entries_to_cache(
+    vault: &Path,
+    entries: Vec<VaultEntry>,
+    hash: String,
+    expected_previous: Option<CacheFileFingerprint>,
+) -> Vec<VaultEntry> {
     let outcome = write_cache(
         vault,
         &VaultCache {
@@ -583,15 +600,22 @@ fn update_same_commit(
     let LoadedCache { cache, fingerprint } = loaded_cache;
     let changed = git_uncommitted_files(vault);
     let mut entries = cache.entries;
-    if !changed.is_empty() {
+    let reparsed = !changed.is_empty();
+    if reparsed {
         let changed_set: std::collections::HashSet<String> =
             changed.iter().map(|path| relative_path_key(path)).collect();
         entries.retain(|e| !changed_set.contains(&to_relative_path_key(&e.path, vault)));
         entries.extend(parse_files_at(vault, &changed, git_dates, fm_created_key));
     }
-    // Always finalize: prune_stale_entries inside finalize_and_cache removes
-    // entries for files deleted outside git (e.g., via Finder or another app).
-    finalize_and_cache(vault, entries, cache.commit_hash, Some(fingerprint))
+    // Always prune: this removes entries for files deleted outside git (e.g.,
+    // via Finder or another app), which git status does not report.
+    let pruned = prune_and_sort(vault, &mut entries);
+    if !reparsed && !pruned {
+        // Warm start on a clean tree. The cache on disk already describes this
+        // exact state, so rewriting it only delays the vault becoming usable.
+        return entries;
+    }
+    write_entries_to_cache(vault, entries, cache.commit_hash, Some(fingerprint))
 }
 
 /// Handle different-commit cache: incremental update via git diff.
@@ -936,6 +960,39 @@ mod tests {
         let entries2 = scan_vault_cached(vault).unwrap();
         assert_eq!(entries2.len(), 1);
         assert_eq!(entries2[0].title, "note");
+    }
+
+    /// A warm start on a clean tree must not rewrite the cache: the file on
+    /// disk already describes this exact state, so serializing and replacing
+    /// it is pure startup cost (megabytes, on a real vault).
+    #[test]
+    fn test_clean_warm_start_does_not_rewrite_cache() {
+        let (_lock, _cache_tmp, dir) = setup_git_vault();
+        let vault = dir.path();
+
+        create_test_file(vault, "note.md", "# Note\n");
+        git_add_commit(vault, "init");
+        scan_vault_cached(vault).unwrap();
+
+        let written_at = fs::metadata(cache_path(vault)).unwrap().modified().unwrap();
+        std::thread::sleep(Duration::from_millis(10));
+
+        scan_vault_cached(vault).unwrap();
+        assert_eq!(
+            fs::metadata(cache_path(vault)).unwrap().modified().unwrap(),
+            written_at,
+            "clean warm start must leave the cache file untouched"
+        );
+
+        // Control: a dirty tree must still refresh the cache. This also proves
+        // the assertion above is not passing merely because mtime is coarse.
+        create_test_file(vault, "note.md", "# Note\n\nEdited.\n");
+        scan_vault_cached(vault).unwrap();
+        assert_ne!(
+            fs::metadata(cache_path(vault)).unwrap().modified().unwrap(),
+            written_at,
+            "an uncommitted change must still refresh the cache"
+        );
     }
 
     #[test]

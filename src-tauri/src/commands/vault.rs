@@ -305,7 +305,9 @@ mod tests {
             .output()
             .unwrap();
 
-        let entries = list_vault(vault_path.into()).await.unwrap();
+        let entries = super::file_cmds::list_vault_entries(vault_path.into())
+            .await
+            .unwrap();
         assert!(!entries[0].archived);
 
         std::fs::write(

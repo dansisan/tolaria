@@ -96,6 +96,16 @@ describe('useVaultSwitcher', () => {
     setMockInvokeBehavior()
   })
 
+  // Seeding the active path with a build-time constant makes every path-keyed
+  // startup surface (git check, vault config, telemetry) run against a vault
+  // the user never opened, until the persisted list resolves and corrects it.
+  it('starts with no active vault path until the persisted list resolves', () => {
+    const { result } = renderHook(() => useVaultSwitcher({ onSwitch, onToast }))
+
+    expect(result.current.vaultPath).toBe('')
+    expect(result.current.loaded).toBe(false)
+  })
+
   it('loads the default vault when the resolved path exists', async () => {
     const { result } = await renderLoadedVaultSwitcher()
 

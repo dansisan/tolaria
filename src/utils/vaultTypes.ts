@@ -59,7 +59,7 @@ function shouldIncludeCommandPaletteType(type: string, hiddenTypeKeys: Set<strin
 
 export function extractVaultTypes(
   entries: VaultEntry[],
-  options: { vaultLoading?: boolean } = {},
+  options: { entriesPending?: boolean } = {},
 ): string[] {
   const typeMap = new Map<string, string>()
 
@@ -67,9 +67,10 @@ export function extractVaultTypes(
     addCanonicalType(typeMap, resolveEntryType(entry))
   }
 
-  // While the vault is still loading, entries are empty for an existing vault
-  // too — fall back to nothing rather than flashing the default demo types.
-  if (typeMap.size === 0 && options.vaultLoading) return []
+  // Until the active vault is known and loaded, an empty entry list means
+  // "not read yet", not "empty vault" — fall back to nothing rather than
+  // flashing the default demo types.
+  if (typeMap.size === 0 && options.entriesPending) return []
 
   const hiddenTypeKeys = collectHiddenTypeKeys(entries)
   const sourceTypes = typeMap.size === 0 ? DEFAULT_TYPES : Array.from(typeMap.values()).sort()

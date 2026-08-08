@@ -13,7 +13,7 @@ interface GitSetupStateConfig {
   onGitSetupPreferenceChange?: (preference: GitSetupPreference) => void
   onToast: (message: string | null) => void
   resolvedPath: string
-  vaultLoading?: boolean
+  vaultPathSettled?: boolean
   windowMode: boolean
 }
 
@@ -58,7 +58,7 @@ function shouldShowGitSetupDialog({
   gitSetupPreference,
   manuallyOpened,
   resolvedPath,
-  vaultLoading,
+  vaultPathSettled,
   windowMode,
 }: {
   dismissedGitSetupPath: string | null
@@ -66,14 +66,15 @@ function shouldShowGitSetupDialog({
   gitSetupPreference: GitSetupPreference | null | undefined
   manuallyOpened: boolean
   resolvedPath: string
-  vaultLoading: boolean
+  vaultPathSettled: boolean
   windowMode: boolean
 }): boolean {
   if (windowMode || gitRepoState !== 'missing') return false
   if (manuallyOpened) return true
-  // Don't auto-prompt during startup: the stored "never"/"prompt" preference
-  // loads asynchronously, so prompting before it settles flashes the dialog.
-  if (vaultLoading) return false
+  // Don't auto-prompt until the persisted vault list has selected the active
+  // vault. Before that the path in state is not one the user opened, and its
+  // per-vault "never" preference has not been read either.
+  if (!vaultPathSettled) return false
   return gitSetupPreference !== 'never' && dismissedGitSetupPath !== resolvedPath
 }
 
@@ -82,7 +83,7 @@ export function useGitSetupState({
   onGitSetupPreferenceChange,
   onToast,
   resolvedPath,
-  vaultLoading = false,
+  vaultPathSettled = true,
   windowMode,
 }: GitSetupStateConfig) {
   const [dismissedGitSetupPath, setDismissedGitSetupPath] = useState<string | null>(null)
@@ -125,7 +126,7 @@ export function useGitSetupState({
     gitSetupPreference,
     manuallyOpened,
     resolvedPath,
-    vaultLoading,
+    vaultPathSettled,
     windowMode,
   })
 
