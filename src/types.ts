@@ -131,6 +131,8 @@ export interface Settings {
   note_list_preview_fallback_lines?: number | null
   /** Comma-separated relationship keys the Inspector offers. "" = none, null = default. */
   suggested_relationships?: string | null
+  /** Comma-separated property keys the Inspector offers. "" = none, null = default. */
+  suggested_properties?: string | null
   note_width_mode?: NoteWidthMode | null
   note_body_font_size?: number | null
   code_font_size?: number | null

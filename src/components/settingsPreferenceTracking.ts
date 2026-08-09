@@ -11,6 +11,7 @@ import {
   trackNoteBodyFontSizeChanged,
   trackNoteListPreviewChanged,
   trackSidebarTypePluralizationChanged,
+  trackSuggestedPropertiesChanged,
   trackSuggestedRelationshipsChanged,
 } from '../lib/productAnalytics'
 import { areAiFeaturesEnabled } from '../lib/aiFeatures'
@@ -30,6 +31,10 @@ import {
   resolveSuggestedRelationships,
   suggestedRelationshipsFromDraft,
 } from '../utils/suggestedRelationships'
+import {
+  resolveSuggestedProperties,
+  suggestedPropertiesFromDraft,
+} from '../utils/suggestedProperties'
 import { resolveNoteFontSize } from '../utils/noteBodyFontSize'
 import { normalizeCodeFontSize } from '../utils/codeFontSize'
 import { normalizeImageRenameMode, type ImageRenameMode } from '../utils/imageRename'
@@ -40,6 +45,7 @@ export interface SettingsPreferenceDraft {
   dateDisplayFormat: DateDisplayFormat
   noteListPreview: NoteListPreviewDraft
   suggestedRelationships: string
+  suggestedProperties: string
   defaultNoteWidth: NoteWidthMode
   noteBodyFontSize: number
   codeFontSize: number | null
@@ -84,6 +90,12 @@ export function trackSettingsPreferenceChanges(settings: Settings, draft: Settin
   const nextRelationships = suggestedRelationshipsFromDraft(draft.suggestedRelationships)
   if (previousRelationships !== nextRelationships.join(', ')) {
     trackSuggestedRelationshipsChanged(nextRelationships)
+  }
+
+  const previousProperties = resolveSuggestedProperties(settings).map((p) => p.label)
+  const nextProperties = suggestedPropertiesFromDraft(draft.suggestedProperties).map((p) => p.label)
+  if (previousProperties.join(', ') !== nextProperties.join(', ')) {
+    trackSuggestedPropertiesChanged(nextProperties)
   }
 
   const previousNoteWidth = normalizeNoteWidthMode(settings.note_width_mode) ?? DEFAULT_NOTE_WIDTH_MODE

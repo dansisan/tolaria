@@ -6,6 +6,7 @@ import type { DateDisplayFormat } from '../utils/dateDisplay'
 import type { FilePreviewKind } from '../utils/filePreview'
 import { DEFAULT_NOTE_LIST_DESCRIPTION_PROPERTY } from '../utils/noteListPreview'
 import { DEFAULT_SUGGESTED_RELATIONSHIPS_TEXT } from '../utils/suggestedRelationships'
+import { DEFAULT_SUGGESTED_PROPERTIES_TEXT } from '../utils/suggestedProperties'
 import type { NoteWidthMode } from '../types'
 import type { ThemeMode } from './themeMode'
 
@@ -110,6 +111,14 @@ export function trackSuggestedRelationshipsChanged(keys: readonly string[]): voi
   trackEvent('suggested_relationships_changed', {
     count: keys.length,
     isDefault: keys.join(', ') === DEFAULT_SUGGESTED_RELATIONSHIPS_TEXT ? 1 : 0,
+  })
+}
+
+/** Reports shape only: property keys are vault-specific vocabulary, so send the count and whether it is still the default, not the names. */
+export function trackSuggestedPropertiesChanged(labels: readonly string[]): void {
+  trackEvent('suggested_properties_changed', {
+    count: labels.length,
+    isDefault: labels.join(', ') === DEFAULT_SUGGESTED_PROPERTIES_TEXT ? 1 : 0,
   })
 }
 

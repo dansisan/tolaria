@@ -25,6 +25,13 @@ import {
 import { humanizePropertyKey } from '../utils/propertyLabels'
 import { translate, type AppLocale } from '../lib/i18n'
 import { canonicalSystemMetadataKey, hasSystemMetadataKey } from '../utils/systemMetadata'
+import {
+  ALIASES_PROPERTY_KEY,
+  offersAliasesProperty,
+  suggestedPropertyMode,
+  type SuggestedProperty,
+} from '../utils/suggestedProperties'
+import { useSuggestedProperties } from '../hooks/useAppPreferences'
 
 // eslint-disable-next-line react-refresh/only-export-components -- utility co-located with component
 export function containsWikilinks(value: FrontmatterValue): boolean {
@@ -45,10 +52,15 @@ function AliasesRow({ entry, onUpdate, onDelete }: {
   onUpdate: (key: string, value: FrontmatterValue) => void
   onDelete?: (key: string) => void
 }) {
-  const label = humanizePropertyKey('aliases')
+  const offersAliases = offersAliasesProperty(useSuggestedProperties())
+  const label = humanizePropertyKey(ALIASES_PROPERTY_KEY)
+
+  // A note that already has aliases always shows them; the suggestion setting
+  // only decides whether an empty row is offered.
+  if (entry.aliases.length === 0 && !offersAliases) return null
   const handleSave = (items: string[]) => {
-    if (items.length === 0 && onDelete) onDelete('aliases')
-    else onUpdate('aliases', items)
+    if (items.length === 0 && onDelete) onDelete(ALIASES_PROPERTY_KEY)
+    else onUpdate(ALIASES_PROPERTY_KEY, items)
   }
 
   return (
@@ -116,24 +128,6 @@ function AddPropertyButton({ locale, onClick, disabled }: { locale: AppLocale; o
       <span aria-hidden="true" className={PROPERTY_PANEL_PLACEHOLDER_VALUE_CLASS_NAME} />
     </Button>
   )
-}
-
-const SUGGESTED_PROPERTIES = [
-  { key: 'Status', label: 'Status' },
-  { key: 'Date', label: 'Date' },
-  { key: 'URL', label: 'URL' },
-  { key: 'icon', label: 'Icon' },
-] as const
-
-const SUGGESTED_PROPERTY_MODES: Record<string, PropertyDisplayMode> = {
-  Status: 'status',
-  Date: 'date',
-  URL: 'url',
-  icon: 'text',
-}
-
-function getSuggestedDisplayMode(key: string): PropertyDisplayMode {
-  return (Reflect.get(SUGGESTED_PROPERTY_MODES, key) as PropertyDisplayMode | undefined) ?? 'text'
 }
 
 function resolveMissingTypeName(entryIsA: string | null | undefined, availableTypes: string[]): string | null {
@@ -260,11 +254,18 @@ function getExistingPropertyKeys(propertyEntries: [string, FrontmatterValue][], 
   return keys
 }
 
-function getMissingSuggestedProperties(canAddProperty: boolean, existingKeys: Set<string>, pendingSuggestedKey: string | null) {
+function getMissingSuggestedProperties(
+  canAddProperty: boolean,
+  existingKeys: Set<string>,
+  pendingSuggestedKey: string | null,
+  suggestedProperties: readonly SuggestedProperty[],
+) {
   if (!canAddProperty) return []
 
-  return SUGGESTED_PROPERTIES.filter(
-    ({ key }) => !existingKeys.has(key.toLowerCase()) && key !== pendingSuggestedKey,
+  return suggestedProperties.filter(
+    ({ key }) => key !== ALIASES_PROPERTY_KEY
+      && !existingKeys.has(key.toLowerCase())
+      && key !== pendingSuggestedKey,
   )
 }
 
@@ -397,6 +398,7 @@ function PropertyEntryRows({
 
 function PendingSuggestedPropertyRow({
   pendingSuggestedKey,
+  suggestedProperties,
   editingKey,
   vaultStatuses,
   vaultTagsByKey,
@@ -407,6 +409,7 @@ function PendingSuggestedPropertyRow({
   onDisplayModeChange,
 }: {
   pendingSuggestedKey: string | null
+  suggestedProperties: readonly SuggestedProperty[]
   editingKey: string | null
   vaultStatuses: string[]
   vaultTagsByKey: Record<string, string[]>
@@ -420,14 +423,16 @@ function PendingSuggestedPropertyRow({
     return null
   }
 
+  const mode = suggestedPropertyMode(suggestedProperties, pendingSuggestedKey)
+
   return (
     <PropertyRow
       key={`pending:${pendingSuggestedKey}`}
       propKey={pendingSuggestedKey}
       value=""
       editingKey={editingKey}
-      displayMode={getSuggestedDisplayMode(pendingSuggestedKey)}
-      autoMode={getSuggestedDisplayMode(pendingSuggestedKey)}
+      displayMode={mode}
+      autoMode={mode}
       vaultStatuses={vaultStatuses}
       vaultTags={(Reflect.get(vaultTagsByKey, pendingSuggestedKey) as string[] | undefined) ?? []}
       onStartEdit={onStartEdit}
@@ -445,16 +450,16 @@ function SuggestedPropertyRows({
   properties,
   onAdd,
 }: {
-  properties: Array<{ key: string; label: string }>
+  properties: readonly SuggestedProperty[]
   onAdd: (key: string) => void
 }) {
   return (
     <>
-      {properties.map(({ key, label }) => (
+      {properties.map(({ key, label, mode }) => (
         <SuggestedPropertySlot
           key={key}
           label={label}
-          displayMode={getSuggestedDisplayMode(key)}
+          displayMode={mode}
           onAdd={() => onAdd(key)}
         />
       ))}
@@ -520,6 +525,7 @@ function DynamicPropertiesPanelContent({
   propertyState,
   pendingSuggestedKey,
   missingSuggested,
+  suggestedProperties,
   missingTypeName,
   locale,
   workspaces,
@@ -536,7 +542,8 @@ function DynamicPropertiesPanelContent({
   entry: VaultEntry
   propertyState: PropertyPanelState
   pendingSuggestedKey: string | null
-  missingSuggested: Array<{ key: string; label: string }>
+  missingSuggested: readonly SuggestedProperty[]
+  suggestedProperties: readonly SuggestedProperty[]
   missingTypeName: string | null
   locale: AppLocale
   workspaces?: WorkspaceIdentity[]
@@ -607,6 +614,7 @@ function DynamicPropertiesPanelContent({
         />
         <PendingSuggestedPropertyRow
           pendingSuggestedKey={pendingSuggestedKey}
+          suggestedProperties={suggestedProperties}
           editingKey={editingKey}
           vaultStatuses={vaultStatuses}
           vaultTagsByKey={vaultTagsByKey}
@@ -666,9 +674,10 @@ export function DynamicPropertiesPanel({
     () => getExistingPropertyKeys([...propertyState.propertyEntries, ...propertyState.typeDerivedPropertyEntries], frontmatter),
     [frontmatter, propertyState.propertyEntries, propertyState.typeDerivedPropertyEntries],
   )
+  const suggestedProperties = useSuggestedProperties()
   const missingSuggested = useMemo(
-    () => getMissingSuggestedProperties(Boolean(onAddProperty), existingKeys, pendingSuggestedKey),
-    [existingKeys, onAddProperty, pendingSuggestedKey],
+    () => getMissingSuggestedProperties(Boolean(onAddProperty), existingKeys, pendingSuggestedKey, suggestedProperties),
+    [existingKeys, onAddProperty, pendingSuggestedKey, suggestedProperties],
   )
   const {
     handlePendingSuggestedEdit,
@@ -688,6 +697,7 @@ export function DynamicPropertiesPanel({
       propertyState={propertyState}
       pendingSuggestedKey={pendingSuggestedKey}
       missingSuggested={missingSuggested}
+      suggestedProperties={suggestedProperties}
       missingTypeName={missingTypeName}
       locale={locale}
       workspaces={workspaces}

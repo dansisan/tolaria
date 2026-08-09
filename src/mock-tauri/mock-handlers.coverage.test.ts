@@ -119,6 +119,7 @@ describe('mockHandlers coverage', () => {
       note_list_description_property: null,
       note_list_preview_fallback_lines: null,
       suggested_relationships: null,
+      suggested_properties: null,
       note_width_mode: null,
       note_body_font_size: null,
       code_font_size: null,

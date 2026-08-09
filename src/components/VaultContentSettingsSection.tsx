@@ -32,6 +32,8 @@ interface VaultContentSettingsSectionProps {
   setNoteListPreview: (value: NoteListPreviewDraft) => void
   suggestedRelationships: string
   setSuggestedRelationships: (value: string) => void
+  suggestedProperties: string
+  setSuggestedProperties: (value: string) => void
   defaultNoteWidth: NoteWidthMode
   setDefaultNoteWidth: (value: NoteWidthMode) => void
   noteBodyFontSize: number
@@ -173,6 +175,8 @@ export function VaultContentSettingsSection({
   setNoteListPreview,
   suggestedRelationships,
   setSuggestedRelationships,
+  suggestedProperties,
+  setSuggestedProperties,
   defaultNoteWidth,
   setDefaultNoteWidth,
   noteBodyFontSize,
@@ -222,6 +226,19 @@ export function VaultContentSettingsSection({
         </SettingsRow>
 
         <NoteListPreviewRows t={t} preview={noteListPreview} setPreview={setNoteListPreview} />
+
+        <SettingsRow
+          label={t('settings.suggestedProperties.label')}
+          description={t('settings.suggestedProperties.description')}
+        >
+          <Input
+            value={suggestedProperties}
+            onChange={(e) => setSuggestedProperties(e.target.value)}
+            placeholder={t('settings.suggestedProperties.placeholder')}
+            data-testid="settings-suggested-properties"
+            className="w-64 bg-transparent"
+          />
+        </SettingsRow>
 
         <SettingsRow
           label={t('settings.suggestedRelationships.label')}

@@ -84,6 +84,10 @@ import {
   suggestedRelationshipsDraft,
   suggestedRelationshipsFromDraft,
 } from '../utils/suggestedRelationships'
+import {
+  serializeSuggestedPropertiesDraft,
+  suggestedPropertiesDraft,
+} from '../utils/suggestedProperties'
 import { Button } from './ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import type { NoteWidthMode } from '../types'
@@ -130,6 +134,7 @@ interface SettingsDraft {
   dateDisplayFormat: DateDisplayFormat
   noteListPreview: NoteListPreviewDraft
   suggestedRelationships: string
+  suggestedProperties: string
   defaultNoteWidth: NoteWidthMode
   noteBodyFontSize: number
   codeFontSize: number | null
@@ -184,6 +189,8 @@ interface SettingsBodyProps {
   setNoteListPreview: (value: NoteListPreviewDraft) => void
   suggestedRelationships: string
   setSuggestedRelationships: (value: string) => void
+  suggestedProperties: string
+  setSuggestedProperties: (value: string) => void
   defaultNoteWidth: NoteWidthMode
   setDefaultNoteWidth: (value: NoteWidthMode) => void
   noteBodyFontSize: number
@@ -257,6 +264,7 @@ function createSettingsDraft(
     dateDisplayFormat: normalizeDateDisplayFormat(settings.date_display_format) ?? DEFAULT_DATE_DISPLAY_FORMAT,
     noteListPreview: noteListPreviewDraft(settings),
     suggestedRelationships: suggestedRelationshipsDraft(settings),
+    suggestedProperties: suggestedPropertiesDraft(settings),
     defaultNoteWidth: normalizeNoteWidthMode(settings.note_width_mode) ?? DEFAULT_NOTE_WIDTH_MODE,
     noteBodyFontSize: resolveNoteFontSize(settings.note_body_font_size, null),
     codeFontSize: normalizeCodeFontSize(settings.code_font_size),
@@ -317,6 +325,7 @@ function buildSettingsFromDraft(settings: Settings, draft: SettingsDraft): Setti
     // `''` for the same reason: a cleared list means "offer no relationships",
     // while `null` would read back as "never set" and restore the defaults.
     suggested_relationships: suggestedRelationshipsFromDraft(draft.suggestedRelationships).join(', '),
+    suggested_properties: serializeSuggestedPropertiesDraft(draft.suggestedProperties),
     note_width_mode: draft.defaultNoteWidth,
     note_body_font_size: draft.noteBodyFontSize,
     code_font_size: draft.codeFontSize,
@@ -633,6 +642,8 @@ function SettingsBodyFromDraft({
       setNoteListPreview={(value) => updateDraft('noteListPreview', value)}
       suggestedRelationships={draft.suggestedRelationships}
       setSuggestedRelationships={(value) => updateDraft('suggestedRelationships', value)}
+      suggestedProperties={draft.suggestedProperties}
+      setSuggestedProperties={(value) => updateDraft('suggestedProperties', value)}
       defaultNoteWidth={draft.defaultNoteWidth}
       setDefaultNoteWidth={(value) => updateDraft('defaultNoteWidth', value)}
       noteBodyFontSize={draft.noteBodyFontSize}
@@ -779,6 +790,8 @@ function SettingsContentSections({
   setNoteListPreview,
   suggestedRelationships,
   setSuggestedRelationships,
+  suggestedProperties,
+  setSuggestedProperties,
   defaultNoteWidth,
   setDefaultNoteWidth,
   noteBodyFontSize,
@@ -812,6 +825,8 @@ function SettingsContentSections({
         setNoteListPreview={setNoteListPreview}
         suggestedRelationships={suggestedRelationships}
         setSuggestedRelationships={setSuggestedRelationships}
+        suggestedProperties={suggestedProperties}
+        setSuggestedProperties={setSuggestedProperties}
         defaultNoteWidth={defaultNoteWidth}
         setDefaultNoteWidth={setDefaultNoteWidth}
         noteBodyFontSize={noteBodyFontSize}

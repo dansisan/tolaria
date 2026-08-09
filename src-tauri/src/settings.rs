@@ -98,6 +98,7 @@ pub struct Settings {
     pub note_list_description_property: Option<String>,
     pub note_list_preview_fallback_lines: Option<u32>,
     pub suggested_relationships: Option<String>,
+    pub suggested_properties: Option<String>,
     pub note_width_mode: Option<String>,
     pub note_body_font_size: Option<u32>,
     pub code_font_size: Option<u32>,
@@ -220,6 +221,14 @@ pub fn normalize_suggested_relationships(value: Option<String>) -> Option<String
     value.map(|candidate| candidate.trim().to_string())
 }
 
+/// Empty is kept for the same reason: it records that the user cleared the
+/// list, which leaves the Inspector's Properties panel with nothing but its
+/// "Add property" button. `None` means "never set", which the UI reads as the
+/// default suggestions.
+pub fn normalize_suggested_properties(value: Option<String>) -> Option<String> {
+    value.map(|candidate| candidate.trim().to_string())
+}
+
 pub const DEFAULT_FRONTMATTER_CREATED_KEY: &str = "created";
 
 pub fn effective_frontmatter_created_key(settings: &Settings) -> &str {
@@ -284,6 +293,7 @@ fn normalize_settings(settings: Settings) -> Settings {
             settings.note_list_preview_fallback_lines,
         ),
         suggested_relationships: normalize_suggested_relationships(settings.suggested_relationships),
+        suggested_properties: normalize_suggested_properties(settings.suggested_properties),
         note_width_mode: normalize_note_width_mode(settings.note_width_mode.as_deref()),
         note_body_font_size: normalize_note_body_font_size(settings.note_body_font_size),
         code_font_size: normalize_code_font_size(settings.code_font_size),
@@ -529,6 +539,7 @@ mod tests {
             note_list_description_property: Some("description".to_string()),
             note_list_preview_fallback_lines: Some(2),
             suggested_relationships: Some("belongs_to, related_to".to_string()),
+            suggested_properties: Some("Status, Icon".to_string()),
             note_width_mode: Some("wide".to_string()),
             note_body_font_size: Some(18),
             code_font_size: Some(13),
@@ -671,6 +682,35 @@ mod tests {
     fn test_unset_suggested_relationships_stay_unset() {
         let loaded = save_and_reload(Settings::default());
         assert_eq!(loaded.suggested_relationships, None);
+    }
+
+    #[test]
+    fn test_suggested_properties_round_trip() {
+        let loaded = save_and_reload(Settings {
+            suggested_properties: Some("  Status, Aliases  ".to_string()),
+            ..Default::default()
+        });
+        assert_eq!(
+            loaded.suggested_properties.as_deref(),
+            Some("Status, Aliases")
+        );
+    }
+
+    /// A cleared list must survive as an empty string; collapsing it to `None`
+    /// would resurrect the default suggestions the user just removed.
+    #[test]
+    fn test_cleared_suggested_properties_stay_cleared() {
+        let loaded = save_and_reload(Settings {
+            suggested_properties: Some("   ".to_string()),
+            ..Default::default()
+        });
+        assert_eq!(loaded.suggested_properties.as_deref(), Some(""));
+    }
+
+    #[test]
+    fn test_unset_suggested_properties_stay_unset() {
+        let loaded = save_and_reload(Settings::default());
+        assert_eq!(loaded.suggested_properties, None);
     }
 
     #[test]

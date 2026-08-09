@@ -17,6 +17,7 @@ import {
   serializeNoteListDescriptionProperty,
 } from '../utils/noteListPreview'
 import { serializeSuggestedRelationships } from '../utils/suggestedRelationships'
+import { serializeSuggestedProperties } from '../utils/suggestedProperties'
 import { DEFAULT_THEME_MODE, normalizeThemeMode, type ThemeMode } from '../lib/themeMode'
 import type { Settings } from '../types'
 import { normalizeNoteWidthMode } from '../utils/noteWidth'
@@ -59,6 +60,7 @@ const EMPTY_SETTINGS: Settings = {
   note_list_description_property: null,
   note_list_preview_fallback_lines: null,
   suggested_relationships: null,
+  suggested_properties: null,
   note_width_mode: null,
   note_body_font_size: null,
   code_font_size: null,
@@ -94,6 +96,7 @@ function normalizeSettings(settings: Settings): Settings {
     note_list_description_property: serializeNoteListDescriptionProperty(settings.note_list_description_property),
     note_list_preview_fallback_lines: normalizeNoteListPreviewLines(settings.note_list_preview_fallback_lines),
     suggested_relationships: serializeSuggestedRelationships(settings.suggested_relationships),
+    suggested_properties: serializeSuggestedProperties(settings.suggested_properties),
     note_width_mode: normalizeNoteWidthMode(settings.note_width_mode),
     note_body_font_size: normalizeNoteFontSize(settings.note_body_font_size),
     code_font_size: normalizeCodeFontSize(settings.code_font_size),

@@ -597,6 +597,58 @@ describe('SettingsPanel', () => {
     expect(screen.getByTestId('settings-suggested-relationships')).toHaveValue('')
   })
 
+  it('prefills the suggested properties with the built-in list', () => {
+    render(
+      <SettingsPanel open={true} settings={emptySettings} onSave={onSave} onClose={onClose} />
+    )
+
+    expect(screen.getByTestId('settings-suggested-properties'))
+      .toHaveValue('Status, Date, URL, Icon, Aliases')
+  })
+
+  it('saves a custom suggested property list as labels', () => {
+    render(
+      <SettingsPanel open={true} settings={emptySettings} onSave={onSave} onClose={onClose} />
+    )
+
+    fireEvent.change(screen.getByTestId('settings-suggested-properties'), {
+      target: { value: 'status,  due_date ' },
+    })
+    fireEvent.click(screen.getByTestId('settings-save'))
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      suggested_properties: 'Status, Due date',
+    }))
+    expect(trackEventMock).toHaveBeenCalledWith('suggested_properties_changed', {
+      count: 2,
+      isDefault: 0,
+    })
+  })
+
+  it('persists a cleared suggested property list as empty rather than reverting to the defaults', () => {
+    render(
+      <SettingsPanel open={true} settings={emptySettings} onSave={onSave} onClose={onClose} />
+    )
+
+    fireEvent.change(screen.getByTestId('settings-suggested-properties'), { target: { value: '' } })
+    fireEvent.click(screen.getByTestId('settings-save'))
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ suggested_properties: '' }))
+  })
+
+  it('reopens a cleared suggested property list as blank', () => {
+    render(
+      <SettingsPanel
+        open={true}
+        settings={{ ...emptySettings, suggested_properties: '' }}
+        onSave={onSave}
+        onClose={onClose}
+      />
+    )
+
+    expect(screen.getByTestId('settings-suggested-properties')).toHaveValue('')
+  })
+
   it('defaults the code font size to Default and saves a chosen size', () => {
     render(
       <SettingsPanel open={true} settings={emptySettings} onSave={onSave} onClose={onClose} />

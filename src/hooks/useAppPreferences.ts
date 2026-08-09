@@ -12,6 +12,11 @@ import { DEFAULT_DATE_DISPLAY_FORMAT, normalizeDateDisplayFormat, type DateDispl
 import { resolveAllNotesFileVisibility } from '../utils/allNotesFileVisibility'
 import { DEFAULT_NOTE_LIST_PREVIEW, resolveNoteListPreview, type NoteListPreview } from '../utils/noteListPreview'
 import { DEFAULT_SUGGESTED_RELATIONSHIPS, resolveSuggestedRelationships } from '../utils/suggestedRelationships'
+import {
+  DEFAULT_SUGGESTED_PROPERTIES,
+  resolveSuggestedProperties,
+  type SuggestedProperty,
+} from '../utils/suggestedProperties'
 import { useAiAgentPreferences } from './useAiAgentPreferences'
 import type { AiAgentsStatus } from '../lib/aiAgents'
 import { useDocumentThemeMode } from './useDocumentThemeMode'
@@ -30,12 +35,14 @@ interface AppPreferenceValues {
   dateDisplayFormat: DateDisplayFormat
   noteListPreview: NoteListPreview
   suggestedRelationships: readonly string[]
+  suggestedProperties: readonly SuggestedProperty[]
 }
 
 const DEFAULT_APP_PREFERENCES: AppPreferenceValues = {
   dateDisplayFormat: DEFAULT_DATE_DISPLAY_FORMAT,
   noteListPreview: DEFAULT_NOTE_LIST_PREVIEW,
   suggestedRelationships: DEFAULT_SUGGESTED_RELATIONSHIPS,
+  suggestedProperties: DEFAULT_SUGGESTED_PROPERTIES,
 }
 
 const AppPreferencesContext = createContext<AppPreferenceValues>(DEFAULT_APP_PREFERENCES)
@@ -45,15 +52,17 @@ export function AppPreferencesProvider({
   dateDisplayFormat = DEFAULT_DATE_DISPLAY_FORMAT,
   noteListPreview = DEFAULT_NOTE_LIST_PREVIEW,
   suggestedRelationships = DEFAULT_SUGGESTED_RELATIONSHIPS,
+  suggestedProperties = DEFAULT_SUGGESTED_PROPERTIES,
 }: {
   children: ReactNode
   dateDisplayFormat?: DateDisplayFormat
   noteListPreview?: NoteListPreview
   suggestedRelationships?: readonly string[]
+  suggestedProperties?: readonly SuggestedProperty[]
 }) {
   const value = useMemo(
-    () => ({ dateDisplayFormat, noteListPreview, suggestedRelationships }),
-    [dateDisplayFormat, noteListPreview, suggestedRelationships],
+    () => ({ dateDisplayFormat, noteListPreview, suggestedRelationships, suggestedProperties }),
+    [dateDisplayFormat, noteListPreview, suggestedRelationships, suggestedProperties],
   )
   return createElement(AppPreferencesContext.Provider, { value }, children)
 }
@@ -74,6 +83,15 @@ export function useNoteListPreview(): NoteListPreview {
  */
 export function useSuggestedRelationships(): readonly string[] {
   return useContext(AppPreferencesContext).suggestedRelationships
+}
+
+/**
+ * The properties the Inspector offers as ready-to-fill slots on a note that
+ * does not have them yet. Empty when the user cleared the setting: the panel
+ * then shows only its "Add property" button.
+ */
+export function useSuggestedProperties(): readonly SuggestedProperty[] {
+  return useContext(AppPreferencesContext).suggestedProperties
 }
 
 export function useAppPreferences({
@@ -105,6 +123,10 @@ export function useAppPreferences({
   )
   const suggestedRelationships = useMemo(
     () => resolveSuggestedRelationships(settings),
+    [settings],
+  )
+  const suggestedProperties = useMemo(
+    () => resolveSuggestedProperties(settings),
     [settings],
   )
   const selectedUiLanguage: UiLanguagePreference = settings.ui_language ?? SYSTEM_UI_LANGUAGE
@@ -147,6 +169,7 @@ export function useAppPreferences({
     handleToggleThemeMode,
     noteListPreview,
     selectedUiLanguage,
+    suggestedProperties,
     suggestedRelationships,
     systemLocale,
   }
