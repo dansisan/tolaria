@@ -9,6 +9,8 @@ import { trackDatePropertyDirectEntrySaved } from '../lib/productAnalytics'
 import { translate, type AppLocale } from '../lib/i18n'
 import { isValidCssColor } from '../utils/colorUtils'
 import { isUrlValue } from '../utils/url'
+import { includesRelationshipKey } from '../utils/suggestedRelationships'
+import { useSuggestedRelationships } from '../hooks/useAppPreferences'
 import {
   type PropertyDisplayMode,
   formatDateValue,
@@ -86,16 +88,6 @@ function datePickerEndMonth(selectedDate: Date | undefined): Date {
     ? selectedYear
     : DEFAULT_DATE_PICKER_END_YEAR
   return localDate(year, 11, 31)
-}
-
-const RELATIONSHIP_PROPERTY_KEYS = new Set(['belongs_to', 'related_to', 'has'])
-
-function normalizePropertyKey(propKey: string): string {
-  return propKey.trim().toLowerCase().replace(/[\s-]+/g, '_')
-}
-
-function showsRelationshipPropertyIcon(propKey: string): boolean {
-  return RELATIONSHIP_PROPERTY_KEYS.has(normalizePropertyKey(propKey))
 }
 
 function StatusValue({ propKey, value, isEditing, vaultStatuses, onSave, onStartEdit }: {
@@ -431,7 +423,7 @@ export function DisplayModeSelector({ propKey, currentMode, autoMode, onSelect }
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const CurrentIcon = Reflect.get(DISPLAY_MODE_ICONS, currentMode) as typeof DISPLAY_MODE_ICONS.text
-  const showRelationshipIcon = showsRelationshipPropertyIcon(propKey)
+  const showRelationshipIcon = includesRelationshipKey(useSuggestedRelationships(), propKey)
 
   const handleSelect = (mode: PropertyDisplayMode) => {
     onSelect(propKey, mode === autoMode ? null : mode)

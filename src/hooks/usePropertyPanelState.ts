@@ -11,11 +11,12 @@ import {
 } from '../utils/propertyTypes'
 import { containsWikilinks } from '../components/DynamicPropertiesPanel'
 import { canonicalFrontmatterKey, canonicalSystemMetadataKey, isSystemMetadataKey } from '../utils/systemMetadata'
+import { includesRelationshipKey } from '../utils/suggestedRelationships'
+import { useSuggestedRelationships } from './useAppPreferences'
 
 // Keys to skip showing in Properties (handled by dedicated UI or internal)
 // Compared case-insensitively via isVisibleProperty()
 const SKIP_KEYS = new Set(['aliases', 'workspace', 'title', 'type', 'is_a', 'is a', '_archived', 'archived', 'archived_at', '_favorite', '_favorite_index', '_organized'])
-const RELATIONSHIP_SCHEMA_KEYS = new Set(['belongs_to', 'related_to', 'has'])
 
 type PropertyEntry = [string, FrontmatterValue]
 
@@ -116,22 +117,25 @@ function findTypeEntry(entries: VaultEntry[] | undefined, entryIsA: string | nul
   return entries?.find((entry) => entry.isA === 'Type' && entry.title === entryIsA)
 }
 
-function isRelationshipSchemaKey(key: string): boolean {
-  return RELATIONSHIP_SCHEMA_KEYS.has(canonicalFrontmatterKey(key))
-}
-
 function buildExistingFrontmatterKeys(frontmatter: ParsedFrontmatter): Set<string> {
   return new Set(Object.keys(frontmatter).map(canonicalFrontmatterKey))
 }
 
+/**
+ * Schema keys naming a configured relationship are deliberately skipped: the
+ * Relationships panel claims them. The two panels must read the same
+ * vocabulary, or a key would show in both or in neither.
+ */
 function buildTypeDerivedPropertyEntries({
   entries,
   entryIsA,
   frontmatter,
+  suggestedRelationships,
 }: {
   entries: VaultEntry[] | undefined
   entryIsA: string | null
   frontmatter: ParsedFrontmatter
+  suggestedRelationships: readonly string[]
 }): PropertyEntry[] {
   const typeEntry = findTypeEntry(entries, entryIsA)
   if (!typeEntry) return []
@@ -142,7 +146,8 @@ function buildTypeDerivedPropertyEntries({
 
   for (const [key, value] of Object.entries(typeEntry.properties ?? {})) {
     const canonicalKey = canonicalFrontmatterKey(key)
-    if (existingKeys.has(canonicalKey) || seen.has(canonicalKey) || isRelationshipSchemaKey(key)) continue
+    if (existingKeys.has(canonicalKey) || seen.has(canonicalKey)) continue
+    if (includesRelationshipKey(suggestedRelationships, key)) continue
     const propertyValue = frontmatterValueFromVaultProperty(value)
     if (!isVisibleProperty([key, propertyValue])) continue
     seen.add(canonicalKey)
@@ -240,14 +245,15 @@ export function usePropertyPanelState(deps: PropertyPanelDeps) {
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [displayOverrides, setDisplayOverrides] = useState(() => loadDisplayModeOverrides())
+  const suggestedRelationships = useSuggestedRelationships()
 
   const { availableTypes, customColorKey, typeColorKeys, typeIconKeys } = useMemo(() => deriveTypeInfo(entries, entryIsA), [entries, entryIsA])
   const vaultStatuses = useMemo(() => collectVaultStatuses(entries), [entries])
   const vaultTagsByKey = useMemo(() => collectAllVaultTags(entries), [entries])
   const propertyEntries = useMemo(() => buildVisiblePropertyEntries(frontmatter), [frontmatter])
   const typeDerivedPropertyEntries = useMemo(
-    () => buildTypeDerivedPropertyEntries({ entries, entryIsA, frontmatter }),
-    [entries, entryIsA, frontmatter],
+    () => buildTypeDerivedPropertyEntries({ entries, entryIsA, frontmatter, suggestedRelationships }),
+    [entries, entryIsA, frontmatter, suggestedRelationships],
   )
 
   const handleSaveValue = useCallback((key: string, newValue: string) => {

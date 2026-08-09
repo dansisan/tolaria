@@ -11,6 +11,7 @@ import {
 import { DEFAULT_DATE_DISPLAY_FORMAT, normalizeDateDisplayFormat, type DateDisplayFormat } from '../utils/dateDisplay'
 import { resolveAllNotesFileVisibility } from '../utils/allNotesFileVisibility'
 import { DEFAULT_NOTE_LIST_PREVIEW, resolveNoteListPreview, type NoteListPreview } from '../utils/noteListPreview'
+import { DEFAULT_SUGGESTED_RELATIONSHIPS, resolveSuggestedRelationships } from '../utils/suggestedRelationships'
 import { useAiAgentPreferences } from './useAiAgentPreferences'
 import type { AiAgentsStatus } from '../lib/aiAgents'
 import { useDocumentThemeMode } from './useDocumentThemeMode'
@@ -28,11 +29,13 @@ interface AppPreferencesConfig {
 interface AppPreferenceValues {
   dateDisplayFormat: DateDisplayFormat
   noteListPreview: NoteListPreview
+  suggestedRelationships: readonly string[]
 }
 
 const DEFAULT_APP_PREFERENCES: AppPreferenceValues = {
   dateDisplayFormat: DEFAULT_DATE_DISPLAY_FORMAT,
   noteListPreview: DEFAULT_NOTE_LIST_PREVIEW,
+  suggestedRelationships: DEFAULT_SUGGESTED_RELATIONSHIPS,
 }
 
 const AppPreferencesContext = createContext<AppPreferenceValues>(DEFAULT_APP_PREFERENCES)
@@ -41,12 +44,17 @@ export function AppPreferencesProvider({
   children,
   dateDisplayFormat = DEFAULT_DATE_DISPLAY_FORMAT,
   noteListPreview = DEFAULT_NOTE_LIST_PREVIEW,
+  suggestedRelationships = DEFAULT_SUGGESTED_RELATIONSHIPS,
 }: {
   children: ReactNode
   dateDisplayFormat?: DateDisplayFormat
   noteListPreview?: NoteListPreview
+  suggestedRelationships?: readonly string[]
 }) {
-  const value = useMemo(() => ({ dateDisplayFormat, noteListPreview }), [dateDisplayFormat, noteListPreview])
+  const value = useMemo(
+    () => ({ dateDisplayFormat, noteListPreview, suggestedRelationships }),
+    [dateDisplayFormat, noteListPreview, suggestedRelationships],
+  )
   return createElement(AppPreferencesContext.Provider, { value }, children)
 }
 
@@ -56,6 +64,16 @@ export function useDateDisplayFormat(): DateDisplayFormat {
 
 export function useNoteListPreview(): NoteListPreview {
   return useContext(AppPreferencesContext).noteListPreview
+}
+
+/**
+ * The relationship keys the Inspector offers as ready-to-fill slots, and the
+ * vocabulary that routes a Type-schema key to the Relationships panel. Empty
+ * when the user cleared the setting: the panel then shows only its
+ * "Add relationship" button.
+ */
+export function useSuggestedRelationships(): readonly string[] {
+  return useContext(AppPreferencesContext).suggestedRelationships
 }
 
 export function useAppPreferences({
@@ -83,6 +101,10 @@ export function useAppPreferences({
   )
   const noteListPreview = useMemo(
     () => resolveNoteListPreview(settings),
+    [settings],
+  )
+  const suggestedRelationships = useMemo(
+    () => resolveSuggestedRelationships(settings),
     [settings],
   )
   const selectedUiLanguage: UiLanguagePreference = settings.ui_language ?? SYSTEM_UI_LANGUAGE
@@ -125,6 +147,7 @@ export function useAppPreferences({
     handleToggleThemeMode,
     noteListPreview,
     selectedUiLanguage,
+    suggestedRelationships,
     systemLocale,
   }
 }

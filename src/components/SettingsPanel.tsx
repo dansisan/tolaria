@@ -80,6 +80,10 @@ import {
   noteListPreviewFromDraft,
   type NoteListPreviewDraft,
 } from '../utils/noteListPreview'
+import {
+  suggestedRelationshipsDraft,
+  suggestedRelationshipsFromDraft,
+} from '../utils/suggestedRelationships'
 import { Button } from './ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import type { NoteWidthMode } from '../types'
@@ -125,6 +129,7 @@ interface SettingsDraft {
   uiLanguage: UiLanguagePreference
   dateDisplayFormat: DateDisplayFormat
   noteListPreview: NoteListPreviewDraft
+  suggestedRelationships: string
   defaultNoteWidth: NoteWidthMode
   noteBodyFontSize: number
   codeFontSize: number | null
@@ -177,6 +182,8 @@ interface SettingsBodyProps {
   setDateDisplayFormat: (value: DateDisplayFormat) => void
   noteListPreview: NoteListPreviewDraft
   setNoteListPreview: (value: NoteListPreviewDraft) => void
+  suggestedRelationships: string
+  setSuggestedRelationships: (value: string) => void
   defaultNoteWidth: NoteWidthMode
   setDefaultNoteWidth: (value: NoteWidthMode) => void
   noteBodyFontSize: number
@@ -249,6 +256,7 @@ function createSettingsDraft(
     uiLanguage: settings.ui_language ?? SYSTEM_UI_LANGUAGE,
     dateDisplayFormat: normalizeDateDisplayFormat(settings.date_display_format) ?? DEFAULT_DATE_DISPLAY_FORMAT,
     noteListPreview: noteListPreviewDraft(settings),
+    suggestedRelationships: suggestedRelationshipsDraft(settings),
     defaultNoteWidth: normalizeNoteWidthMode(settings.note_width_mode) ?? DEFAULT_NOTE_WIDTH_MODE,
     noteBodyFontSize: resolveNoteFontSize(settings.note_body_font_size, null),
     codeFontSize: normalizeCodeFontSize(settings.code_font_size),
@@ -306,6 +314,9 @@ function buildSettingsFromDraft(settings: Settings, draft: SettingsDraft): Setti
     // `null` would read back as "never set" and resurrect the default key.
     note_list_description_property: noteListPreviewFromDraft(draft.noteListPreview).descriptionProperty ?? '',
     note_list_preview_fallback_lines: draft.noteListPreview.fallbackLines,
+    // `''` for the same reason: a cleared list means "offer no relationships",
+    // while `null` would read back as "never set" and restore the defaults.
+    suggested_relationships: suggestedRelationshipsFromDraft(draft.suggestedRelationships).join(', '),
     note_width_mode: draft.defaultNoteWidth,
     note_body_font_size: draft.noteBodyFontSize,
     code_font_size: draft.codeFontSize,
@@ -620,6 +631,8 @@ function SettingsBodyFromDraft({
       setDateDisplayFormat={(value) => updateDraft('dateDisplayFormat', value)}
       noteListPreview={draft.noteListPreview}
       setNoteListPreview={(value) => updateDraft('noteListPreview', value)}
+      suggestedRelationships={draft.suggestedRelationships}
+      setSuggestedRelationships={(value) => updateDraft('suggestedRelationships', value)}
       defaultNoteWidth={draft.defaultNoteWidth}
       setDefaultNoteWidth={(value) => updateDraft('defaultNoteWidth', value)}
       noteBodyFontSize={draft.noteBodyFontSize}
@@ -764,6 +777,8 @@ function SettingsContentSections({
   setDateDisplayFormat,
   noteListPreview,
   setNoteListPreview,
+  suggestedRelationships,
+  setSuggestedRelationships,
   defaultNoteWidth,
   setDefaultNoteWidth,
   noteBodyFontSize,
@@ -795,6 +810,8 @@ function SettingsContentSections({
         setDateDisplayFormat={setDateDisplayFormat}
         noteListPreview={noteListPreview}
         setNoteListPreview={setNoteListPreview}
+        suggestedRelationships={suggestedRelationships}
+        setSuggestedRelationships={setSuggestedRelationships}
         defaultNoteWidth={defaultNoteWidth}
         setDefaultNoteWidth={setDefaultNoteWidth}
         noteBodyFontSize={noteBodyFontSize}

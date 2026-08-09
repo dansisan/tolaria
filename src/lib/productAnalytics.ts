@@ -5,6 +5,7 @@ import type { AllNotesFileVisibility } from '../utils/allNotesFileVisibility'
 import type { DateDisplayFormat } from '../utils/dateDisplay'
 import type { FilePreviewKind } from '../utils/filePreview'
 import { DEFAULT_NOTE_LIST_DESCRIPTION_PROPERTY } from '../utils/noteListPreview'
+import { DEFAULT_SUGGESTED_RELATIONSHIPS_TEXT } from '../utils/suggestedRelationships'
 import type { NoteWidthMode } from '../types'
 import type { ThemeMode } from './themeMode'
 
@@ -98,6 +99,17 @@ export function trackNoteListPreviewChanged(preview: { descriptionProperty: stri
   trackEvent('note_list_preview_changed', {
     fallbackLines: preview.fallbackLines,
     descriptionField: describeDescriptionField(preview.descriptionProperty),
+  })
+}
+
+/**
+ * Reports shape only: relationship keys are vault-specific vocabulary, so send
+ * how many are offered and whether the list is still the default, not the names.
+ */
+export function trackSuggestedRelationshipsChanged(keys: readonly string[]): void {
+  trackEvent('suggested_relationships_changed', {
+    count: keys.length,
+    isDefault: keys.join(', ') === DEFAULT_SUGGESTED_RELATIONSHIPS_TEXT ? 1 : 0,
   })
 }
 

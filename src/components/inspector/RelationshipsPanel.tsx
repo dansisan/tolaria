@@ -22,6 +22,8 @@ import {
 import { humanizePropertyKey } from '../../utils/propertyLabels'
 import { translate, type AppLocale } from '../../lib/i18n'
 import { canonicalFrontmatterKey } from '../../utils/systemMetadata'
+import { includesRelationshipKey } from '../../utils/suggestedRelationships'
+import { useSuggestedRelationships } from '../../hooks/useAppPreferences'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -30,8 +32,6 @@ const RELATIONSHIPS_PANEL_GRID_CLASS_NAME = 'grid min-w-0 gap-x-2 gap-y-3'
 const RELATIONSHIP_SECTION_LABEL_TEXT_CLASS_NAME = 'min-w-0 flex-1 truncate'
 const RELATIONSHIP_SECTION_VALUE_CLASS_NAME = 'min-w-0'
 const RELATIONSHIP_ACTION_ROW_CLASS_NAME = 'min-w-0 px-1.5'
-const SUGGESTED_RELATIONSHIPS = ['belongs_to', 'related_to', 'has'] as const
-const RELATIONSHIP_SCHEMA_KEYS = new Set(['belongs_to', 'related_to', 'has'])
 
 type RelationshipEntryGroup = {
   key: string
@@ -506,10 +506,6 @@ function findTypeEntry(entries: VaultEntry[], entry?: VaultEntry): VaultEntry | 
   return entries.find((candidate) => candidate.isA === 'Type' && candidate.title === entry.isA)
 }
 
-function isRelationshipSchemaKey(key: string): boolean {
-  return RELATIONSHIP_SCHEMA_KEYS.has(canonicalFrontmatterKey(key))
-}
-
 function buildExistingRelationshipKeys(frontmatter: ParsedFrontmatter, relationshipEntries: RelationshipEntryGroup[]): Set<string> {
   const existingKeys = new Set(Object.keys(frontmatter).map(canonicalFrontmatterKey))
   for (const group of relationshipEntries) existingKeys.add(canonicalFrontmatterKey(group.key))
@@ -521,11 +517,13 @@ function buildTypeDerivedRelationshipEntries({
   entries,
   frontmatter,
   relationshipEntries,
+  suggestedRelationships,
 }: {
   entry?: VaultEntry
   entries: VaultEntry[]
   frontmatter: ParsedFrontmatter
   relationshipEntries: RelationshipEntryGroup[]
+  suggestedRelationships: readonly string[]
 }): RelationshipEntryGroup[] {
   const typeEntry = findTypeEntry(entries, entry)
   if (!typeEntry) return []
@@ -545,7 +543,7 @@ function buildTypeDerivedRelationshipEntries({
     if (refs.length > 0) addPlaceholder(key)
   }
   for (const key of Object.keys(typeEntry.properties ?? {})) {
-    if (isRelationshipSchemaKey(key)) addPlaceholder(key)
+    if (includesRelationshipKey(suggestedRelationships, key)) addPlaceholder(key)
   }
 
   return result
@@ -659,17 +657,25 @@ function useRelationshipMutations(
   }
 }
 
+/**
+ * The configured relationships the note has not filled in yet. An empty
+ * vocabulary yields no slots, leaving the panel with its "Add relationship"
+ * button alone.
+ */
 function useMissingSuggestedRelationships(
   relationshipEntries: RelationshipEntryGroup[],
+  suggestedRelationships: readonly string[],
   onAddProperty?: RelationshipPanelEditHandlers['onAddProperty'],
 ) {
   const existingRelKeys = useMemo(
-    () => new Set(relationshipEntries.map(g => g.key.toLowerCase())),
+    () => relationshipEntries.map(g => g.key),
     [relationshipEntries],
   )
   return useMemo(
-    () => (onAddProperty ? SUGGESTED_RELATIONSHIPS.filter(r => !existingRelKeys.has(r.toLowerCase())) : []),
-    [onAddProperty, existingRelKeys],
+    () => (onAddProperty
+      ? suggestedRelationships.filter(r => !includesRelationshipKey(existingRelKeys, r))
+      : []),
+    [onAddProperty, existingRelKeys, suggestedRelationships],
   )
 }
 
@@ -687,10 +693,11 @@ function useRelationshipPanelState({
   entries: VaultEntry[]
   vaultPath?: string
 } & RelationshipPanelEditHandlers) {
+  const suggestedRelationships = useSuggestedRelationships()
   const relationshipEntries = useMemo(() => extractRelationshipRefs(frontmatter), [frontmatter])
   const typeDerivedRelationshipEntries = useMemo(
-    () => buildTypeDerivedRelationshipEntries({ entry, entries, frontmatter, relationshipEntries }),
-    [entry, entries, frontmatter, relationshipEntries],
+    () => buildTypeDerivedRelationshipEntries({ entry, entries, frontmatter, relationshipEntries, suggestedRelationships }),
+    [entry, entries, frontmatter, relationshipEntries, suggestedRelationships],
   )
   const resolvedVaultPath = useMemo(() => vaultPath ?? inferVaultPath(entries), [vaultPath, entries])
   const { handleRemoveRef, handleAddRef, canEdit } = useRelationshipMutations(relationshipEntries, {
@@ -700,6 +707,7 @@ function useRelationshipPanelState({
   })
   const missingSuggestedRels = useMissingSuggestedRelationships(
     [...relationshipEntries, ...typeDerivedRelationshipEntries],
+    suggestedRelationships,
     onAddProperty,
   )
 

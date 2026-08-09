@@ -541,6 +541,62 @@ describe('SettingsPanel', () => {
     expect(screen.getByTestId('settings-note-list-description-field')).toHaveValue('')
   })
 
+  it('prefills the suggested relationships with the built-in vocabulary', () => {
+    render(
+      <SettingsPanel open={true} settings={emptySettings} onSave={onSave} onClose={onClose} />
+    )
+
+    expect(screen.getByTestId('settings-suggested-relationships'))
+      .toHaveValue('belongs_to, related_to, has')
+  })
+
+  it('saves a custom suggested relationship list', () => {
+    render(
+      <SettingsPanel open={true} settings={emptySettings} onSave={onSave} onClose={onClose} />
+    )
+
+    fireEvent.change(screen.getByTestId('settings-suggested-relationships'), {
+      target: { value: 'has_part,  blocked_by ' },
+    })
+    fireEvent.click(screen.getByTestId('settings-save'))
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      suggested_relationships: 'has_part, blocked_by',
+    }))
+    expect(trackEventMock).toHaveBeenCalledWith('suggested_relationships_changed', {
+      count: 2,
+      isDefault: 0,
+    })
+  })
+
+  it('persists a cleared suggested relationship list as empty rather than reverting to the defaults', () => {
+    render(
+      <SettingsPanel open={true} settings={emptySettings} onSave={onSave} onClose={onClose} />
+    )
+
+    fireEvent.change(screen.getByTestId('settings-suggested-relationships'), { target: { value: '' } })
+    fireEvent.click(screen.getByTestId('settings-save'))
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ suggested_relationships: '' }))
+    expect(trackEventMock).toHaveBeenCalledWith('suggested_relationships_changed', {
+      count: 0,
+      isDefault: 0,
+    })
+  })
+
+  it('reopens a cleared suggested relationship list as blank', () => {
+    render(
+      <SettingsPanel
+        open={true}
+        settings={{ ...emptySettings, suggested_relationships: '' }}
+        onSave={onSave}
+        onClose={onClose}
+      />
+    )
+
+    expect(screen.getByTestId('settings-suggested-relationships')).toHaveValue('')
+  })
+
   it('defaults the code font size to Default and saves a chosen size', () => {
     render(
       <SettingsPanel open={true} settings={emptySettings} onSave={onSave} onClose={onClose} />

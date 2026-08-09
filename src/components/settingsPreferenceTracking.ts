@@ -11,6 +11,7 @@ import {
   trackNoteBodyFontSizeChanged,
   trackNoteListPreviewChanged,
   trackSidebarTypePluralizationChanged,
+  trackSuggestedRelationshipsChanged,
 } from '../lib/productAnalytics'
 import { areAiFeaturesEnabled } from '../lib/aiFeatures'
 import { areGitFeaturesEnabled } from '../lib/gitSettings'
@@ -25,6 +26,10 @@ import {
   resolveNoteListPreview,
   type NoteListPreviewDraft,
 } from '../utils/noteListPreview'
+import {
+  resolveSuggestedRelationships,
+  suggestedRelationshipsFromDraft,
+} from '../utils/suggestedRelationships'
 import { resolveNoteFontSize } from '../utils/noteBodyFontSize'
 import { normalizeCodeFontSize } from '../utils/codeFontSize'
 import { normalizeImageRenameMode, type ImageRenameMode } from '../utils/imageRename'
@@ -34,6 +39,7 @@ export interface SettingsPreferenceDraft {
   aiFeaturesEnabled: boolean
   dateDisplayFormat: DateDisplayFormat
   noteListPreview: NoteListPreviewDraft
+  suggestedRelationships: string
   defaultNoteWidth: NoteWidthMode
   noteBodyFontSize: number
   codeFontSize: number | null
@@ -72,6 +78,12 @@ export function trackSettingsPreferenceChanges(settings: Settings, draft: Settin
     || previousPreview.fallbackLines !== nextPreview.fallbackLines
   ) {
     trackNoteListPreviewChanged(nextPreview)
+  }
+
+  const previousRelationships = resolveSuggestedRelationships(settings).join(', ')
+  const nextRelationships = suggestedRelationshipsFromDraft(draft.suggestedRelationships)
+  if (previousRelationships !== nextRelationships.join(', ')) {
+    trackSuggestedRelationshipsChanged(nextRelationships)
   }
 
   const previousNoteWidth = normalizeNoteWidthMode(settings.note_width_mode) ?? DEFAULT_NOTE_WIDTH_MODE

@@ -97,6 +97,7 @@ pub struct Settings {
     pub date_display_format: Option<String>,
     pub note_list_description_property: Option<String>,
     pub note_list_preview_fallback_lines: Option<u32>,
+    pub suggested_relationships: Option<String>,
     pub note_width_mode: Option<String>,
     pub note_body_font_size: Option<u32>,
     pub code_font_size: Option<u32>,
@@ -211,6 +212,14 @@ pub fn normalize_note_list_description_property(value: Option<String>) -> Option
     value.map(|candidate| candidate.trim().to_string())
 }
 
+/// Empty is kept for the same reason as the description property: it records
+/// that the user cleared the list, which leaves the Inspector's Relationships
+/// panel with nothing but its "Add relationship" button. `None` means "never
+/// set", which the UI reads as the default vocabulary.
+pub fn normalize_suggested_relationships(value: Option<String>) -> Option<String> {
+    value.map(|candidate| candidate.trim().to_string())
+}
+
 pub const DEFAULT_FRONTMATTER_CREATED_KEY: &str = "created";
 
 pub fn effective_frontmatter_created_key(settings: &Settings) -> &str {
@@ -274,6 +283,7 @@ fn normalize_settings(settings: Settings) -> Settings {
         note_list_preview_fallback_lines: normalize_note_list_preview_fallback_lines(
             settings.note_list_preview_fallback_lines,
         ),
+        suggested_relationships: normalize_suggested_relationships(settings.suggested_relationships),
         note_width_mode: normalize_note_width_mode(settings.note_width_mode.as_deref()),
         note_body_font_size: normalize_note_body_font_size(settings.note_body_font_size),
         code_font_size: normalize_code_font_size(settings.code_font_size),
@@ -518,6 +528,7 @@ mod tests {
             date_display_format: Some("iso".to_string()),
             note_list_description_property: Some("description".to_string()),
             note_list_preview_fallback_lines: Some(2),
+            suggested_relationships: Some("belongs_to, related_to".to_string()),
             note_width_mode: Some("wide".to_string()),
             note_body_font_size: Some(18),
             code_font_size: Some(13),
@@ -631,6 +642,35 @@ mod tests {
             ..Default::default()
         });
         assert_eq!(loaded.note_list_description_property.as_deref(), Some(""));
+    }
+
+    #[test]
+    fn test_suggested_relationships_round_trip() {
+        let loaded = save_and_reload(Settings {
+            suggested_relationships: Some("  has_part, blocked_by  ".to_string()),
+            ..Default::default()
+        });
+        assert_eq!(
+            loaded.suggested_relationships.as_deref(),
+            Some("has_part, blocked_by")
+        );
+    }
+
+    /// A cleared list must survive as an empty string; collapsing it to `None`
+    /// would resurrect the default suggestions the user just removed.
+    #[test]
+    fn test_cleared_suggested_relationships_stay_cleared() {
+        let loaded = save_and_reload(Settings {
+            suggested_relationships: Some("   ".to_string()),
+            ..Default::default()
+        });
+        assert_eq!(loaded.suggested_relationships.as_deref(), Some(""));
+    }
+
+    #[test]
+    fn test_unset_suggested_relationships_stay_unset() {
+        let loaded = save_and_reload(Settings::default());
+        assert_eq!(loaded.suggested_relationships, None);
     }
 
     #[test]
