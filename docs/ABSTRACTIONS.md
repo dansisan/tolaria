@@ -318,6 +318,17 @@ This enables arbitrary, extensible relationship types without code changes.
 
 All `[[wikilinks]]` in the note body (not frontmatter) are extracted by regex and stored in `outgoingLinks`. Used for backlink detection and relationship graphs.
 
+### Inline Tags
+
+Body `#tags` are extracted into `inlineTags` by `extract_inline_tags` (`vault/parsing.rs`), mirrored by the dev-server harness in `vite.config.ts`. Both only collect tags from lines that *begin* with `#` followed by a letter, so `# Heading` is never a tag and a `#word` mid-sentence is not one either. Frontmatter `tags:` values merge into the same field.
+
+`buildTagCounts` (`src/utils/tagIndex.ts`) is the one place tags are rolled up into `{ tag, count }` pairs, ordered either `alphabetical` (browsing lists) or `frequency` (most-used-first surfaces). Its consumers:
+
+- **Sidebar TAGS section** — alphabetical list; clicking a tag calls `handleTagSearch`, which selects All Notes and opens the note-list search with `#tag`.
+- **Note-list search** — `#` prefix filters the current list by tag (`noteListSearch.ts`).
+- **Quick open** (`useQuickOpenSearch`) — a `#` query switches the palette to tag browsing (tags only, most-used first, note count as a badge); selecting one routes through the same `handleTagSearch`. On a plain query, matching tags trail the note results, capped at five, so they stay a suggestion. Notes are also matched by their own tags, ranked strictly below every title/alias/filename signal.
+- **Editor tag autocomplete** (`SingleEditorView`) — frequency-ordered candidates.
+
 ### Title / Filename Sync
 
 Title resolution is gated on entry type (`is_default_note_type` in `vault/mod.rs`, mirrored by `isDefaultNoteType` in `src/utils/noteTitle.ts`) — see ADR-0138:

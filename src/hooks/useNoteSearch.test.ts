@@ -335,6 +335,48 @@ describe('useNoteSearch', () => {
     expect(result.current.results[0].title).toBe('Refactoring Notes')
   })
 
+  describe('inline tag matching', () => {
+    it('matches a note by one of its inline tags', () => {
+      const tagged: VaultEntry[] = [
+        makeEntry({ path: '/vault/sd.md', title: 'Sunday Dinner', inlineTags: ['recipes'], modifiedAt: 1700000002 }),
+        makeEntry({ path: '/vault/un.md', title: 'Unrelated', inlineTags: [], modifiedAt: 1700000001 }),
+      ]
+      const { result } = renderHook(() => useNoteSearch(tagged, 'recipes'))
+      expect(result.current.results.map((r) => r.title)).toEqual(['Sunday Dinner'])
+    })
+
+    it('matches a tag by prefix', () => {
+      const tagged: VaultEntry[] = [
+        makeEntry({ path: '/vault/sd.md', title: 'Sunday Dinner', inlineTags: ['recipes'] }),
+      ]
+      const { result } = renderHook(() => useNoteSearch(tagged, 'reci'))
+      expect(result.current.results).toHaveLength(1)
+    })
+
+    it('ranks a title match above a tag-only match', () => {
+      const tagged: VaultEntry[] = [
+        makeEntry({ path: '/vault/sd.md', title: 'Sunday Dinner', inlineTags: ['recipes'], modifiedAt: 1700000002 }),
+        makeEntry({ path: '/vault/r.md', title: 'Recipes', inlineTags: [], modifiedAt: 1700000001 }),
+      ]
+      const { result } = renderHook(() => useNoteSearch(tagged, 'recipes'))
+      expect(result.current.results.map((r) => r.title)).toEqual(['Recipes', 'Sunday Dinner'])
+    })
+
+    it('ranks a tag match below a fuzzy title match', () => {
+      const tagged: VaultEntry[] = [
+        makeEntry({ path: '/vault/sd.md', title: 'Sunday Dinner', inlineTags: ['recipes'], modifiedAt: 1700000002 }),
+        makeEntry({ path: '/vault/rp.md', title: 'Rec Ipes Draft', inlineTags: [], modifiedAt: 1700000001 }),
+      ]
+      const { result } = renderHook(() => useNoteSearch(tagged, 'recipes'))
+      expect(result.current.results.map((r) => r.title)).toEqual(['Rec Ipes Draft', 'Sunday Dinner'])
+    })
+
+    it('tolerates entries with no inlineTags field', () => {
+      const { result } = renderHook(() => useNoteSearch(entries, 'alpha'))
+      expect(result.current.results.map((r) => r.title)).toEqual(['Alpha Project'])
+    })
+  })
+
   it('does not exclude archived notes from results', () => {
     const withArchived: VaultEntry[] = [
       makeEntry({ path: '/vault/a.md', title: 'Active Note', modifiedAt: 1700000002 }),

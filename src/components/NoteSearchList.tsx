@@ -14,6 +14,8 @@ export interface NoteSearchResultItem {
   typeLightColor?: string
   TypeIcon?: ComponentType<SVGAttributes<SVGSVGElement>>
   workspace?: WorkspaceIdentity | null
+  /** Trailing count badge for rows that stand for a group rather than one note. */
+  countLabel?: string
 }
 
 interface NoteSearchListProps<T extends NoteSearchResultItem> {
@@ -97,8 +99,17 @@ function NoteSearchListItem<T extends NoteSearchResultItem>({
           <NoteTitleIcon icon={item.noteIcon} size={14} testId="note-search-item-icon" />
           <span className="truncate">{item.title}</span>
         </span>
-        {(item.noteType || item.workspace) && (
+        {(item.noteType || item.workspace || item.countLabel) && (
           <span className="ml-2 flex shrink-0 items-center gap-1.5">
+            {item.countLabel && (
+              <span
+                className="shrink-0 text-[10px] font-medium tabular-nums text-muted-foreground"
+                style={{ borderRadius: 9999, padding: '0 6px', background: 'var(--muted)' }}
+                data-testid="note-search-count-badge"
+              >
+                {item.countLabel}
+              </span>
+            )}
             {item.noteType && (
               <Badge
                 variant="secondary"

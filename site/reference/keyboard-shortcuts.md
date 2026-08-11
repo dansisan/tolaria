@@ -3,7 +3,7 @@
 | Shortcut | Action |
 | --- | --- |
 | `Cmd+K` / `Ctrl+K` | Open command palette. |
-| `Cmd+P` / `Ctrl+P` | Quick open notes and files. |
+| `Cmd+P` / `Ctrl+P` | Quick open notes and files. Type `#` to browse the vault's tags. |
 | `Cmd+N` / `Ctrl+N` | Create a new note. |
 | `Cmd+S` / `Ctrl+S` | Save current note. |
 | `Cmd+F` / `Ctrl+F` | Find in the current note. |

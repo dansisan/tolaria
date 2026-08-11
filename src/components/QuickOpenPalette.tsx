@@ -1,18 +1,20 @@
 import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react'
 import type { VaultEntry } from '../types'
 import { NoteSearchList } from './NoteSearchList'
-import { useNoteSearch } from '../hooks/useNoteSearch'
+import { useQuickOpenSearch, type QuickOpenResult } from '../hooks/useQuickOpenSearch'
 import { translate, type AppLocale } from '../lib/i18n'
+import { trackEvent } from '../lib/telemetry'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Plus } from '@phosphor-icons/react'
-import type { NoteSearchResult } from '../hooks/useNoteSearch'
 
 interface QuickOpenPaletteProps {
   open: boolean
   entries: VaultEntry[]
   isLoading?: boolean
   onSelect: (entry: VaultEntry) => void
+  /** Runs the vault-wide search for a tag picked from the results. */
+  onSelectTag?: (tag: string) => void
   onCreateNote?: (title: string) => unknown | Promise<unknown>
   onClose: () => void
   locale?: AppLocale
@@ -50,18 +52,21 @@ function useQuickOpenCreateAction({
   query,
   isLoading,
   resultCount,
+  suppressCreate,
   onCreateNote,
   onClose,
 }: {
   query: string
   isLoading: boolean
   resultCount: number
+  /** Tag browsing has no note title to create from — `#foo` is a filter, not a name. */
+  suppressCreate: boolean
   onCreateNote?: (title: string) => unknown
   onClose: () => void
 }) {
   const [isCreating, setIsCreating] = useState(false)
   const title = query.trim()
-  const canCreate = Boolean(onCreateNote && title && !isLoading && resultCount === 0)
+  const canCreate = Boolean(onCreateNote && title && !isLoading && resultCount === 0 && !suppressCreate)
   const create = useCallback(async () => {
     if (!canCreate || isCreating) return
     setIsCreating(true)
@@ -76,19 +81,41 @@ function useQuickOpenCreateAction({
   return { canCreate, create, title, isCreating }
 }
 
+/** Routes a chosen row to the right action: open the note, or run the tag's search. */
+function useQuickOpenActivation({
+  onSelect,
+  onSelectTag,
+  onClose,
+}: {
+  onSelect: (entry: VaultEntry) => void
+  onSelectTag?: (tag: string) => void
+  onClose: () => void
+}) {
+  return useCallback((result: QuickOpenResult, index: number) => {
+    if (result.kind === 'tag') {
+      // Tag name omitted deliberately: it is note content, not product metadata.
+      trackEvent('quick_open_tag_selected', { note_count: result.count, position: index })
+      onSelectTag?.(result.tag)
+    } else {
+      onSelect(result.entry)
+    }
+    onClose()
+  }, [onSelect, onSelectTag, onClose])
+}
+
 function useQuickOpenKeyboard({
   open,
   results,
   selectedIndex,
-  onSelect,
+  activateResult,
   onClose,
   handleKeyDown,
   createFromQuery,
 }: {
   open: boolean
-  results: NoteSearchResult[]
+  results: QuickOpenResult[]
   selectedIndex: number
-  onSelect: (entry: VaultEntry) => void
+  activateResult: (result: QuickOpenResult, index: number) => void
   onClose: () => void
   handleKeyDown: (e: KeyboardEvent) => void
   createFromQuery: () => void | Promise<void>
@@ -104,9 +131,9 @@ function useQuickOpenKeyboard({
   // a scheduler boundary, so it doesn't close that window either — the ref
   // must update inside the same synchronous commit as the render, which only
   // `useLayoutEffect` guarantees.
-  const latestRef = useRef({ results, selectedIndex, onSelect, onClose, handleKeyDown, createFromQuery })
+  const latestRef = useRef({ results, selectedIndex, activateResult, onClose, handleKeyDown, createFromQuery })
   useLayoutEffect(() => {
-    latestRef.current = { results, selectedIndex, onSelect, onClose, handleKeyDown, createFromQuery }
+    latestRef.current = { results, selectedIndex, activateResult, onClose, handleKeyDown, createFromQuery }
   })
 
   useEffect(() => {
@@ -121,8 +148,7 @@ function useQuickOpenKeyboard({
         e.preventDefault()
         const selected = current.results.at(current.selectedIndex)
         if (selected) {
-          current.onSelect(selected.entry)
-          current.onClose()
+          current.activateResult(selected, current.selectedIndex)
         } else {
           void current.createFromQuery()
         }
@@ -133,12 +159,21 @@ function useQuickOpenKeyboard({
   }, [open])
 }
 
-export function QuickOpenPalette({ open, entries, isLoading = false, onSelect, onCreateNote, onClose, locale = 'en' }: QuickOpenPaletteProps) {
+export function QuickOpenPalette({ open, entries, isLoading = false, onSelect, onSelectTag, onCreateNote, onClose, locale = 'en' }: QuickOpenPaletteProps) {
   const [query, setQuery] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
-  const { results, selectedIndex, setSelectedIndex, handleKeyDown } = useNoteSearch(entries, query)
-  const createAction = useQuickOpenCreateAction({ query, isLoading, resultCount: results.length, onCreateNote, onClose })
+  const { results, selectedIndex, setSelectedIndex, handleKeyDown, tagMode } = useQuickOpenSearch(entries, query)
+  const createAction = useQuickOpenCreateAction({
+    query,
+    isLoading,
+    resultCount: results.length,
+    suppressCreate: tagMode,
+    onCreateNote,
+    onClose,
+  })
+
+  const activateResult = useQuickOpenActivation({ onSelect, onSelectTag, onClose })
 
   useEffect(() => {
     if (open) {
@@ -149,7 +184,7 @@ export function QuickOpenPalette({ open, entries, isLoading = false, onSelect, o
     }
   }, [open, setSelectedIndex])
 
-  useQuickOpenKeyboard({ open, results, selectedIndex, onSelect, onClose, handleKeyDown, createFromQuery: createAction.create })
+  useQuickOpenKeyboard({ open, results, selectedIndex, activateResult, onClose, handleKeyDown, createFromQuery: createAction.create })
 
   useEffect(() => {
     if (!open) return
@@ -192,11 +227,8 @@ export function QuickOpenPalette({ open, entries, isLoading = false, onSelect, o
         <NoteSearchList
           items={results}
           selectedIndex={selectedIndex}
-          getItemKey={(item) => item.entry.path}
-          onItemClick={(item) => {
-            onSelect(item.entry)
-            onClose()
-          }}
+          getItemKey={(item) => (item.kind === 'tag' ? `tag:${item.tag}` : item.entry.path)}
+          onItemClick={(item, index) => activateResult(item, index)}
           onItemHover={(i) => setSelectedIndex(i)}
           emptyMessage={quickOpenEmptyMessage(isLoading, locale)}
           className="flex-1 overflow-y-auto"

@@ -5,6 +5,7 @@ import { getTypeColor, getTypeLightColor, buildTypeEntryMap } from '../utils/typ
 import { getTypeIcon } from '../components/NoteItem'
 import type { NoteSearchResultItem } from '../components/NoteSearchList'
 import { slugifyNoteStem } from '../utils/noteSlug'
+import { entryTags } from '../utils/tagIndex'
 
 const DEFAULT_MAX_RESULTS = 20
 // Matches the sidebar note-list search's debounce (useNoteListSearchState.ts) so
@@ -108,12 +109,17 @@ function filenameStem({ value }: SearchTextInput): string {
   return stripMarkdownExtension({ value })
 }
 
+/** Inline-tag hits rank below every title/alias/filename signal, so a shared tag can
+ *  surface a note you'd otherwise miss without ever outranking one matched by name. */
+const TAG_CANDIDATE_RANKS = { exactRank: 5, prefixRank: 6, fuzzyRank: 7 }
+
 function searchCandidatesForEntry({ entry }: EntrySearchInput): SearchCandidate[] {
   return [
     { value: entry.title, exactRank: 0, prefixRank: 2, fuzzyRank: 4 },
     ...entry.aliases.map((value) => ({ value, exactRank: 1, prefixRank: 3, fuzzyRank: 4 })),
     { value: entry.filename, exactRank: 1, prefixRank: 3, fuzzyRank: 4 },
     { value: filenameStem({ value: entry.filename }), exactRank: 1, prefixRank: 3, fuzzyRank: 4 },
+    ...entryTags(entry).map((value) => ({ value, ...TAG_CANDIDATE_RANKS })),
   ]
 }
 

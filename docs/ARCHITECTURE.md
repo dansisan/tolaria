@@ -907,7 +907,7 @@ Data flows unidirectionally: `App` passes data and callbacks as props to child c
 | Shortcut | Action |
 |----------|--------|
 | Cmd+K | Open command palette |
-| Cmd+P / Cmd+O | Open quick open palette |
+| Cmd+P / Cmd+O | Open quick open palette (`#` browses vault tags) |
 | Cmd+N | Create new note |
 | Cmd+S | Save current note |
 | Cmd+F | Find in current note when the editor is focused; otherwise note-list search can claim it |

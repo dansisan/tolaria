@@ -199,6 +199,81 @@ describe('QuickOpenPalette', () => {
     expect(onSelect).toHaveBeenCalledWith(entries[0])
   })
 
+  describe('tag results', () => {
+    const onSelectTag = vi.fn()
+    const taggedEntries: VaultEntry[] = [
+      makeEntry({ path: '/vault/note/one.md', title: 'Roast Chicken', inlineTags: ['recipes', 'dinner'], modifiedAt: 1700000003 }),
+      makeEntry({ path: '/vault/note/two.md', title: 'Pasta Bake', inlineTags: ['recipes'], modifiedAt: 1700000002 }),
+    ]
+
+    const openPalette = () => render(
+      <QuickOpenPalette
+        open={true}
+        entries={taggedEntries}
+        onSelect={onSelect}
+        onSelectTag={onSelectTag}
+        onCreateNote={vi.fn()}
+        onClose={onClose}
+      />,
+    )
+
+    const typeQuery = (value: string) => {
+      fireEvent.change(screen.getByPlaceholderText('Search notes...'), { target: { value } })
+    }
+
+    it('lists every tag with its use count for a bare # query', () => {
+      openPalette()
+      typeQuery('#')
+
+      expect(screen.getByText('recipes')).toBeInTheDocument()
+      expect(screen.getByText('dinner')).toBeInTheDocument()
+      expect(screen.getByText('2')).toBeInTheDocument()
+    })
+
+    it('runs the tag search when a tag row is clicked', () => {
+      openPalette()
+      typeQuery('#reci')
+      fireEvent.click(screen.getByText('recipes'))
+
+      expect(onSelectTag).toHaveBeenCalledWith('recipes')
+      expect(onSelect).not.toHaveBeenCalled()
+      expect(onClose).toHaveBeenCalled()
+    })
+
+    it('runs the tag search when a tag row is chosen with Enter', () => {
+      openPalette()
+      typeQuery('#reci')
+      fireEvent.keyDown(window, { key: 'Enter' })
+
+      expect(onSelectTag).toHaveBeenCalledWith('recipes')
+      expect(onSelect).not.toHaveBeenCalled()
+    })
+
+    it('offers no note-creation action while browsing tags', async () => {
+      openPalette()
+      typeQuery('#zzzz')
+
+      await waitFor(() => {
+        expect(screen.getByText('No matching notes')).toBeInTheDocument()
+      })
+      expect(screen.queryByText('Create note "#zzzz"')).not.toBeInTheDocument()
+    })
+
+    it('shows tag suggestions below the notes for a plain query', async () => {
+      openPalette()
+      typeQuery('recipes')
+
+      await waitFor(() => {
+        expect(screen.getByText('Roast Chicken')).toBeInTheDocument()
+      })
+      const rows = screen.getAllByRole('button').map((button) => button.textContent)
+      const noteRow = rows.findIndex((text) => text?.includes('Roast Chicken'))
+      const tagRow = rows.findIndex((text) => text?.startsWith('recipes'))
+      expect(noteRow).toBeGreaterThanOrEqual(0)
+      expect(tagRow).toBeGreaterThan(noteRow)
+    })
+  })
+
   it('calls onClose when clicking the backdrop', () => {
     render(<QuickOpenPalette open={true} entries={entries} onSelect={onSelect} onClose={onClose} />)
 
