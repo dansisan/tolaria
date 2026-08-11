@@ -11,11 +11,12 @@ async function openQuickOpen(page: import('@playwright/test').Page) {
 
 /**
  * Get the title text of the first (selected) search result in the Quick Open palette.
- * The selected item has `bg-accent` class, and the title is in a nested `.truncate` span.
+ * The selected row carries `data-selected="true"`, and the title is in a nested
+ * `.truncate` span. Keyed on the attribute, not the background class, so restyling
+ * the selection doesn't break this.
  */
 async function getFirstResultTitle(page: import('@playwright/test').Page): Promise<string> {
-  // The selected result row contains the title in a span.truncate
-  const titleSpan = page.getByTestId('quick-open-palette').locator('[class*="bg-accent"] span.truncate')
+  const titleSpan = page.getByTestId('quick-open-palette').locator('[data-selected="true"] span.truncate')
   await titleSpan.first().waitFor({ timeout: 3000 })
   return (await titleSpan.first().textContent()) ?? ''
 }

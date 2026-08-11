@@ -186,11 +186,11 @@ function resultRow(title: string) {
 }
 
 function expectSelectedResult(title: string) {
-  expect(resultRow(title).className).toContain('bg-accent')
+  expect(resultRow(title)).toHaveAttribute('aria-selected', 'true')
 }
 
 function expectUnselectedResult(title: string) {
-  expect(resultRow(title).className).not.toContain('bg-accent')
+  expect(resultRow(title)).toHaveAttribute('aria-selected', 'false')
 }
 
 function dispatchKeyboardEvent(
@@ -354,8 +354,8 @@ describe('SearchPanel', () => {
     })
 
     await waitFor(() => {
-      const resultTwo = screen.getByText('Refactoring Retreat').closest('[class*="cursor-pointer"]')!
-      expect(resultTwo.className).toContain('bg-accent')
+      const resultTwo = screen.getByText('Refactoring Retreat').closest('[role="option"]')!
+      expect(resultTwo).toHaveAttribute('aria-selected', 'true')
     })
   })
 

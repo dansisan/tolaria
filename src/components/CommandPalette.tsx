@@ -481,7 +481,9 @@ function CommandRow({ command, selected, onHover, onSelect }: CommandRowProps) {
       data-selected={selected}
       className={cn(
         'mx-1 flex w-[calc(100%-0.5rem)] cursor-pointer items-center justify-between rounded-md border-0 bg-transparent px-3 py-1.5 text-left transition-colors',
-        selected ? 'bg-accent' : 'hover:bg-secondary',
+        selected
+          ? 'bg-[var(--state-row-selected)] shadow-[inset_3px_0_0_0_var(--border-focus)]'
+          : 'hover:bg-[var(--state-row-hover)]',
       )}
       onClick={onSelect}
       onMouseEnter={onHover}

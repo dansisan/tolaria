@@ -74,9 +74,12 @@ function NoteSearchListItem<T extends NoteSearchResultItem>({
 
   return (
     <div
+      data-selected={selected ? 'true' : undefined}
       className={cn(
         'flex cursor-pointer items-center justify-between gap-2 transition-colors',
-        selected ? 'bg-accent' : 'hover:bg-secondary',
+        selected
+          ? 'bg-[var(--state-row-selected)] shadow-[inset_3px_0_0_0_var(--border-focus)]'
+          : 'hover:bg-[var(--state-row-hover)]',
       )}
     >
       <button

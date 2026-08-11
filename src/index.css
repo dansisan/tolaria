@@ -60,6 +60,12 @@
   --state-focus-ring: #155DFF;
   --state-drag-target: #155DFF18;
   --state-disabled: #F0F0EF;
+  /* Keyboard-navigable rows inside popovers (quick open, command palette, vault
+     search). These need contrast against --surface-popover specifically, which the
+     app-wide hover tokens cannot guarantee — they also sit on sidebar and app
+     surfaces. Light mode keeps the previous values. */
+  --state-row-selected: #EBEBEA;
+  --state-row-hover: #EBEBEA;
 
   /* --- Accent roles (light mode) --- */
   --accent-blue: #155DFF;
@@ -217,6 +223,13 @@
   --state-focus-ring: #7AA6DA;
   --state-drag-target: rgba(122, 166, 218, 0.2);
   --state-disabled: #2C313A;
+  /* The popover surface is lighter than every app-wide hover token, so a hover-tinted
+     selection is invisible on it. The selected row drops to a dark well and hover rises
+     above the popover. Note the ceiling: against #333945 even pure black reaches only
+     1.82:1, so the dark well alone cannot meet the 3:1 guidance for a state indicator —
+     the left marker bar carries that job (4.6:1), matching the note list's own idiom. */
+  --state-row-selected: #1A1E24;
+  --state-row-hover: #3D434D;
 
   /* --- Accent roles (dark mode) --- */
   --accent-blue: #7AA6DA;

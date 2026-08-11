@@ -514,7 +514,9 @@ function SearchResultRow({
       tabIndex={-1}
       className={cn(
         "w-full cursor-pointer border-0 bg-transparent px-4 py-2.5 text-left transition-colors",
-        selected ? "bg-accent" : "hover:bg-secondary",
+        selected
+          ? "bg-[var(--state-row-selected)] shadow-[inset_3px_0_0_0_var(--border-focus)]"
+          : "hover:bg-[var(--state-row-hover)]",
       )}
       onClick={() => onSelect(result)}
       onMouseMove={(event) => onHover(index, event)}

@@ -198,7 +198,7 @@ describe('NoteSearchList', () => {
     expect(onItemHover).toHaveBeenCalledWith(2)
   })
 
-  it('highlights selected item with accent background', () => {
+  it('marks only the selected item as selected', () => {
     render(
       <NoteSearchList
         items={items}
@@ -208,10 +208,10 @@ describe('NoteSearchList', () => {
       />,
     )
     const selectedItem = screen.getByText('Beta Notes').closest('div')!
-    expect(selectedItem.className).toContain('bg-accent')
+    expect(selectedItem).toHaveAttribute('data-selected', 'true')
 
     const unselectedItem = screen.getByText('Alpha Project').closest('div')!
-    expect(unselectedItem.className).not.toContain('bg-accent')
+    expect(unselectedItem).not.toHaveAttribute('data-selected')
   })
 
   it('calls scrollIntoView on the selected item', () => {

@@ -104,7 +104,7 @@ function searchResultRow(page: Page, title: string) {
 }
 
 async function expectSelectedSearchResult(page: Page, title: string): Promise<void> {
-  await expect(searchResultRow(page, title)).toHaveClass(/bg-accent/)
+  await expect(searchResultRow(page, title)).toHaveAttribute('aria-selected', 'true')
 }
 
 test.describe('keyboard command routing', () => {
