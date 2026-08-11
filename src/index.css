@@ -171,112 +171,118 @@
   --link-hover: var(--accent-blue-hover);
 }
 
+/* Dark mode follows Ghostty's default scheme: background #282c34,
+   foreground #ffffff, and its default ANSI palette (Tomorrow Night).
+   Surfaces are a ladder around #282c34; a few roles Ghostty has no ANSI
+   slot for (orange, pink, dim comment grey) are derived and marked. */
 :root.dark,
 [data-theme="dark"] {
   color-scheme: dark;
 
   /* --- Semantic surfaces (dark mode) --- */
-  --surface-app: #1F1E1B;
-  --surface-sidebar: #191814;
-  --surface-panel: #23221F;
-  --surface-card: #23221F;
-  --surface-popover: #292823;
-  --surface-input: #1F1E1B;
-  --surface-button: #34322D;
-  --surface-dialog: #272622;
-  --surface-editor: #1F1E1B;
-  --surface-overlay: rgba(8, 8, 7, 0.58);
+  --surface-app: #282C34;
+  --surface-sidebar: #21252B;
+  --surface-panel: #2F343D;
+  --surface-card: #2F343D;
+  --surface-popover: #333945;
+  --surface-input: #21252B;
+  --surface-button: #3B4048;
+  --surface-dialog: #2F343D;
+  --surface-editor: #282C34;
+  --surface-overlay: rgba(16, 18, 22, 0.6);
 
   /* --- Semantic text (dark mode) --- */
-  --text-primary: #E6E1D8;
-  --text-secondary: #B8B1A6;
-  --text-tertiary: #9C9488;
-  --text-muted: #7F776D;
-  --text-faint: #625B53;
-  --text-heading: #F1ECE3;
-  --text-inverse: #151411;
+  --text-primary: #FFFFFF;
+  --text-secondary: #C5C8C6;
+  --text-tertiary: #A8ABA9;
+  --text-muted: #8A8D8B;
+  --text-faint: #666666;
+  --text-heading: #FFFFFF;
+  --text-inverse: #1D1F21;
 
   /* --- Semantic borders (dark mode) --- */
-  --border-default: #34322D;
-  --border-subtle: #2A2925;
-  --border-strong: #46433B;
-  --border-input: #3A3832;
-  --border-dialog: #3A3832;
-  --border-focus: #78A4FF;
+  --border-default: #3B4048;
+  --border-subtle: #2F343D;
+  --border-strong: #4B5263;
+  --border-input: #3B4048;
+  --border-dialog: #3B4048;
+  --border-focus: #7AA6DA;
 
   /* --- Interaction states (dark mode) --- */
-  --state-hover: #2D2B27;
-  --state-hover-subtle: #262520;
-  --state-selected: #1E344C;
-  --state-selected-strong: #25415F;
-  --state-active: #203A55;
-  --state-focus-ring: #78A4FF;
-  --state-drag-target: rgba(120, 164, 255, 0.2);
-  --state-disabled: #292824;
+  --state-hover: #313640;
+  --state-hover-subtle: #2C313A;
+  --state-selected: #2B3A4D;
+  --state-selected-strong: #33475F;
+  --state-active: #2B3A4D;
+  --state-focus-ring: #7AA6DA;
+  --state-drag-target: rgba(122, 166, 218, 0.2);
+  --state-disabled: #2C313A;
 
   /* --- Accent roles (dark mode) --- */
-  --accent-blue: #78A4FF;
-  --accent-blue-bg: rgba(120, 164, 255, 0.2);
-  --accent-blue-hover: #9BBEFF;
-  --accent-blue-light: rgba(120, 164, 255, 0.16);
-  --accent-green: #79D89D;
-  --accent-green-light: rgba(121, 216, 157, 0.16);
-  --accent-orange: #F3A15B;
-  --accent-orange-light: rgba(243, 161, 91, 0.17);
-  --accent-red: #FF8A86;
-  --accent-red-light: rgba(255, 138, 134, 0.16);
-  --accent-purple: #B69CFF;
-  --accent-purple-light: rgba(182, 156, 255, 0.17);
-  --accent-yellow: #F2C86B;
-  --accent-yellow-light: rgba(242, 200, 107, 0.18);
-  --accent-teal: #64D1C8;
-  --accent-teal-light: rgba(100, 209, 200, 0.16);
-  --accent-pink: #F28AC3;
-  --accent-pink-light: rgba(242, 138, 195, 0.16);
-  --accent-gray: #A7B0BD;
-  --accent-gray-light: rgba(167, 176, 189, 0.14);
+  --accent-blue: #7AA6DA;
+  --accent-blue-bg: rgba(122, 166, 218, 0.2);
+  --accent-blue-hover: #9CC0EA;
+  --accent-blue-light: rgba(122, 166, 218, 0.16);
+  --accent-green: #B9CA4A;
+  --accent-green-light: rgba(185, 202, 74, 0.16);
+  --accent-orange: #DE935F; /* derived: Tomorrow Night orange, no ANSI slot */
+  --accent-orange-light: rgba(222, 147, 95, 0.17);
+  --accent-red: #D54E53;
+  --accent-red-light: rgba(213, 78, 83, 0.16);
+  --accent-purple: #C397D8;
+  --accent-purple-light: rgba(195, 151, 216, 0.17);
+  --accent-yellow: #E7C547;
+  --accent-yellow-light: rgba(231, 197, 71, 0.18);
+  --accent-teal: #70C0B1;
+  --accent-teal-light: rgba(112, 192, 177, 0.16);
+  --accent-pink: #D699B5; /* derived from the magenta pair, no ANSI slot */
+  --accent-pink-light: rgba(214, 153, 181, 0.16);
+  --accent-gray: #C5C8C6;
+  --accent-gray-light: rgba(197, 200, 198, 0.14);
 
   /* --- Feedback roles (dark mode) --- */
   --feedback-info-text: var(--accent-blue);
   --feedback-info-bg: var(--accent-blue-light);
   --feedback-success-text: var(--accent-green);
   --feedback-success-bg: var(--accent-green-light);
-  --feedback-warning-text: #F5C36B;
-  --feedback-warning-bg: rgba(245, 195, 107, 0.16);
-  --feedback-warning-border: #D99B3D;
-  --feedback-error-text: var(--accent-red);
+  --feedback-warning-text: #E7C547;
+  --feedback-warning-bg: rgba(231, 197, 71, 0.16);
+  --feedback-warning-border: #F0C674;
+  /* Lightened red: the palette red is only ~3.4:1 on #282c34, too low for
+     the small body copy this role carries. */
+  --feedback-error-text: #E5797D;
   --feedback-error-bg: var(--accent-red-light);
 
   /* --- Syntax and diff roles (dark mode) --- */
-  --syntax-heading: #83B2FF;
-  --syntax-link: #83B2FF;
-  --syntax-monospace: #FFA6A3;
-  --syntax-monospace-bg: rgba(167, 176, 189, 0.16);
-  --syntax-muted: #9C9488;
-  --syntax-frontmatter-key: #FFA6A3;
-  --syntax-frontmatter-value: #8EDFAE;
-  --syntax-highlight-comment: #8E877D;
-  --syntax-highlight-keyword: #FF9BA0;
-  --syntax-highlight-string: #A9D6FF;
-  --syntax-highlight-number: #8BB7FF;
-  --syntax-highlight-title: #C2AAFF;
-  --syntax-highlight-type: #F3B175;
-  --syntax-highlight-deletion: #FF9C9A;
-  --syntax-highlight-deletion-bg: rgba(255, 138, 134, 0.16);
-  --editor-find-match-bg: rgba(255, 196, 0, 0.38);
-  --diff-added-text: #79D89D;
-  --diff-added-bg: rgba(121, 216, 157, 0.14);
-  --diff-removed-text: #FF8A86;
-  --diff-removed-bg: rgba(255, 138, 134, 0.14);
-  --diff-hunk-bg: rgba(120, 164, 255, 0.13);
-  --editor-code-block-background: #161616;
+  --syntax-heading: #7AA6DA;
+  --syntax-link: #7AA6DA;
+  --syntax-monospace: #D54E53;
+  --syntax-monospace-bg: rgba(197, 200, 198, 0.16);
+  --syntax-muted: #8A8D8B;
+  --syntax-frontmatter-key: #D54E53;
+  --syntax-frontmatter-value: #B5BD68;
+  --syntax-highlight-comment: #8A8D8B; /* derived: bright black is too dim to read */
+  --syntax-highlight-keyword: #C397D8;
+  --syntax-highlight-string: #B5BD68;
+  --syntax-highlight-number: #DE935F;
+  --syntax-highlight-title: #7AA6DA;
+  --syntax-highlight-type: #F0C674;
+  --syntax-highlight-deletion: #D54E53;
+  --syntax-highlight-deletion-bg: rgba(213, 78, 83, 0.16);
+  --editor-find-match-bg: rgba(240, 198, 116, 0.35);
+  --diff-added-text: #B9CA4A;
+  --diff-added-bg: rgba(185, 202, 74, 0.14);
+  --diff-removed-text: #D54E53;
+  --diff-removed-bg: rgba(213, 78, 83, 0.14);
+  --diff-hunk-bg: rgba(122, 166, 218, 0.13);
+  --editor-code-block-background: #21252B;
   --editor-code-block-border: transparent;
-  --editor-code-block-text: #FFFFFF;
-  --editor-code-block-language: rgba(255, 255, 255, 0.7);
+  --editor-code-block-text: #C5C8C6;
+  --editor-code-block-language: rgba(197, 200, 198, 0.7);
 
   /* --- Overlays and shadows (dark mode) --- */
   --shadow-overlay: var(--surface-overlay);
-  --shadow-dialog: rgba(0, 0, 0, 0.42);
+  --shadow-dialog: rgba(0, 0, 0, 0.45);
 
   /* --- shadcn theme aliases (dark mode) --- */
   --background: var(--surface-app);
