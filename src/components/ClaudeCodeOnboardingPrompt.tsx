@@ -15,7 +15,7 @@ function getPromptCopy(status: ClaudeCodeStatus) {
   if (status === 'installed') {
     return {
       accentClassName: 'bg-[var(--feedback-success-bg)] text-[var(--feedback-success-text)]',
-      description: "Tolaria's AI features are ready to use.",
+      description: "Twolaria's AI features are ready to use.",
       icon: <CheckCircle2 className="size-7" />,
       title: 'Claude Code detected',
     }
@@ -24,7 +24,7 @@ function getPromptCopy(status: ClaudeCodeStatus) {
   if (status === 'missing') {
     return {
       accentClassName: 'bg-[var(--feedback-warning-bg)] text-[var(--feedback-warning-text)]',
-      description: 'Tolaria works best with an AI coding agent installed.',
+      description: 'Twolaria works best with an AI coding agent installed.',
       icon: <Bot className="size-7" />,
       title: 'Claude Code not detected',
     }

@@ -28,7 +28,7 @@ export function TelemetryConsentDialog({ onAccept, onDecline }: TelemetryConsent
 
         <div style={{ textAlign: 'center' }}>
           <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--foreground)', margin: 0 }}>
-            Help improve Tolaria
+            Help improve Twolaria
           </h2>
           <p style={{ fontSize: 13, color: 'var(--muted-foreground)', lineHeight: 1.6, marginTop: 8 }}>
             Send anonymous crash reports to help us fix bugs faster.

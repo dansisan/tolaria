@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Tolaria",
+  "productName": "Twolaria",
   "version": "0.1.0",
   "identifier": "club.refactoring.tolaria",
   "build": {
@@ -14,7 +14,7 @@
     "macOSPrivateApi": true,
     "windows": [
       {
-        "title": "Tolaria",
+        "title": "Twolaria",
         "width": 1400,
         "height": 900,
         "minWidth": 480,

@@ -131,7 +131,7 @@ describe('useMcpStatus', () => {
       name: 'connects external AI tools for the current vault on demand',
       overrideKey: 'register_mcp_tools' as const,
       overrideValue: 'registered',
-      toastFragment: 'Tolaria external AI tools connected successfully',
+      toastFragment: 'Twolaria external AI tools connected successfully',
     },
     {
       action: 'connect' as const,
@@ -151,7 +151,7 @@ describe('useMcpStatus', () => {
       name: 'disconnects external AI tools explicitly',
       overrideKey: 'remove_mcp_tools' as const,
       overrideValue: 'removed',
-      toastFragment: 'Tolaria external AI tools disconnected successfully',
+      toastFragment: 'Twolaria external AI tools disconnected successfully',
     },
     {
       action: 'disconnect' as const,
@@ -216,7 +216,7 @@ describe('useMcpStatus', () => {
     })
 
     expect(writeText).toHaveBeenCalledWith(snippet)
-    expect(onToast).toHaveBeenCalledWith('Tolaria MCP config copied to clipboard')
+    expect(onToast).toHaveBeenCalledWith('Twolaria MCP config copied to clipboard')
   })
 
   it('uses the native clipboard command inside the Tauri app', async () => {
@@ -242,6 +242,6 @@ describe('useMcpStatus', () => {
 
     expect(invoke).toHaveBeenCalledWith('copy_text_to_clipboard', { text: snippet })
     expect(writeText).not.toHaveBeenCalled()
-    expect(onToast).toHaveBeenCalledWith('Tolaria MCP config copied to clipboard')
+    expect(onToast).toHaveBeenCalledWith('Twolaria MCP config copied to clipboard')
   })
 })

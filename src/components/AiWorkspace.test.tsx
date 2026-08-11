@@ -390,9 +390,9 @@ describe('AiWorkspace', () => {
       />,
     )
 
-    expect(screen.getByText('Vault guidance needs attention: Tolaria guidance missing or broken')).toHaveClass('min-w-0')
+    expect(screen.getByText('Vault guidance needs attention: Twolaria guidance missing or broken')).toHaveClass('min-w-0')
     expect(screen.getByRole('button', { name: 'Restore' })).toBeTruthy()
-    expect(screen.getByText('Vault guidance needs attention: Tolaria guidance missing or broken').parentElement).toHaveClass('border-y')
+    expect(screen.getByText('Vault guidance needs attention: Twolaria guidance missing or broken').parentElement).toHaveClass('border-y')
   })
 
   it('does not archive an empty chat', () => {

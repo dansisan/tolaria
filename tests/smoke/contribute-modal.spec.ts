@@ -38,7 +38,7 @@ test.describe('Contribute modal', () => {
     await executeCommand(page, 'Contribute')
 
     await expect(page.getByTestId('feedback-dialog')).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Contribute to Tolaria' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Contribute to Twolaria' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Check out Refactoring' })).toBeFocused()
 
     await page.keyboard.press('Enter')

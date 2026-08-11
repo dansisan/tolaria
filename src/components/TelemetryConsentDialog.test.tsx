@@ -11,7 +11,7 @@ vi.mock('../hooks/useDragRegion', () => ({
 describe('TelemetryConsentDialog', () => {
   it('renders the consent dialog', () => {
     render(<TelemetryConsentDialog onAccept={vi.fn()} onDecline={vi.fn()} />)
-    expect(screen.getByText('Help improve Tolaria')).toBeDefined()
+    expect(screen.getByText('Help improve Twolaria')).toBeDefined()
     expect(screen.getByText(/anonymous crash reports/i)).toBeDefined()
   })
 

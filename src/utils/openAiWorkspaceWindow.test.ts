@@ -121,7 +121,7 @@ describe('openAiWorkspaceWindow', () => {
       AI_WORKSPACE_WINDOW_LABEL,
       expect.objectContaining({
         url: expect.stringContaining('vault=%2Ftmp%2Fvault'),
-        title: 'Tolaria AI',
+        title: 'Twolaria AI',
         width: 560,
         height: 680,
         minWidth: 420,

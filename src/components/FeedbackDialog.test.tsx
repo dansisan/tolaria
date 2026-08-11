@@ -34,7 +34,7 @@ describe('FeedbackDialog', () => {
   it('renders the contribution paths when open', () => {
     render(<FeedbackDialog open={true} onClose={vi.fn()} buildNumber="b281" releaseChannel="alpha" />)
     expect(screen.getByTestId('feedback-dialog')).toBeInTheDocument()
-    expect(screen.getByText('Contribute to Tolaria')).toBeInTheDocument()
+    expect(screen.getByText('Contribute to Twolaria')).toBeInTheDocument()
     expect(screen.getByText('Pick the path that fits what you want to do! Any type of help is appreciated')).toBeInTheDocument()
     expect(screen.getByText('Sponsor / Support')).toBeInTheDocument()
     expect(screen.getByText('Feature requests')).toBeInTheDocument()
@@ -43,7 +43,7 @@ describe('FeedbackDialog', () => {
     expect(screen.getByText('Report a bug')).toBeInTheDocument()
     expect(screen.getByText(/Luca here .* newsletter for 170K\+ engineers/i)).toBeInTheDocument()
     expect(screen.getByText(/private community of 2000\+ engineers/i)).toBeInTheDocument()
-    expect(screen.getByText(/Tolaria is FOSS and always will be/i)).toBeInTheDocument()
+    expect(screen.getByText(/Twolaria is FOSS and always will be/i)).toBeInTheDocument()
     expect(screen.getByText('Search on the board first, upvote existing ideas, and create new posts when genuinely new!')).toBeInTheDocument()
     expect(screen.getByText('Use Discussions for questions, conversations, show & tell, and community context.')).toBeInTheDocument()
     expect(screen.getByText('Small, focused PRs are welcome. Check the board first so you build the right things!')).toBeInTheDocument()
@@ -90,7 +90,7 @@ describe('FeedbackDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Copy sanitized diagnostics' }))
 
     await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1))
-    expect(writeText.mock.calls[0]?.[0]).toContain('Tolaria sanitized diagnostics')
+    expect(writeText.mock.calls[0]?.[0]).toContain('Twolaria sanitized diagnostics')
     expect(writeText.mock.calls[0]?.[0]).toContain('Build: b281')
     expect(writeText.mock.calls[0]?.[0]).toContain('Release channel: alpha')
     expect(screen.getByText('Diagnostics copied.')).toBeInTheDocument()

@@ -69,7 +69,7 @@ describe('AiAgentsOnboardingPrompt', () => {
   it('shows the missing state when no agents are installed', () => {
     renderPrompt()
 
-    expect(screen.getByText('Choose how Tolaria should use AI')).toBeInTheDocument()
+    expect(screen.getByText('Choose how Twolaria should use AI')).toBeInTheDocument()
     expect(screen.getByTestId('claude-onboarding-screen')).toBeInTheDocument()
     expect(screen.getByText('Claude Code not detected')).toBeInTheDocument()
     expect(screen.getByTestId('ai-agents-onboarding-install-claude_code')).toBeInTheDocument()

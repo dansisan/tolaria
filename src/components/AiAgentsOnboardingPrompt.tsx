@@ -33,7 +33,7 @@ function getPromptCopy(statuses: AiAgentsStatus) {
       accentClassName: 'bg-[var(--feedback-warning-bg)] text-[var(--feedback-warning-text)]',
       description: 'Connect a local model, an API provider, or a desktop coding agent.',
       icon: <Bot className="size-7" />,
-      title: 'Choose how Tolaria should use AI',
+      title: 'Choose how Twolaria should use AI',
     }
   }
 
