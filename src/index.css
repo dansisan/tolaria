@@ -180,21 +180,26 @@
 /* Dark mode follows Ghostty's default scheme: background #282c34,
    foreground #ffffff, and its default ANSI palette (Tomorrow Night).
    Surfaces are a ladder around #282c34; a few roles Ghostty has no ANSI
-   slot for (orange, pink, dim comment grey) are derived and marked. */
+   slot for (orange, pink, dim comment grey) are derived and marked.
+   The surface split inverts light mode: there the content panes (app, editor,
+   note list, inspector) are the lightest tone and the leftmost sidebar steps
+   down to grey; here the content panes take the darkest tone and the sidebar
+   steps up. Only the leftmost pane differs from the content tone in either
+   theme. */
 :root.dark,
 [data-theme="dark"] {
   color-scheme: dark;
 
   /* --- Semantic surfaces (dark mode) --- */
-  --surface-app: #282C34;
-  --surface-sidebar: #21252B;
-  --surface-panel: #2F343D;
-  --surface-card: #2F343D;
+  --surface-app: #21252B;
+  --surface-sidebar: #282C34;
+  --surface-panel: #21252B;
+  --surface-card: #21252B;
   --surface-popover: #333945;
   --surface-input: #21252B;
   --surface-button: #3B4048;
   --surface-dialog: #2F343D;
-  --surface-editor: #282C34;
+  --surface-editor: #21252B;
   --surface-overlay: rgba(16, 18, 22, 0.6);
 
   /* --- Semantic text (dark mode) --- */
@@ -288,7 +293,9 @@
   --diff-removed-text: #D54E53;
   --diff-removed-bg: rgba(213, 78, 83, 0.14);
   --diff-hunk-bg: rgba(122, 166, 218, 0.13);
-  --editor-code-block-background: #21252B;
+  /* One step above the editor surface — the editor is now the darkest tone, so
+     a code block has to rise off it rather than sink into it. */
+  --editor-code-block-background: #2F343D;
   --editor-code-block-border: transparent;
   --editor-code-block-text: #C5C8C6;
   --editor-code-block-language: rgba(197, 200, 198, 0.7);

@@ -37,7 +37,7 @@
   flex-direction: column;
   position: relative;
   z-index: 20;
-  background: var(--surface-sidebar);
+  background: var(--surface-card);
 }
 
 /* Active-pane cue. When the note list is active (incl. body-focus keyboard nav,
