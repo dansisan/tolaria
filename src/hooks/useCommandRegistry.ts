@@ -85,7 +85,6 @@ interface CommandRegistryConfig {
   redoLabel?: string | null
   onPastePlainText: () => void
   onOpenSettings: () => void
-  onOpenFeedback?: () => void
   onOpenVault?: () => void
   onCreateEmptyVault?: () => void
   onAddRemote?: () => void
@@ -157,7 +156,7 @@ export function useCommandRegistry(config: CommandRegistryConfig): import('./com
   const {
     activeTabPath, entries, entriesPending, modifiedCount,
     onQuickOpen, onCreateNote, onCreateNoteForDate, onCreateNoteOfType, onSave, onUndo, onRedo, canUndo, canRedo, undoLabel, redoLabel,
-    onPastePlainText, onOpenSettings, onOpenFeedback,
+    onPastePlainText, onOpenSettings,
     onDeleteNote, onArchiveNote, onUnarchiveNote,
     onCommitPush, onPull, onResolveConflicts, onSetViewMode, onToggleInspector, onToggleDiff, onToggleRawEditor, onFindInNote, onReplaceInNote,
     noteWidth, defaultNoteWidth, onSetNoteWidth, onSetDefaultNoteWidth, onToggleAIChat, onToggleTableOfContents, onOpenVault, onCreateEmptyVault,
@@ -279,11 +278,11 @@ export function useCommandRegistry(config: CommandRegistryConfig): import('./com
 
   const settingsCommands = useMemo(() => buildSettingsCommands({
     mcpStatus, vaultCount, isGettingStartedHidden,
-    onOpenSettings, onOpenFeedback, onOpenVault, onCreateEmptyVault, onRemoveActiveVault, onRestoreGettingStarted,
+    onOpenSettings, onOpenVault, onCreateEmptyVault, onRemoveActiveVault, onRestoreGettingStarted,
     onCheckForUpdates, onInstallMcp, onReloadVault, onRepairVault, onRecomputeMetadata,
     locale, systemLocale, selectedUiLanguage, onSetUiLanguage, onSetThemeMode,
   }), [
-    mcpStatus, vaultCount, isGettingStartedHidden, onOpenSettings, onOpenFeedback,
+    mcpStatus, vaultCount, isGettingStartedHidden, onOpenSettings,
     onOpenVault, onCreateEmptyVault, onRemoveActiveVault, onRestoreGettingStarted,
     onCheckForUpdates, onInstallMcp, onReloadVault, onRepairVault, onRecomputeMetadata,
     locale, systemLocale, selectedUiLanguage, onSetUiLanguage, onSetThemeMode,

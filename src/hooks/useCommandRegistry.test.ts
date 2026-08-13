@@ -693,20 +693,6 @@ describe('useCommandRegistry', () => {
     expect(findCommand(result.current, 'open-daily-note')).toBeUndefined()
   })
 
-  it('includes Contribute in the Settings group when available', () => {
-    const onOpenFeedback = vi.fn()
-    const config = makeConfig({ onOpenFeedback })
-    const { result } = renderHook(() => useCommandRegistry(config))
-    const cmd = findCommand(result.current, 'open-contribute')
-    expect(cmd).toBeDefined()
-    expect(cmd!.label).toBe('Contribute')
-    expect(cmd!.group).toBe('Settings')
-    expect(cmd!.enabled).toBe(true)
-
-    cmd!.execute()
-    expect(onOpenFeedback).toHaveBeenCalledOnce()
-  })
-
   it('keeps a single canonical New Note command when generic note types are present', () => {
     const config = makeConfig({
       entries: [

@@ -91,8 +91,6 @@ export default defineConfig({
           { text: "View Filters", link: "/reference/view-filters" },
           { text: "Keyboard Shortcuts", link: "/reference/keyboard-shortcuts" },
           { text: "Release Channels", link: "/reference/release-channels" },
-          { text: "Contribute", link: "/reference/contribute" },
-          { text: "Docs Maintenance", link: "/reference/docs-maintenance" },
         ],
       },
       {

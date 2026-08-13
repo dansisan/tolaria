@@ -43,7 +43,6 @@ interface AppCommandsConfig {
   onSave: () => void
   onCloseNote?: () => void
   onOpenSettings: () => void
-  onOpenFeedback?: () => void
   onDeleteNote: (path: string) => void
   onArchiveNote: (path: string) => void
   onUnarchiveNote: (path: string) => void
@@ -185,7 +184,6 @@ type CommandRegistryCoreActions = Pick<
   | 'onReplaceInNote'
   | 'onPastePlainText'
   | 'onOpenSettings'
-  | 'onOpenFeedback'
   | 'onDeleteNote'
   | 'onArchiveNote'
   | 'onUnarchiveNote'
@@ -504,7 +502,6 @@ function createCommandRegistryCoreConfig(
     undoLabel: config.undoLabel,
     redoLabel: config.redoLabel,
     onOpenSettings: config.onOpenSettings,
-    onOpenFeedback: config.onOpenFeedback,
     onDeleteNote: config.onDeleteNote,
     onArchiveNote: config.onArchiveNote,
     onUnarchiveNote: config.onUnarchiveNote,

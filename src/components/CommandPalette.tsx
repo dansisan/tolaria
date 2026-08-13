@@ -7,7 +7,6 @@ import type { NoteReference } from '../utils/ai-context'
 import type { CommandAction, CommandGroup } from '../hooks/useCommandRegistry'
 import { groupSortKey } from '../hooks/useCommandRegistry'
 import { localizeCommandGroup } from '../hooks/commands/localizeCommands'
-import { rememberFeedbackDialogOpener } from '../lib/feedbackDialogOpener'
 import { createTranslator, type AppLocale } from '../lib/i18n'
 import { formatDroppedPathList } from './inlineWikilinkDropText'
 import { CommandPaletteAiMode } from './CommandPaletteAiMode'
@@ -111,14 +110,6 @@ function usePaletteResults(commands: CommandAction[], query: string) {
     groups,
     flatList: groups.flatMap((group) => group.items),
   }
-}
-
-function rememberCommandOpener(
-  command: CommandAction,
-  target: HTMLInputElement | HTMLDivElement | null,
-) {
-  if (command.id !== 'open-contribute') return
-  rememberFeedbackDialogOpener(target instanceof HTMLElement ? target : null)
 }
 
 function inputSelectionRange(input: HTMLInputElement, fallbackIndex: number) {
@@ -350,7 +341,6 @@ function OpenCommandPalette({
         event.preventDefault()
         const command = flatList.at(selectedIndex)
         if (!command) return
-        rememberCommandOpener(command, inputRef.current)
         onClose()
         command.execute()
       }
@@ -395,7 +385,6 @@ function OpenCommandPalette({
   }
 
   const handleSelectCommand = (command: CommandAction) => {
-    rememberCommandOpener(command, inputRef.current)
     onClose()
     command.execute()
   }

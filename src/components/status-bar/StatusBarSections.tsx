@@ -1,11 +1,9 @@
-import { BookOpen, GearSix as Settings, Megaphone, Moon, Package, Sun, type IconProps } from '@phosphor-icons/react'
-import type { ComponentType, MouseEventHandler } from 'react'
+import { GearSix as Settings, Moon, Package, Sun } from '@phosphor-icons/react'
 import type { McpStatus } from '../../hooks/useMcpStatus'
 import type { ThemeMode } from '../../lib/themeMode'
-import { translate, type AppLocale, type TranslationKey } from '../../lib/i18n'
+import { translate, type AppLocale } from '../../lib/i18n'
 import { useStatusBarAddRemote } from '../../hooks/useStatusBarAddRemote'
 import type { GitRemoteStatus, SyncStatus } from '../../types'
-import { rememberFeedbackDialogOpener } from '../../lib/feedbackDialogOpener'
 import { ActionTooltip } from '@/components/ui/action-tooltip'
 import { AddRemoteModal } from '../AddRemoteModal'
 import { Button } from '@/components/ui/button'
@@ -85,8 +83,6 @@ interface StatusBarSecondarySectionProps {
   themeMode?: ThemeMode
   onZoomReset?: () => void
   onToggleThemeMode?: () => void
-  onOpenFeedback?: () => void
-  onOpenDocs?: () => void
   onOpenSettings?: () => void
   stacked?: boolean
   compact?: boolean
@@ -212,94 +208,6 @@ function StatusBarPrimaryBadges({
       ) : null}
       {mcpStatus && <McpBadge status={mcpStatus} onInstall={onInstallMcp} showSeparator={!compact} compact={compact} locale={locale} />}
     </>
-  )
-}
-
-type StatusLinkButtonProps = {
-  compact: boolean
-  icon: ComponentType<IconProps>
-  labelKey: TranslationKey
-  locale: AppLocale
-  onClick: MouseEventHandler<HTMLButtonElement>
-  testId: string
-  tooltipKey: TranslationKey
-}
-
-function StatusLinkButton({
-  compact,
-  icon: Icon,
-  labelKey,
-  locale,
-  onClick,
-  testId,
-  tooltipKey,
-}: StatusLinkButtonProps) {
-  const className = compact
-    ? 'h-6 w-6 rounded-sm p-0 text-muted-foreground hover:text-foreground'
-    : 'h-6 px-2 text-[12px] font-medium text-muted-foreground hover:text-foreground'
-
-  return (
-    <ActionTooltip copy={{ label: translate(locale, tooltipKey) }} side="top">
-      <Button
-        type="button"
-        variant="ghost"
-        size="xs"
-        className={className}
-        onClick={onClick}
-        aria-label={translate(locale, tooltipKey)}
-        data-testid={testId}
-      >
-        <Icon size={14} weight="regular" />
-        {compact ? null : translate(locale, labelKey)}
-      </Button>
-    </ActionTooltip>
-  )
-}
-
-function FeedbackButton({
-  compact,
-  locale,
-  onOpenFeedback,
-}: {
-  compact: boolean
-  locale: AppLocale
-  onOpenFeedback: () => void
-}) {
-  return (
-    <StatusLinkButton
-      compact={compact}
-      icon={Megaphone}
-      labelKey="status.feedback.label"
-      locale={locale}
-      onClick={(event) => {
-        rememberFeedbackDialogOpener(event.currentTarget)
-        onOpenFeedback()
-      }}
-      testId="status-feedback"
-      tooltipKey="status.feedback.contribute"
-    />
-  )
-}
-
-function DocsButton({
-  compact,
-  locale,
-  onOpenDocs,
-}: {
-  compact: boolean
-  locale: AppLocale
-  onOpenDocs: () => void
-}) {
-  return (
-    <StatusLinkButton
-      compact={compact}
-      icon={BookOpen}
-      labelKey="status.docs.label"
-      locale={locale}
-      onClick={onOpenDocs}
-      testId="status-docs"
-      tooltipKey="status.docs.open"
-    />
   )
 }
 
@@ -496,8 +404,6 @@ export function StatusBarSecondarySection({
   themeMode = 'light',
   onZoomReset,
   onToggleThemeMode,
-  onOpenFeedback,
-  onOpenDocs,
   onOpenSettings,
   locale = 'en',
   stacked = false,
@@ -535,8 +441,6 @@ export function StatusBarSecondarySection({
           </Button>
         </ActionTooltip>
       )}
-      {onOpenFeedback && <FeedbackButton compact={compact} locale={locale} onOpenFeedback={onOpenFeedback} />}
-      {onOpenDocs && <DocsButton compact={compact} locale={locale} onOpenDocs={onOpenDocs} />}
       <ActionTooltip copy={themeTooltip} side="top" align="end" contentTestId="status-theme-mode-tooltip">
         <Button
           type="button"
