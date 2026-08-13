@@ -387,10 +387,34 @@ describe('SearchPanel', () => {
     const { input } = await renderSearchWithResults()
 
     await act(async () => {
-      dispatchKeyboardEvent(input, 'keydown', 'ArrowDown')
+      dispatchKeyboardEvent(input, 'keydown', 'ArrowDown', { timeStamp: 1_000 })
       dispatchKeyboardEvent(input, 'keyup', 'ArrowDown')
-      await new Promise(resolve => setTimeout(resolve, 520))
-      dispatchKeyboardEvent(input, 'keydown', 'ArrowDown')
+      dispatchKeyboardEvent(input, 'keydown', 'ArrowDown', { timeStamp: 1_020 })
+    })
+
+    await waitFor(() => expectSelectedResult('Search Patterns'))
+  })
+
+  it('advances once per held ArrowDown key repeat', async () => {
+    const { input } = await renderSearchWithResults()
+
+    await act(async () => {
+      dispatchKeyboardEvent(input, 'keydown', 'ArrowDown', { timeStamp: 1_000 })
+      dispatchKeyboardEvent(input, 'keydown', 'ArrowDown', { repeat: true, timeStamp: 1_015 })
+    })
+
+    await waitFor(() => expectSelectedResult('Search Patterns'))
+  })
+
+  it('keeps distinct presses that a stalled main thread delivers back to back', async () => {
+    const { input } = await renderSearchWithResults()
+
+    // Both keydowns are handled in the same tick after the stall, so only the event
+    // timestamps still carry the real gap between the two presses.
+    await act(async () => {
+      dispatchKeyboardEvent(input, 'keydown', 'ArrowDown', { timeStamp: 1_000 })
+      dispatchKeyboardEvent(input, 'keyup', 'ArrowDown')
+      dispatchKeyboardEvent(input, 'keydown', 'ArrowDown', { timeStamp: 1_200 })
     })
 
     await waitFor(() => expectSelectedResult('Search Patterns'))

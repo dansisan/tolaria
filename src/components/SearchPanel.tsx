@@ -21,7 +21,10 @@ interface SearchPanelProps {
 
 type SearchKeyboardAction = 'close' | 'next' | 'previous' | 'select'
 // WKWebView can emit duplicate non-text navigation keydowns around native key injection.
-const NATIVE_KEYDOWN_DUPLICATE_WINDOW_MS = 500
+// A duplicate carries the timestamp of the physical key event it clones, so the window only
+// has to cover clock jitter between the two copies. It must stay well under the fastest
+// macOS key-repeat interval (~15ms), otherwise it throttles real arrow-key navigation.
+const NATIVE_KEYDOWN_DUPLICATE_WINDOW_MS = 4
 const handledSearchKeyboardEvents = new WeakSet<Event>()
 
 interface SearchKeyboardEvent {
@@ -115,11 +118,14 @@ function rememberSearchKeydown(
   if (timeStamp !== null) recentKeydownRef.current = { key: event.key, timeStamp }
 }
 
+// Prefer the event's own timestamp: it records when the key was pressed, so a stalled main
+// thread cannot make two distinct presses look like one duplicated event.
 function resolveSearchKeyboardEventTimestamp(event: SearchKeyboardEvent): number | null {
-  if (typeof performance !== 'undefined' && typeof performance.now === 'function') return performance.now()
-
   const { timeStamp } = event
-  return typeof timeStamp === 'number' && Number.isFinite(timeStamp) ? timeStamp : null
+  if (typeof timeStamp === 'number' && Number.isFinite(timeStamp) && timeStamp > 0) return timeStamp
+
+  if (typeof performance !== 'undefined' && typeof performance.now === 'function') return performance.now()
+  return null
 }
 
 function resolveSearchKeyboardEventIdentity(event: SearchKeyboardEvent): Event | null {
