@@ -200,8 +200,7 @@ flowchart TD
         FE -->|"Tauri IPC"| RB
         CLI -->|"spawn subprocess"| CCLI
         LIB -->|"register / monitor"| MCP
-        GIT -->|"status / log / diff (libgit2, in-process)"| GIT
-        GIT -->|"commit / clone / fetch / push / pull"| GCLI
+        GIT -->|"clone / fetch / push / pull"| GCLI
         GCLI -->|"network auth via user config"| REMOTE
     end
 

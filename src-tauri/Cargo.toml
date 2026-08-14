@@ -50,6 +50,5 @@ tempfile = "3"
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 tauri-plugin-deep-link = "2.4.9"
 tauri-plugin-single-instance = { version = "2.4.2", features = ["deep-link"] }
-git2 = { version = "0.21.0", default-features = false }
 
 [dev-dependencies]

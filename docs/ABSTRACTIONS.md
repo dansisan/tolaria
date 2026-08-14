@@ -484,10 +484,7 @@ The `with_frontmatter()` helper wraps this in a read-transform-write cycle on th
 
 ## Git Integration
 
-Git operations live in `src-tauri/src/git/`. Reads run in-process through libgit2 (`git2`); writes shell out to the `git` CLI. See [ADR-0141](adr/0141-libgit2-for-read-only-git-operations.md).
-
-- **libgit2 reads** — vault pulse, last-commit info, file history, file diffs (working tree, staged, at a commit), modified-file status with line stats, per-file git dates, single-file status. `git/repo.rs` owns the shared primitives: open, HEAD commit, HEAD-first revwalk (`TIME | TOPOLOGICAL`, so same-second commits stay ordered), per-commit changed files, and `%h`-equivalent short hashes. Patch rendering undoes libgit2's `core.quotePath=true`-style escaping so Unicode note filenames appear as UTF-8 in diff headers.
-- **CLI writes** — commit, pull, push, clone, remote connect/disconnect, conflict resolution, discard. These stay on the CLI because libgit2 does not provide commit signing, repository hooks, credential helpers, or automatic `gc`. Path-producing CLI commands still use `core.quotePath=false`, and every CLI invocation pins `LC_ALL=C` with `LANGUAGE` cleared so the phrase matching that classifies git failures does not depend on the user's locale.
+Git operations live in `src-tauri/src/git/`. All operations shell out to the `git` CLI (not libgit2). Path-producing commands use `core.quotePath=false` so Unicode note filenames stay as UTF-8 paths across status, history, cache invalidation, and rename detection.
 
 ### Data Types
 

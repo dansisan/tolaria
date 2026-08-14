@@ -1,10 +1,7 @@
+use super::git_command;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::path::Path;
-
-use git2::{Delta, Diff, DiffOptions, Patch, Repository, Status, StatusEntry, StatusOptions};
-
-use super::{git_command, repo};
 
 #[derive(Debug, Serialize, Clone)]
 pub struct ModifiedFile {
@@ -24,6 +21,12 @@ struct DiffStats {
     added_lines: Option<usize>,
     deleted_lines: Option<usize>,
     binary: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct StatusEntry {
+    status_code: String,
+    relative_path: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -57,110 +60,127 @@ impl FileChangeStatus {
     }
 }
 
-/// Render a libgit2 status as git's two-letter porcelain code (index column, then
-/// worktree column), so the status vocabulary the frontend receives stays
-/// byte-for-byte what the `git status --porcelain` parser produced.
-fn porcelain_code(status: Status) -> String {
-    if status.is_wt_new() && !status.is_index_new() {
-        return "??".to_string();
+fn split_nul_fields(output: &[u8]) -> Vec<String> {
+    output
+        .split(|byte| *byte == 0)
+        .filter(|field| !field.is_empty())
+        .map(|field| String::from_utf8_lossy(field).into_owned())
+        .collect()
+}
+
+fn status_has_source_path(status_code: &str) -> bool {
+    status_code.contains('R') || status_code.contains('C')
+}
+
+fn parse_status_field(field: &str) -> Option<StatusEntry> {
+    if field.len() < 4 {
+        return None;
     }
 
-    format!("{}{}", index_column(status), worktree_column(status))
+    Some(StatusEntry {
+        status_code: field[..2].to_string(),
+        relative_path: field[3..].to_string(),
+    })
 }
 
-fn index_column(status: Status) -> char {
-    if status.is_index_new() {
-        'A'
-    } else if status.is_index_modified() {
-        'M'
-    } else if status.is_index_deleted() {
-        'D'
-    } else if status.is_index_renamed() {
-        'R'
-    } else if status.is_index_typechange() {
-        'T'
-    } else {
-        ' '
-    }
-}
+fn parse_status_output(output: &[u8]) -> Vec<StatusEntry> {
+    let fields = split_nul_fields(output);
+    let mut entries = Vec::new();
+    let mut index = 0;
 
-fn worktree_column(status: Status) -> char {
-    if status.is_wt_modified() {
-        'M'
-    } else if status.is_wt_deleted() {
-        'D'
-    } else if status.is_wt_renamed() {
-        'R'
-    } else if status.is_wt_typechange() {
-        'T'
-    } else {
-        ' '
-    }
-}
-
-/// Line counts for every path that differs between HEAD and the working tree —
-/// the equivalent of `git diff --numstat --find-renames HEAD`.
-fn load_diff_stats(repository: &Repository) -> Result<HashMap<String, DiffStats>, git2::Error> {
-    let Some(head) = repo::head_commit(repository)? else {
-        return Ok(HashMap::new());
-    };
-
-    let tree = head.tree()?;
-    let mut options = DiffOptions::new();
-    let mut diff = repository.diff_tree_to_workdir_with_index(Some(&tree), Some(&mut options))?;
-    diff.find_similar(None)?;
-
-    diff_stats_by_path(&diff)
-}
-
-fn diff_stats_by_path(diff: &Diff) -> Result<HashMap<String, DiffStats>, git2::Error> {
-    let mut stats = HashMap::new();
-
-    for index in 0..diff.deltas().len() {
-        let Some(path) = delta_path(diff, index) else {
+    while index < fields.len() {
+        let Some(entry) = parse_status_field(&fields[index]) else {
+            index += 1;
             continue;
         };
-        stats.insert(path, delta_stats(diff, index)?);
+        let has_source_path = status_has_source_path(&entry.status_code);
+        entries.push(entry);
+        index += if has_source_path { 2 } else { 1 };
     }
 
-    Ok(stats)
+    entries
 }
 
-fn delta_path(diff: &Diff, index: usize) -> Option<String> {
-    let delta = diff.get_delta(index)?;
-    let path = delta
-        .new_file()
-        .path()
-        .or_else(|| delta.old_file().path())?;
-
-    Some(path.to_string_lossy().to_string())
+fn parse_numstat_field(field: &str) -> Option<usize> {
+    field.parse().ok()
 }
 
-/// Binary files report no line counts, matching numstat's `-` columns.
-fn delta_stats(diff: &Diff, index: usize) -> Result<DiffStats, git2::Error> {
-    let patch = Patch::from_diff(diff, index)?;
+fn parse_numstat_header(header: &str) -> Option<(Option<String>, DiffStats)> {
+    let mut parts = header.splitn(3, '\t');
+    let added = parts.next()?;
+    let deleted = parts.next()?;
+    let path = parts.next()?;
 
-    let is_binary = diff
-        .get_delta(index)
-        .is_some_and(|delta| delta.flags().is_binary() || delta.status() == Delta::Unreadable);
-    if is_binary {
-        return Ok(DiffStats {
-            added_lines: None,
-            deleted_lines: None,
-            binary: true,
-        });
+    let added_lines = parse_numstat_field(added);
+    let deleted_lines = parse_numstat_field(deleted);
+    let binary = added == "-" || deleted == "-";
+
+    Some((
+        (!path.is_empty()).then(|| path.to_string()),
+        DiffStats {
+            added_lines,
+            deleted_lines,
+            binary,
+        },
+    ))
+}
+
+fn parse_numstat_output(output: &[u8]) -> HashMap<String, DiffStats> {
+    let fields = split_nul_fields(output);
+    let mut stats = HashMap::new();
+    let mut index = 0;
+
+    while index < fields.len() {
+        let Some((path, diff_stats)) = parse_numstat_header(&fields[index]) else {
+            index += 1;
+            continue;
+        };
+
+        match path {
+            Some(path) => {
+                stats.insert(path, diff_stats);
+                index += 1;
+            }
+            None if index + 2 < fields.len() => {
+                stats.insert(fields[index + 2].clone(), diff_stats);
+                index += 3;
+            }
+            None => {
+                index += 1;
+            }
+        }
     }
 
-    let (_, added, deleted) = match patch {
-        Some(patch) => patch.line_stats()?,
-        None => (0, 0, 0),
-    };
+    stats
+}
 
-    Ok(DiffStats {
-        added_lines: Some(added),
-        deleted_lines: Some(deleted),
-        binary: false,
-    })
+fn repo_has_head(vault: &Path) -> Result<bool, String> {
+    let output = git_command()
+        .args(["rev-parse", "--verify", "HEAD"])
+        .current_dir(vault)
+        .output()
+        .map_err(|e| format!("Failed to run git rev-parse: {e}"))?;
+
+    Ok(output.status.success())
+}
+
+fn load_diff_stats(vault: &Path) -> Result<HashMap<String, DiffStats>, String> {
+    if !repo_has_head(vault)? {
+        return Ok(HashMap::new());
+    }
+
+    let output = git_command()
+        .args(["diff", "--numstat", "-z", "--find-renames", "HEAD", "--"])
+        .current_dir(vault)
+        .output()
+        .map_err(|e| format!("Failed to run git diff --numstat: {e}"))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("git diff --numstat failed: {}", stderr.trim()));
+    }
+
+    Ok(parse_numstat_output(&output.stdout))
 }
 
 fn count_worktree_lines(vault: &Path, relative_path: &Path) -> DiffStats {
@@ -220,14 +240,19 @@ fn ensure_path_within_vault(vault: &Path, relative_path: &Path, abs: &Path) -> R
     }
 }
 
-/// Trimmed porcelain code for a single file, or an empty string when the file is
-/// clean or unknown to git.
 fn load_file_status(vault: &Path, relative_path: &Path) -> Result<String, String> {
-    let repository = open_vault(vault)?;
+    let output = git_command()
+        .args(["status", "--porcelain", "--"])
+        .arg(relative_path)
+        .current_dir(vault)
+        .output()
+        .map_err(|e| format!("Failed to run git status: {e}"))?;
 
-    Ok(repository
-        .status_file(relative_path)
-        .map(|status| porcelain_code(status).trim().to_string())
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    Ok(stdout
+        .lines()
+        .find(|line| line.len() >= 4)
+        .map(|line| line[..2].trim().to_string())
         .unwrap_or_default())
 }
 
@@ -266,103 +291,55 @@ pub fn get_modified_files_with_stats(
 }
 
 fn get_modified_files_impl(vault: &Path, include_stats: bool) -> Result<Vec<ModifiedFile>, String> {
-    let repository = open_vault(vault)?;
+    let output = git_command()
+        .args(["status", "--porcelain=v1", "-z", "--untracked-files=all"])
+        .current_dir(vault)
+        .output()
+        .map_err(|e| format!("Failed to run git status: {e}"))?;
 
-    collect_modified_files(&repository, vault, include_stats)
-        .map_err(|error| format!("Failed to read git status: {}", error.message()))
-}
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("git status failed: {}", stderr.trim()));
+    }
 
-fn collect_modified_files(
-    repository: &Repository,
-    vault: &Path,
-    include_stats: bool,
-) -> Result<Vec<ModifiedFile>, git2::Error> {
     let diff_stats = if include_stats {
-        load_diff_stats(repository)?
+        load_diff_stats(vault)?
     } else {
         HashMap::new()
     };
-
-    let mut options = StatusOptions::new();
-    options
-        .include_untracked(true)
-        .recurse_untracked_dirs(true)
-        .renames_head_to_index(true)
-        .renames_index_to_workdir(true);
-
-    let statuses = repository.statuses(Some(&mut options))?;
-    let files = statuses
-        .iter()
+    let files = parse_status_output(&output.stdout)
+        .into_iter()
         .filter_map(|entry| {
-            let status = entry.status();
-            let relative_path = entry_path(&entry, status)?;
             // Only include markdown files
-            if !relative_path.ends_with(".md") {
+            if !entry.relative_path.ends_with(".md") {
                 return None;
             }
 
-            Some(modified_file(
+            let status = FileChangeStatus::from_code(&entry.status_code);
+            let full_path = vault
+                .join(&entry.relative_path)
+                .to_string_lossy()
+                .to_string();
+            let stats = resolve_diff_stats(
                 vault,
-                relative_path,
-                FileChangeStatus::from_code(&porcelain_code(status)),
+                Path::new(&entry.relative_path),
+                status,
                 &diff_stats,
                 include_stats,
-            ))
+            );
+
+            Some(ModifiedFile {
+                path: full_path,
+                relative_path: entry.relative_path,
+                status: status.label().to_string(),
+                added_lines: stats.added_lines,
+                deleted_lines: stats.deleted_lines,
+                binary: stats.binary,
+            })
         })
         .collect();
 
     Ok(files)
-}
-
-/// `git status --porcelain` lists a rename's destination path first, and that
-/// destination is what the rest of the app keys off. libgit2's `StatusEntry::path`
-/// reports the source instead, so renames read their new path off the delta.
-fn entry_path(entry: &StatusEntry, status: Status) -> Option<String> {
-    if status.is_index_renamed() || status.is_wt_renamed() {
-        if let Some(destination) = rename_destination(entry) {
-            return Some(destination);
-        }
-    }
-
-    entry.path().ok().map(ToString::to_string)
-}
-
-fn rename_destination(entry: &StatusEntry) -> Option<String> {
-    entry
-        .head_to_index()
-        .or_else(|| entry.index_to_workdir())?
-        .new_file()
-        .path()
-        .map(|path| path.to_string_lossy().to_string())
-}
-
-fn modified_file(
-    vault: &Path,
-    relative_path: String,
-    status: FileChangeStatus,
-    diff_stats: &HashMap<String, DiffStats>,
-    include_stats: bool,
-) -> ModifiedFile {
-    let stats = resolve_diff_stats(
-        vault,
-        Path::new(&relative_path),
-        status,
-        diff_stats,
-        include_stats,
-    );
-
-    ModifiedFile {
-        path: vault.join(&relative_path).to_string_lossy().to_string(),
-        relative_path,
-        status: status.label().to_string(),
-        added_lines: stats.added_lines,
-        deleted_lines: stats.deleted_lines,
-        binary: stats.binary,
-    }
-}
-
-fn open_vault(vault: &Path) -> Result<Repository, String> {
-    repo::open(vault).map_err(|error| format!("Failed to open git repository: {}", error.message()))
 }
 
 /// Discard uncommitted changes to a single file.
