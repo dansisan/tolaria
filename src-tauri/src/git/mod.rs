@@ -82,8 +82,22 @@ pub(crate) fn git_command() -> Command {
         command.env("PATH", path);
     }
     sanitize_linux_appimage_git_env(&mut command);
+    force_c_locale(&mut command);
     command.args(["-c", "core.quotePath=false"]);
     command
+}
+
+/// Pin git's message locale so stdout/stderr stay in English.
+///
+/// Callers classify git failures by matching phrases like "authentication failed"
+/// or "fetch first", and read status and log output by position. git translates
+/// its messages through gettext, so on a machine with a localized git every one
+/// of those checks silently stops matching. `LC_ALL=C` selects the untranslated
+/// messages; `LANGUAGE` is cleared because gettext consults it ahead of
+/// `LC_MESSAGES`.
+fn force_c_locale(command: &mut Command) {
+    command.env("LC_ALL", "C");
+    command.env_remove("LANGUAGE");
 }
 
 fn git_launch_config() -> &'static GitLaunchConfig {
@@ -478,6 +492,14 @@ mod tests {
 
         let content = fs::read_to_string(dir.path().join(".gitignore")).unwrap();
         assert_eq!(content, "my-rule\n");
+    }
+
+    #[test]
+    fn test_git_commands_force_c_locale_so_output_stays_parseable() {
+        let envs = command_envs(&git_command());
+
+        assert_eq!(envs.get("LC_ALL"), Some(&Some("C".to_string())));
+        assert_eq!(envs.get("LANGUAGE"), Some(&None));
     }
 
     #[test]
