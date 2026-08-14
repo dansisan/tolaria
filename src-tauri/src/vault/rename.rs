@@ -1073,7 +1073,7 @@ mod tests {
     }
 
     fn scan_fixture(vault: &Path) -> Vec<VaultEntry> {
-        crate::vault::scan_vault(vault, &std::collections::HashMap::new(), "created").unwrap()
+        crate::vault::scan_vault(vault, "created").unwrap()
     }
 
     /// `rename_note_filename` no longer takes or computes an `entries` list — the

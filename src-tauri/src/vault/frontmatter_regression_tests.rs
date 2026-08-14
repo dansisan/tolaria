@@ -15,7 +15,7 @@ fn create_test_file(dir: &Path, name: &str, content: &str) {
 
 fn parse_test_entry(dir: &TempDir, name: &str, content: &str) -> VaultEntry {
     create_test_file(dir.path(), name, content);
-    parse_md_file(&dir.path().join(name), None, "created").unwrap()
+    parse_md_file(&dir.path().join(name), "created").unwrap()
 }
 
 struct HiddenPropertyCase<'a> {
@@ -193,7 +193,11 @@ fn test_alias_collisions_keep_frontmatter_with_last_value_winning() {
 /// a UTC assumption, keeping the test deterministic regardless of what
 /// timezone actually runs it.
 fn local_epoch_secs(naive: chrono::NaiveDateTime) -> i64 {
-    naive.and_local_timezone(chrono::Local).single().unwrap().timestamp()
+    naive
+        .and_local_timezone(chrono::Local)
+        .single()
+        .unwrap()
+        .timestamp()
 }
 
 #[test]
@@ -308,7 +312,11 @@ fn test_frontmatter_tags_merged_with_body_tags_deduped() {
 
     let mut expected = vec!["alpha", "beta", "gamma"];
     expected.sort();
-    let mut actual = entry.inline_tags.iter().map(|s| s.as_str()).collect::<Vec<_>>();
+    let mut actual = entry
+        .inline_tags
+        .iter()
+        .map(|s| s.as_str())
+        .collect::<Vec<_>>();
     actual.sort();
     assert_eq!(actual, expected);
 }

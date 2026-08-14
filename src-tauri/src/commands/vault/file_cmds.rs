@@ -487,7 +487,7 @@ mod tests {
         .await
         .unwrap();
 
-        let entry = vault::parse_md_file(&note, None, "created").unwrap();
+        let entry = vault::parse_md_file(&note, "created").unwrap();
         let now = chrono::Utc::now().timestamp() as u64;
         let modified_at = entry.modified_at.unwrap();
 

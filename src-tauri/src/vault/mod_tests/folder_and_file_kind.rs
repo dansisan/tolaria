@@ -80,18 +80,18 @@ fn test_non_markdown_files_use_expected_titles_and_kinds() {
         "name: Active Projects\nicon: rocket\ncolor: blue\n",
     )
     .unwrap();
-    let named_yml_entry = super::parse_non_md_file(&named_yml_path, None).unwrap();
+    let named_yml_entry = super::parse_non_md_file(&named_yml_path).unwrap();
     assert_eq!(named_yml_entry.title, "Active Projects");
     assert_eq!(named_yml_entry.filename, "active-projects.yml");
 
     let unnamed_yml_path = dir.path().join("config.yml");
     std::fs::write(&unnamed_yml_path, "key: value\n").unwrap();
-    let unnamed_yml_entry = super::parse_non_md_file(&unnamed_yml_path, None).unwrap();
+    let unnamed_yml_entry = super::parse_non_md_file(&unnamed_yml_path).unwrap();
     assert_eq!(unnamed_yml_entry.title, "config.yml");
 
     let txt_path = dir.path().join("notes.txt");
     std::fs::write(&txt_path, "some content").unwrap();
-    let txt_entry = super::parse_non_md_file(&txt_path, None).unwrap();
+    let txt_entry = super::parse_non_md_file(&txt_path).unwrap();
     assert_eq!(txt_entry.title, "notes.txt");
 
     create_test_file(
@@ -99,7 +99,7 @@ fn test_non_markdown_files_use_expected_titles_and_kinds() {
         "views/my-view.yml",
         "name: My View\nicon: rocket\n",
     );
-    let text_entry = super::parse_non_md_file(&dir.path().join("views/my-view.yml"), None).unwrap();
+    let text_entry = super::parse_non_md_file(&dir.path().join("views/my-view.yml")).unwrap();
     assert_eq!(text_entry.file_kind, "text");
     assert_eq!(text_entry.title, "My View");
 }

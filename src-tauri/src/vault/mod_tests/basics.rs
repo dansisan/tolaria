@@ -94,7 +94,8 @@ fn test_parse_no_frontmatter() {
     let content = "# A Note Without Frontmatter\n\nJust markdown.";
     create_test_file(dir.path(), "a-note-without-frontmatter.md", content);
 
-    let entry = parse_md_file(&dir.path().join("a-note-without-frontmatter.md"), None, "created").unwrap();
+    let entry =
+        parse_md_file(&dir.path().join("a-note-without-frontmatter.md"), "created").unwrap();
     assert_eq!(entry.title, "a-note-without-frontmatter");
 }
 
@@ -104,7 +105,7 @@ fn test_parse_single_string_aliases() {
     let content = "---\naliases: SingleAlias\n---\n# Test\n";
     create_test_file(dir.path(), "single-alias.md", content);
 
-    let entry = parse_md_file(&dir.path().join("single-alias.md"), None, "created").unwrap();
+    let entry = parse_md_file(&dir.path().join("single-alias.md"), "created").unwrap();
     assert_eq!(entry.aliases, vec!["SingleAlias"]);
 }
 
@@ -114,7 +115,7 @@ fn test_parse_malformed_yaml() {
     let content = "---\nIs A: [unclosed bracket\n---\n# Malformed\n";
     create_test_file(dir.path(), "malformed.md", content);
 
-    let entry = parse_md_file(&dir.path().join("malformed.md"), None, "created");
+    let entry = parse_md_file(&dir.path().join("malformed.md"), "created");
     assert!(entry.is_ok());
 }
 
@@ -124,7 +125,7 @@ fn test_parse_md_file_has_snippet() {
     let content = "---\nIs A: Note\n---\n# Test Note\n\nHello, world! This is a snippet.";
     create_test_file(dir.path(), "test.md", content);
 
-    let entry = parse_md_file(&dir.path().join("test.md"), None, "created").unwrap();
+    let entry = parse_md_file(&dir.path().join("test.md"), "created").unwrap();
     assert_eq!(entry.snippet, "Hello, world! This is a snippet.");
 }
 
@@ -135,7 +136,7 @@ fn test_parse_md_file_has_word_count() {
         "---\nIs A: Note\n---\n# Test Note\n\nHello world. This is a test with seven words.";
     create_test_file(dir.path(), "test.md", content);
 
-    let entry = parse_md_file(&dir.path().join("test.md"), None, "created").unwrap();
+    let entry = parse_md_file(&dir.path().join("test.md"), "created").unwrap();
     assert_eq!(entry.word_count, 9);
 }
 
@@ -145,6 +146,6 @@ fn test_parse_md_file_word_count_empty_body() {
     let content = "---\nIs A: Note\n---\n# Empty Note\n";
     create_test_file(dir.path(), "test.md", content);
 
-    let entry = parse_md_file(&dir.path().join("test.md"), None, "created").unwrap();
+    let entry = parse_md_file(&dir.path().join("test.md"), "created").unwrap();
     assert_eq!(entry.word_count, 0);
 }

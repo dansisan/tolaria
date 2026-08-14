@@ -6,9 +6,6 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use uuid::Uuid;
 
-use crate::git::GitDates;
-use std::collections::HashMap;
-
 use super::path_identity::{
     normalize_path_for_identity, push_unique_relative_path, relative_path_key,
     vault_relative_path_string,
@@ -453,27 +450,18 @@ fn to_relative_path_key(abs_path: &str, vault: &Path) -> String {
 
 /// Parse files from a list of relative paths, skipping any that don't exist.
 /// Dispatches to the appropriate parser based on file extension.
-fn parse_files_at(
-    vault: &Path,
-    rel_paths: &[String],
-    git_dates: &HashMap<String, GitDates>,
-    fm_created_key: &str,
-) -> Vec<VaultEntry> {
+fn parse_files_at(vault: &Path, rel_paths: &[String], fm_created_key: &str) -> Vec<VaultEntry> {
     rel_paths
         .iter()
         .filter_map(|rel| {
             let abs = vault.join(rel);
-            if abs.is_file() {
-                let dates = git_dates
-                    .get(rel.as_str())
-                    .map(|d| (d.modified_at, d.created_at));
-                if is_md_file(&abs) {
-                    parse_md_file(&abs, dates, fm_created_key).ok()
-                } else {
-                    parse_non_md_file(&abs, dates).ok()
-                }
+            if !abs.is_file() {
+                return None;
+            }
+            if is_md_file(&abs) {
+                parse_md_file(&abs, fm_created_key).ok()
             } else {
-                None
+                parse_non_md_file(&abs).ok()
             }
         })
         .collect()
@@ -594,7 +582,6 @@ fn write_entries_to_cache(
 fn update_same_commit(
     vault: &Path,
     loaded_cache: LoadedCache,
-    git_dates: &HashMap<String, GitDates>,
     fm_created_key: &str,
 ) -> Vec<VaultEntry> {
     let LoadedCache { cache, fingerprint } = loaded_cache;
@@ -605,7 +592,7 @@ fn update_same_commit(
         let changed_set: std::collections::HashSet<String> =
             changed.iter().map(|path| relative_path_key(path)).collect();
         entries.retain(|e| !changed_set.contains(&to_relative_path_key(&e.path, vault)));
-        entries.extend(parse_files_at(vault, &changed, git_dates, fm_created_key));
+        entries.extend(parse_files_at(vault, &changed, fm_created_key));
     }
     // Always prune: this removes entries for files deleted outside git (e.g.,
     // via Finder or another app), which git status does not report.
@@ -623,7 +610,6 @@ fn update_different_commit(
     vault: &Path,
     loaded_cache: LoadedCache,
     current_hash: String,
-    git_dates: &HashMap<String, GitDates>,
     fm_created_key: &str,
 ) -> Vec<VaultEntry> {
     let LoadedCache { cache, fingerprint } = loaded_cache;
@@ -638,7 +624,7 @@ fn update_different_commit(
         .into_iter()
         .filter(|e| !changed_set.contains(&to_relative_path_key(&e.path, vault)))
         .collect();
-    entries.extend(parse_files_at(vault, &changed_files, git_dates, fm_created_key));
+    entries.extend(parse_files_at(vault, &changed_files, fm_created_key));
 
     finalize_and_cache(vault, entries, current_hash, Some(fingerprint))
 }
@@ -652,12 +638,11 @@ fn cache_requires_full_rescan(cache: &VaultCache, vault_path: &Path) -> bool {
 
 fn scan_and_cache_full(
     vault_path: &Path,
-    git_dates: &HashMap<String, GitDates>,
     current_hash: String,
     expected_previous: Option<CacheFileFingerprint>,
     fm_created_key: &str,
 ) -> Result<Vec<VaultEntry>, String> {
-    let entries = scan_vault(vault_path, git_dates, fm_created_key)?;
+    let entries = scan_vault(vault_path, fm_created_key)?;
     Ok(finalize_and_cache(
         vault_path,
         entries,
@@ -692,7 +677,7 @@ pub fn scan_vault_cached(vault_path: &Path) -> Result<Vec<VaultEntry>, String> {
 
     let current_hash = match git_head_hash(vault_path) {
         Some(h) => h,
-        None => return scan_vault(vault_path, &HashMap::new(), &fm_key),
+        None => return scan_vault(vault_path, &fm_key),
     };
 
     match load_cache(vault_path) {
@@ -706,20 +691,18 @@ pub fn scan_vault_cached(vault_path: &Path) -> Result<Vec<VaultEntry>, String> {
             if cache_requires_full_rescan(&loaded_cache.cache, vault_path) {
                 return scan_and_cache_full(
                     vault_path,
-                    &HashMap::new(),
                     current_hash,
                     Some(loaded_cache.fingerprint),
                     &fm_key,
                 );
             }
             return if loaded_cache.cache.commit_hash == current_hash {
-                Ok(update_same_commit(vault_path, loaded_cache, &HashMap::new(), &fm_key))
+                Ok(update_same_commit(vault_path, loaded_cache, &fm_key))
             } else {
                 Ok(update_different_commit(
                     vault_path,
                     loaded_cache,
                     current_hash,
-                    &HashMap::new(),
                     &fm_key,
                 ))
             };
@@ -727,7 +710,7 @@ pub fn scan_vault_cached(vault_path: &Path) -> Result<Vec<VaultEntry>, String> {
     }
 
     // No cache — full scan and write cache
-    scan_and_cache_full(vault_path, &HashMap::new(), current_hash, None, &fm_key)
+    scan_and_cache_full(vault_path, current_hash, None, &fm_key)
 }
 
 #[cfg(test)]
@@ -1370,7 +1353,7 @@ mod tests {
 
         // Simulate a stale cache written by old code that parsed Archived: Yes as false
         let stale_entry = {
-            let mut e = parse_md_file(&vault.join("note.md"), None, "created").unwrap();
+            let mut e = parse_md_file(&vault.join("note.md"), "created").unwrap();
             e.archived = false; // simulate old parser behavior
             e
         };
