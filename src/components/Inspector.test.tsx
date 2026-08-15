@@ -689,6 +689,64 @@ Status: Active
       expect(screen.queryByText('Type')).not.toBeInTheDocument()
     })
 
+    it('offers to add dates when the note has frontmatter but no dates', () => {
+      render(
+        <Inspector
+          {...defaultProps}
+          entry={noFrontmatterEntry}
+          content={'---\ntype: Note\n---\n# Dropped by an agent'}
+          onAddNoteDates={vi.fn()}
+        />
+      )
+
+      expect(screen.getByTestId('note-dates-panel')).toBeInTheDocument()
+      expect(screen.getByText('This note is missing created, dayCreated, modified')).toBeInTheDocument()
+    })
+
+    // A note with no frontmatter is offered initialization, which stamps the dates
+    // itself. Showing both would be two buttons for one job.
+    it('does not offer dates alongside the initialize prompt', () => {
+      render(
+        <Inspector
+          {...defaultProps}
+          entry={noFrontmatterEntry}
+          content="# Just a plain note"
+          onInitializeProperties={vi.fn()}
+          onAddNoteDates={vi.fn()}
+        />
+      )
+
+      expect(screen.getByText('Initialize properties')).toBeInTheDocument()
+      expect(screen.queryByTestId('note-dates-panel')).not.toBeInTheDocument()
+    })
+
+    it('stays quiet for a note that already carries its dates', () => {
+      render(
+        <Inspector
+          {...defaultProps}
+          entry={noFrontmatterEntry}
+          content={'---\ntype: Note\ncreated: "2026-01-02 03:04:05"\ndayCreated: Fri\nmodified: "2026-01-03 03:04:05"\n---\n# Note'}
+          onAddNoteDates={vi.fn()}
+        />
+      )
+
+      expect(screen.queryByTestId('note-dates-panel')).not.toBeInTheDocument()
+    })
+
+    it('names the vault-configured created key', () => {
+      render(
+        <Inspector
+          {...defaultProps}
+          entry={noFrontmatterEntry}
+          content={'---\ntype: Note\ndayCreated: Fri\nmodified: "2026-01-03 03:04:05"\n---\n# Note'}
+          frontmatterCreatedKey="date"
+          onAddNoteDates={vi.fn()}
+        />
+      )
+
+      expect(screen.getByText('This note is missing date')).toBeInTheDocument()
+    })
+
     it('shows "Initialize properties" button when frontmatter is empty', () => {
       render(
         <Inspector

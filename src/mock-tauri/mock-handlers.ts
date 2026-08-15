@@ -12,8 +12,10 @@ import type {
   GitPushResult,
   GitRemoteStatus,
   LastCommitInfo,
+  NoteDateSuggestion,
   PulseCommit,
 } from '../types'
+import { missingDateKeys } from '../utils/frontmatter'
 import { MOCK_CONTENT } from './mock-content'
 import { MOCK_ENTRIES } from './mock-entries'
 
@@ -492,6 +494,15 @@ export const mockHandlers: Record<string, (args: any) => any> = {
     mockSavedSinceCommit.add(args.path)
     syncWindowContent()
     return null
+  },
+  // Mirrors the backend: reports the missing date frontmatter and writes nothing.
+  // The inspector applies it through update_frontmatter, as it does in the app.
+  resolve_note_dates: (args: { path: string }): NoteDateSuggestion[] => {
+    const content = MOCK_CONTENT[args.path] ?? ''
+    return missingDateKeys(content, 'created').map((key) => ({
+      key,
+      value: key === 'dayCreated' ? 'Mon' : '2026-01-05 09:00:00',
+    }))
   },
   save_image: (args: { vault_path?: string; filename: string; data: string }) => {
     const vault = args.vault_path ?? '/Users/luca/Laputa'

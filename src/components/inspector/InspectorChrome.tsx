@@ -1,6 +1,7 @@
 import { GearSix, X, Sparkle, WarningCircle, PencilSimple } from '@phosphor-icons/react'
 import { ActionTooltip } from '@/components/ui/action-tooltip'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { useDragRegion } from '../../hooks/useDragRegion'
 import { translate, type AppLocale } from '../../lib/i18n'
 import { hasFrontmatterWarnings, type FrontmatterWarnings } from '../../utils/frontmatter'
@@ -86,33 +87,69 @@ export function EmptyInspector({ locale = 'en' }: { locale?: AppLocale }) {
   return <div><p className="m-0 text-[13px] text-muted-foreground">{translate(locale, 'inspector.empty.noNoteSelected')}</p></div>
 }
 
-export function InitializePropertiesPrompt({ locale = 'en', onClick }: { locale?: AppLocale; onClick: () => void }) {
+/** The dashed card the inspector uses to offer a one-press repair. */
+export function InspectorPrompt({
+  action,
+  cardClassName,
+  children,
+  disabled = false,
+  icon,
+  message,
+  onClick,
+  testId,
+}: {
+  action: React.ReactNode
+  cardClassName?: string
+  children?: React.ReactNode
+  disabled?: boolean
+  icon: React.ReactNode
+  message: React.ReactNode
+  onClick: () => void
+  testId?: string
+}) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border px-4 py-6">
-      <Sparkle size={24} className="text-muted-foreground" />
-      <p className="m-0 text-center text-[13px] text-muted-foreground">{translate(locale, 'inspector.empty.noProperties')}</p>
-      <button type="button"
-        className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
+    <div
+      className={cn(
+        'flex flex-col items-center gap-3 rounded-lg border border-dashed px-4 py-6',
+        cardClassName ?? 'border-border',
+      )}
+      data-testid={testId}
+    >
+      {icon}
+      <p className="m-0 text-center text-[13px] text-muted-foreground">{message}</p>
+      <button
+        type="button"
+        className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-default disabled:opacity-60"
+        disabled={disabled}
+        data-testid={testId ? `${testId}-action` : undefined}
         onClick={onClick}
       >
-        {translate(locale, 'inspector.empty.initializeProperties')}
+        {action}
       </button>
+      {children}
     </div>
+  )
+}
+
+export function InitializePropertiesPrompt({ locale = 'en', onClick }: { locale?: AppLocale; onClick: () => void }) {
+  return (
+    <InspectorPrompt
+      icon={<Sparkle size={24} className="text-muted-foreground" />}
+      message={translate(locale, 'inspector.empty.noProperties')}
+      action={translate(locale, 'inspector.empty.initializeProperties')}
+      onClick={onClick}
+    />
   )
 }
 
 export function InvalidFrontmatterNotice({ locale = 'en', onFix }: { locale?: AppLocale; onFix: () => void }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-destructive/40 bg-destructive/5 px-4 py-6">
-      <WarningCircle size={24} className="text-destructive" />
-      <p className="m-0 text-center text-[13px] text-muted-foreground">{translate(locale, 'inspector.empty.invalidProperties')}</p>
-      <button type="button"
-        className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
-        onClick={onFix}
-      >
-        <PencilSimple size={14} />
-        {translate(locale, 'inspector.empty.fixInEditor')}
-      </button>
-    </div>
+    <InspectorPrompt
+      cardClassName="border-destructive/40 bg-destructive/5"
+      icon={<WarningCircle size={24} className="text-destructive" />}
+      message={translate(locale, 'inspector.empty.invalidProperties')}
+      action={<><PencilSimple size={14} />{translate(locale, 'inspector.empty.fixInEditor')}</>}
+      onClick={onFix}
+    />
   )
 }

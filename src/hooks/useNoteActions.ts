@@ -12,7 +12,7 @@ import {
   useNoteRename,
   performFilenameRename, loadNoteContent, renameToastMessage,
 } from './useNoteRename'
-import { runFrontmatterAndApply, type FrontmatterOpOptions } from './frontmatterOps'
+import { runFrontmatterAndApply, type FrontmatterOpOptions, type FrontmatterUpdate } from './frontmatterOps'
 import { findByNotePath, notePathFilename, notePathsMatch } from '../utils/notePathIdentity'
 import type { VaultOption } from '../components/status-bar/types'
 import { canonicalFrontmatterKey } from '../utils/systemMetadata'
@@ -270,8 +270,7 @@ interface UpdateFrontmatterAndMaybeRenameParams {
 type RunFrontmatterOp = (
   op: 'update' | 'delete',
   path: string,
-  key: string,
-  value?: FrontmatterValue,
+  updates: FrontmatterUpdate[],
   options?: FrontmatterOpOptions,
 ) => Promise<string | undefined>
 
@@ -290,7 +289,7 @@ async function updateFrontmatterAndMaybeRename({
   if (!activePathGuardAllowsMutation(path, deps.activeTabPathRef, options)) return false
 
   config.onInternalVaultWrite?.(path)
-  const newContent = await runFrontmatterOp('update', path, key, value, options)
+  const newContent = await runFrontmatterOp('update', path, [[key, value]], options)
   if (!applyFrontmatterCallbacks({ config, path, newContent })) return false
 
   await maybeRenameAfterFrontmatterUpdate({ path, key, value, deps })
@@ -519,7 +518,7 @@ function useFrontmatterActionHandlers({
     }
 
     config.onInternalVaultWrite?.(currentPath)
-    const newContent = await runFrontmatterOp('delete', currentPath, key, undefined, { ...options, silent: true })
+    const newContent = await runFrontmatterOp('delete', currentPath, [[key, undefined]], { ...options, silent: true })
     if (!applyFrontmatterCallbacks({ config, path: currentPath, newContent })) return
     await notifyFrontmatterPersisted(config, key)
   }, [
@@ -600,7 +599,7 @@ function useFrontmatterActionHandlers({
     if (!activePathGuardAllowsMutation(currentPath, activeTabPathRef, options)) return
 
     config.onInternalVaultWrite?.(currentPath)
-    const newContent = await runFrontmatterOp('delete', currentPath, key, undefined, options)
+    const newContent = await runFrontmatterOp('delete', currentPath, [[key, undefined]], options)
     if (!applyFrontmatterCallbacks({ config, path: currentPath, newContent })) return
     await notifyFrontmatterPersisted(config, key)
     if (shouldRecordHistory) {
@@ -620,7 +619,7 @@ function useFrontmatterActionHandlers({
     if (!activePathGuardAllowsMutation(currentPath, activeTabPathRef, options)) return
 
     config.onInternalVaultWrite?.(currentPath)
-    const newContent = await runFrontmatterOp('update', currentPath, key, value, options)
+    const newContent = await runFrontmatterOp('update', currentPath, [[key, value]], options)
     if (!applyFrontmatterCallbacks({ config, path: currentPath, newContent })) return
     await notifyFrontmatterPersisted(config, key)
     if (shouldRecordHistory) {
@@ -628,8 +627,30 @@ function useFrontmatterActionHandlers({
     }
   }, [actionHistory, activeTabPathRef, config, recordFrontmatterHistory, resolvePath, runFrontmatterOp])
 
+  /**
+   * Set several frontmatter keys in one write, for a press that means several keys.
+   * Skips the rename and history bookkeeping a single-property edit does.
+   */
+  const handleUpdateFrontmatterKeys = useCallback(async (
+    path: string,
+    updates: FrontmatterUpdate[],
+    options?: FrontmatterOpOptions,
+  ) => {
+    if (updates.length === 0) return
+    const currentPath = resolvePath(path)
+    if (!activePathGuardAllowsMutation(currentPath, activeTabPathRef, options)) return
+    if (!await flushBeforeNoteMutation(currentPath, config.flushBeforeNoteMutation)) return
+    if (!activePathGuardAllowsMutation(currentPath, activeTabPathRef, options)) return
+
+    config.onInternalVaultWrite?.(currentPath)
+    const newContent = await runFrontmatterOp('update', currentPath, updates, options)
+    if (!applyFrontmatterCallbacks({ config, path: currentPath, newContent })) return
+    await notifyFrontmatterPersisted(config, updates[0][0])
+  }, [activeTabPathRef, config, resolvePath, runFrontmatterOp])
+
   return {
     handleUpdateFrontmatter,
+    handleUpdateFrontmatterKeys,
     handleDeleteProperty,
     handleAddProperty,
   }
@@ -653,11 +674,10 @@ function useFrontmatterRunner({
   updateTabContent: (path: string, newContent: string) => void
 }): RunFrontmatterOp {
   return useCallback(
-    (op, path, key, value, options) => runFrontmatterAndApply({
+    (op, path, updates, options) => runFrontmatterAndApply({
       op,
       path,
-      key,
-      value,
+      updates,
       callbacks: {
         cacheContent: cacheNoteContent,
         updateTab: updateTabContent,
@@ -721,6 +741,7 @@ function buildNoteActionsResult({
     handleCreateType: creation.handleCreateType,
     createTypeEntrySilent: creation.createTypeEntrySilent,
     handleUpdateFrontmatter: frontmatterActions.handleUpdateFrontmatter,
+    handleUpdateFrontmatterKeys: frontmatterActions.handleUpdateFrontmatterKeys,
     handleDeleteProperty: frontmatterActions.handleDeleteProperty,
     handleAddProperty: frontmatterActions.handleAddProperty,
     handleRenameFilename: rename.handleRenameFilename,

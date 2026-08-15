@@ -170,6 +170,27 @@ pub async fn save_note_content(
     .map_err(|e| format!("Task panicked: {e}"))?
 }
 
+/// The date frontmatter a note is missing, with the values it should get.
+/// Writes nothing; the inspector applies the result through `update_frontmatter`.
+#[tauri::command]
+pub async fn resolve_note_dates(
+    path: PathBuf,
+    vault_path: Option<PathBuf>,
+) -> Result<Vec<vault::NoteDateSuggestion>, String> {
+    tokio::task::spawn_blocking(move || {
+        let settings = crate::settings::get_settings().unwrap_or_default();
+        let created_key = crate::settings::effective_frontmatter_created_key(&settings).to_string();
+        with_note_path(
+            path.as_path(),
+            vault_path.as_deref(),
+            ValidatedPathMode::Existing,
+            |validated_path| vault::missing_note_dates(validated_path, &created_key),
+        )
+    })
+    .await
+    .map_err(|e| format!("Task panicked: {e}"))?
+}
+
 /// Delete an orphaned attachment file. `attachment_path` is the vault-relative
 /// reference (e.g. `attachments/123-foo.webp`); the boundary validates it stays
 /// inside the vault, and [`vault::delete_attachment`] confirms it targets the

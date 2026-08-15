@@ -6,15 +6,14 @@ use super::boundary::{with_existing_paths, with_validated_path, ValidatedPathMod
 #[tauri::command]
 pub fn update_frontmatter(
     path: String,
-    key: String,
-    value: FrontmatterValue,
+    updates: Vec<(String, FrontmatterValue)>,
     vault_path: Option<String>,
 ) -> Result<String, String> {
     with_validated_path(
         &path,
         vault_path.as_deref(),
         ValidatedPathMode::Existing,
-        |validated_path| frontmatter::update_frontmatter(validated_path, &key, value),
+        |validated_path| frontmatter::update_frontmatter(validated_path, &updates),
     )
 }
 
@@ -40,7 +39,10 @@ pub fn batch_archive_notes(
     with_existing_paths(&paths, vault_path.as_deref(), |validated_paths| {
         let mut count = 0;
         for path in &validated_paths {
-            frontmatter::update_frontmatter(path, "_archived", FrontmatterValue::Bool(true))?;
+            frontmatter::update_frontmatter(
+                path,
+                &[("_archived".to_string(), FrontmatterValue::Bool(true))],
+            )?;
             count += 1;
         }
         Ok(count)
@@ -67,14 +69,62 @@ mod tests {
 
         let updated = update_frontmatter(
             path.clone(),
-            "Status".to_string(),
-            FrontmatterValue::String("Done".to_string()),
+            vec![(
+                "Status".to_string(),
+                FrontmatterValue::String("Done".to_string()),
+            )],
             Some(dir.path().to_string_lossy().into_owned()),
         )
         .unwrap();
 
         assert!(updated.contains("Status: Done"));
         assert_eq!(std::fs::read_to_string(path).unwrap(), updated);
+    }
+
+    /// One press that sets several keys must cost one write, not one per key.
+    #[test]
+    fn update_frontmatter_command_sets_every_key_in_one_write() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = note_path(&dir, "note.md");
+        write_note(&path, "# Note\n");
+
+        let updated = update_frontmatter(
+            path.clone(),
+            vec![
+                ("type".to_string(), FrontmatterValue::String("Note".into())),
+                (
+                    "created".to_string(),
+                    FrontmatterValue::String("2026-06-14 12:17:00".into()),
+                ),
+                ("dayCreated".to_string(), FrontmatterValue::String("Sun".into())),
+            ],
+            Some(dir.path().to_string_lossy().into_owned()),
+        )
+        .unwrap();
+
+        assert!(updated.contains("type: Note"));
+        assert!(updated.contains("created: \"2026-06-14 12:17:00\""));
+        assert!(updated.contains("dayCreated: Sun"));
+        assert!(updated.contains("# Note"));
+        assert_eq!(std::fs::read_to_string(path).unwrap(), updated);
+    }
+
+    #[test]
+    fn update_frontmatter_command_leaves_a_note_alone_when_given_nothing() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = note_path(&dir, "note.md");
+        let original = "---\ntype: Note\n---\n# Note\n";
+        write_note(&path, original);
+
+        let updated = update_frontmatter(
+            path.clone(),
+            Vec::new(),
+            Some(dir.path().to_string_lossy().into_owned()),
+        )
+        .unwrap();
+
+        assert_eq!(updated, original);
+        assert_eq!(std::fs::read_to_string(path).unwrap(), original);
     }
 
     #[test]

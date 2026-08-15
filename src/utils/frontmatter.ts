@@ -209,3 +209,26 @@ export function detectFrontmatterWarnings(content: MarkdownContent | null): Fron
 export function hasFrontmatterWarnings(warnings: FrontmatterWarnings): boolean {
   return warnings.collidingProperties.length > 0
 }
+
+/** Date keys with fixed names. The created key is configurable per vault. */
+const DAY_CREATED_KEY = 'dayCreated'
+const MODIFIED_KEY = 'modified'
+
+/**
+ * The date keys a note is missing, in the order the backend writes them. Keys are
+ * matched exactly, as `frontmatter_has_key` does on the Rust side.
+ */
+export function missingDateKeys(
+  content: MarkdownContent | null,
+  createdKey: FrontmatterKey,
+): FrontmatterKey[] {
+  const frontmatterBody = extractFrontmatterBody(content)
+  const present = new Set<FrontmatterKey>()
+
+  for (const line of frontmatterBody?.split(/\r?\n/) ?? []) {
+    const key = parseTopLevelKey(line)
+    if (key) present.add(key)
+  }
+
+  return [createdKey, DAY_CREATED_KEY, MODIFIED_KEY].filter((key) => !present.has(key))
+}

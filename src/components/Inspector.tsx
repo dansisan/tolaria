@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import type { VaultEntry, GitCommit, WorkspaceIdentity } from '../types'
 import { cn } from '@/lib/utils'
 import { Separator } from './ui/separator'
-import { parseFrontmatter, detectFrontmatterState, detectFrontmatterWarnings } from '../utils/frontmatter'
+import { parseFrontmatter, detectFrontmatterState, detectFrontmatterWarnings, missingDateKeys } from '../utils/frontmatter'
 import { DynamicPropertiesPanel } from './DynamicPropertiesPanel'
 import type { FrontmatterOpOptions } from '../hooks/frontmatterOps'
 import {
@@ -18,6 +18,7 @@ import type { ReferencedByItem } from './InspectorPanels'
 import { EmptyInspector, InitializePropertiesPrompt, InspectorHeader, InvalidFrontmatterNotice } from './inspector/InspectorChrome'
 import { useBacklinks, useReferencedBy } from './inspector/useInspectorData'
 import { useInspectorPropertyActions } from './inspector/useInspectorPropertyActions'
+import { NoteDatesPanel } from './inspector/NoteDatesPanel'
 import type { AppLocale } from '../lib/i18n'
 
 export type FrontmatterValue = string | number | boolean | string[] | null
@@ -40,6 +41,9 @@ interface InspectorProps {
   onChangeWorkspace?: (entry: VaultEntry, workspace: WorkspaceIdentity) => Promise<void> | void
   onInitializeProperties?: (path: string) => void
   onToggleRawEditor?: () => void
+  /** The vault's configured created key, so the dates panel names it correctly. */
+  frontmatterCreatedKey?: string
+  onAddNoteDates?: (path: string) => Promise<void>
   workspaces?: WorkspaceIdentity[]
   locale?: AppLocale
 }
@@ -229,6 +233,8 @@ function InspectorBody({
   onCreateAndOpenNote,
   onInitializeProperties,
   onToggleRawEditor,
+  frontmatterCreatedKey = 'created',
+  onAddNoteDates,
   workspaces,
   locale = 'en',
 }: Omit<InspectorProps, 'collapsed' | 'onToggle'>) {
@@ -237,6 +243,14 @@ function InspectorBody({
   const frontmatter = useMemo(() => parseFrontmatter(content), [content])
   const frontmatterState = useMemo(() => detectFrontmatterState(content), [content])
   const typeEntryMap = useMemo(() => buildTypeEntryMap(entries), [entries])
+  const missingDates = useMemo(
+    () => missingDateKeys(content, frontmatterCreatedKey),
+    [content, frontmatterCreatedKey],
+  )
+  // Only for a note that already carries frontmatter. A note with none is offered
+  // initialization instead, which stamps the dates as part of its own work, and
+  // broken frontmatter has to be repaired by hand before anything can be added.
+  const showDatesPrompt = frontmatterState === 'valid' && missingDates.length > 0
   const {
     handleUpdateProperty,
     handleDeleteProperty,
@@ -276,6 +290,14 @@ function InspectorBody({
           onChangeWorkspace={onChangeWorkspace}
           workspaces={workspaces}
           locale={locale}
+        />
+      )}
+      {showDatesPrompt && <Separator />}
+      {showDatesPrompt && onAddNoteDates && (
+        <NoteDatesPanel
+          locale={locale}
+          missingKeys={missingDates}
+          onAddDates={() => onAddNoteDates(entry.path)}
         />
       )}
       {backlinks.length > 0 && <Separator />}

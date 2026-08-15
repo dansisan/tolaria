@@ -233,13 +233,17 @@ function applyMockFrontmatterDelete(path: VaultPath, key: FrontmatterKey): Markd
 async function executeMockFrontmatterOp(
   op: FrontmatterOp,
   path: VaultPath,
-  key: FrontmatterKey,
-  value?: FrontmatterValue,
+  updates: FrontmatterUpdate[],
 ): Promise<MarkdownContent> {
   seedMockContent(path, await loadMockContent(path))
-  const content = op === 'update'
-    ? applyMockFrontmatterUpdate(path, key, value!)
-    : applyMockFrontmatterDelete(path, key)
+  const content = op === 'delete'
+    ? applyMockFrontmatterDelete(path, updates[0][0])
+    : updates.reduce(
+      (previous, [key, value]) => (
+        value === undefined ? previous : applyMockFrontmatterUpdate(path, key, value)
+      ),
+      '',
+    )
   await persistMockContent(path, content)
   return content
 }
@@ -247,17 +251,13 @@ async function executeMockFrontmatterOp(
 async function executeFrontmatterOp(
   op: FrontmatterOp,
   path: VaultPath,
-  key: FrontmatterKey,
-  value?: FrontmatterValue,
+  updates: FrontmatterUpdate[],
 ): Promise<MarkdownContent> {
-  if (op === 'update') {
-    return isTauri()
-      ? invokeFrontmatter('update_frontmatter', { path, key, value })
-      : executeMockFrontmatterOp(op, path, key, value)
-  }
-  return isTauri()
-    ? invokeFrontmatter('delete_frontmatter_property', { path, key })
-    : executeMockFrontmatterOp(op, path, key)
+  if (!isTauri()) return executeMockFrontmatterOp(op, path, updates)
+
+  return op === 'delete'
+    ? invokeFrontmatter('delete_frontmatter_property', { path, key: updates[0][0] })
+    : invokeFrontmatter('update_frontmatter', { path, updates })
 }
 
 export interface FrontmatterOpOptions {
@@ -277,11 +277,14 @@ export interface FrontmatterApplyCallbacks {
   shouldApply?: (path: VaultPath) => boolean
 }
 
+/** One frontmatter key and the value to set it to. */
+export type FrontmatterUpdate = [FrontmatterKey, FrontmatterValue | undefined]
+
 export interface FrontmatterRunRequest {
   op: FrontmatterOp
   path: VaultPath
-  key: FrontmatterKey
-  value?: FrontmatterValue
+  /** Keys to set, applied in order. A delete uses a single pair and ignores its value. */
+  updates: FrontmatterUpdate[]
   callbacks: FrontmatterApplyCallbacks
   options?: FrontmatterOpOptions
 }
@@ -390,16 +393,18 @@ async function handleFrontmatterFailure({
   return undefined
 }
 
-/** Run a frontmatter update/delete and apply the result to state.
- *  Returns the new file content on success, or undefined on failure. */
 export async function runFrontmatterAndApply(request: FrontmatterRunRequest): Promise<MarkdownContent | undefined> {
-  const { op, path, key, value, callbacks, options } = request
+  const { op, path, updates, callbacks, options } = request
+  if (updates.length === 0) return undefined
+
   try {
-    const newContent = await executeFrontmatterOp(op, path, key, value)
+    const newContent = await executeFrontmatterOp(op, path, updates)
     callbacks.cacheContent?.(path, newContent)
     if (callbacks.shouldApply && !callbacks.shouldApply(path)) return undefined
     callbacks.updateTab(path, newContent)
-    applyEntryPatch(path, callbacks, frontmatterToEntryPatch(op, key, value))
+    for (const [key, value] of updates) {
+      applyEntryPatch(path, callbacks, frontmatterToEntryPatch(op, key, value))
+    }
     notifyFrontmatterSuccess(op, callbacks, options)
     return newContent
   } catch (err) {

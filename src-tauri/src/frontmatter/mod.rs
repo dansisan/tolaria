@@ -1,5 +1,6 @@
 mod derive;
 pub(crate) mod keys;
+mod note_dates;
 mod ops;
 #[cfg(test)]
 mod ops_update_tests;
@@ -9,6 +10,7 @@ use std::fs;
 use std::path::Path;
 
 pub use derive::{apply_content_frontmatter, apply_derived_frontmatter, DeriveContext};
+pub use note_dates::{missing_date_keys, note_date_value, resolve_note_dates, NoteDates};
 pub use ops::{frontmatter_has_key, update_frontmatter_content};
 pub use yaml::{format_yaml_key, FrontmatterValue};
 
@@ -70,14 +72,17 @@ where
     Ok(updated)
 }
 
-/// Update a single frontmatter property in a markdown file.
+/// Set frontmatter keys in one read-modify-write, in the order given.
 pub fn update_frontmatter(
     path: &str,
-    key: &str,
-    value: FrontmatterValue,
+    updates: &[(String, FrontmatterValue)],
 ) -> Result<String, String> {
     with_frontmatter(path, |content| {
-        update_frontmatter_content(content, key, Some(value.clone()))
+        updates
+            .iter()
+            .try_fold(content.to_string(), |current, (key, value)| {
+                update_frontmatter_content(&current, key, Some(value.clone()))
+            })
     })
 }
 
@@ -139,8 +144,10 @@ mod tests {
 
         let err = update_frontmatter(
             attachment_path.to_str().unwrap(),
-            "Status",
-            FrontmatterValue::String("Done".to_string()),
+            &[(
+                "Status".to_string(),
+                FrontmatterValue::String("Done".to_string()),
+            )],
         )
         .unwrap_err();
 

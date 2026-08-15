@@ -43,6 +43,8 @@ interface EditorRightPanelProps {
   onCreateAndOpenNote?: (title: string) => Promise<boolean>
   onChangeWorkspace?: (entry: VaultEntry, workspace: WorkspaceIdentity) => Promise<void> | void
   onInitializeProperties?: (path: string) => void
+  frontmatterCreatedKey?: string
+  onAddNoteDates?: (path: string) => Promise<void>
   onToggleRawEditor?: () => void
   onOpenNote?: (path: string) => void
   onFileCreated?: (relativePath: string) => void
@@ -169,6 +171,7 @@ export function EditorRightPanel({
   defaultAiAgent = DEFAULT_AI_AGENT, defaultAiTarget, defaultAiAgentReadiness, defaultAiAgentReady = true,
   onUnsupportedAiPaste,
   inspectorEntry, inspectorContent, entries, gitHistory, vaultPath,
+  frontmatterCreatedKey, onAddNoteDates,
   vaultPaths,
   noteList, noteListFilter,
   onToggleInspector, onToggleAIChat, onToggleTableOfContents, onNavigateWikilink, onViewCommitDiff,
@@ -231,6 +234,8 @@ export function EditorRightPanel({
           onChangeWorkspace={onChangeWorkspace}
           onInitializeProperties={onInitializeProperties}
           onToggleRawEditor={onToggleRawEditor}
+          frontmatterCreatedKey={frontmatterCreatedKey}
+          onAddNoteDates={onAddNoteDates}
           workspaces={workspaces}
           locale={locale}
         />

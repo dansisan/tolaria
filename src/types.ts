@@ -100,6 +100,12 @@ export interface LastCommitInfo {
   commitUrl: string | null
 }
 
+/** One date frontmatter key a note is missing, with the value it should get. */
+export interface NoteDateSuggestion {
+  key: string
+  value: string
+}
+
 export interface ModifiedFile {
   path: string
   relativePath: string

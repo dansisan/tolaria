@@ -10,6 +10,7 @@ mod getting_started;
 mod ignored;
 mod image;
 mod migration;
+mod note_dates;
 mod parsing;
 pub(crate) mod path_identity;
 mod rename;
@@ -42,6 +43,7 @@ pub use image::{
 };
 pub(crate) use image::{prepare_attachment_payload, stored_attachment_name};
 pub use migration::migrate_is_a_to_type;
+pub use note_dates::{missing_note_dates, NoteDateSuggestion};
 pub use rename::{
     detect_renames, move_note_to_folder, move_note_to_workspace, rename_note_filename,
     update_wikilinks_for_renames, DetectedRename, MoveNoteToFolderRequest,

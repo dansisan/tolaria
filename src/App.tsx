@@ -98,8 +98,9 @@ import { DeleteProgressNotice } from './components/DeleteProgressNotice'
 import { UpdateBanner } from './components/UpdateBanner'
 import { invoke } from '@tauri-apps/api/core'
 import { isTauri, mockInvoke } from './mock-tauri'
-import type { AiWorkspaceConversationSetting, GitSetupPreference, SidebarSelection, InboxPeriod, ModifiedFile, VaultEntry, ViewDefinition, ViewFile, WorkspaceIdentity } from './types'
+import type { AiWorkspaceConversationSetting, GitSetupPreference, SidebarSelection, InboxPeriod, ModifiedFile, NoteDateSuggestion, VaultEntry, ViewDefinition, ViewFile, WorkspaceIdentity } from './types'
 import type { NoteListItem } from './utils/ai-context'
+import { noteDateUpdates } from './utils/addNoteDates'
 import { initializeNoteProperties } from './utils/initializeNoteProperties'
 import { filterEntries, filterInboxEntries, type NoteListFilter } from './utils/noteListHelpers'
 import { openNoteInNewWindow } from './utils/openNoteWindow'
@@ -1038,11 +1039,29 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     onVaultChanged: (path) => { void handlePulledVaultUpdate(path ? [path] : [], resolvedPath) },
   })
 
+  const resolveNoteDates = useCallback((path: string) => {
+    const args = { path, vaultPath: resolvedPath }
+    return isTauri()
+      ? invoke<NoteDateSuggestion[]>('resolve_note_dates', args)
+      : mockInvoke<NoteDateSuggestion[]>('resolve_note_dates', args)
+  }, [resolvedPath])
+
+  const handleAddNoteDates = useCallback(async (path: string) => {
+    const dates = await noteDateUpdates(resolveNoteDates, path)
+    if (dates.length === 0) return
+
+    await notes.handleUpdateFrontmatterKeys(path, dates, { silent: true })
+    trackEvent('note_dates_stamped', { keyCount: dates.length })
+  }, [notes, resolveNoteDates])
+
   const handleInitializeProperties = useCallback((path: string) => {
-    void initializeNoteProperties(notes.handleUpdateFrontmatter, path).catch((err) => {
+    void initializeNoteProperties({
+      updateFrontmatterKeys: notes.handleUpdateFrontmatterKeys,
+      resolveNoteDates,
+    }, path).catch((err) => {
       console.warn('Failed to initialize note properties:', err)
     })
-  }, [notes])
+  }, [notes, resolveNoteDates])
 
   const handleRemoveNoteIcon = useCallback(async (path: string) => {
     await notes.handleDeleteProperty(path, 'icon')
@@ -1400,7 +1419,12 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
   }, [deleteActions, visibleEntries])
 
   const shouldLoadGitHistory = !layout.inspectorCollapsed && !effectiveShowAIChat
-  const gitHistory = useGitHistory(notes.activeTabPath, loadGitHistoryForPath, shouldLoadGitHistory)
+  const gitHistory = useGitHistory(
+    notes.activeTabPath,
+    loadGitHistoryForPath,
+    shouldLoadGitHistory,
+    autoSync.lastCommitInfo?.shortHash,
+  )
 
   const handleCreateType = useCallback(async (name: string) => {
     const created = await notes.handleCreateType(name)
@@ -2262,6 +2286,8 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
               inspectorEntry={activeTab?.entry ?? null}
               inspectorContent={activeTab?.content ?? null}
               gitHistory={gitHistory}
+              frontmatterCreatedKey={settings.frontmatter_created_key ?? 'created'}
+              onAddNoteDates={handleAddNoteDates}
               onUpdateFrontmatter={notes.handleUpdateFrontmatter}
               onDeleteProperty={notes.handleDeleteProperty}
               onAddProperty={notes.handleAddProperty}

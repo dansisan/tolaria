@@ -483,6 +483,7 @@ macro_rules! app_invoke_handler {
             commands::validate_note_content,
             commands::create_note_content,
             commands::save_note_content,
+            commands::resolve_note_dates,
             commands::update_frontmatter,
             commands::delete_frontmatter_property,
             commands::rename_note_filename,

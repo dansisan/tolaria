@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseFrontmatter, detectFrontmatterState, detectFrontmatterWarnings } from './frontmatter'
+import { parseFrontmatter, detectFrontmatterState, detectFrontmatterWarnings, missingDateKeys } from './frontmatter'
 
 describe('parseFrontmatter', () => {
   describe('numeric values', () => {
@@ -143,5 +143,50 @@ describe('detectFrontmatterWarnings', () => {
     expect(warnings.collidingProperties).toEqual([
       { key: 'status', labels: ['status', 'Status'] },
     ])
+  })
+})
+
+describe('missingDateKeys', () => {
+  it('reports every date key for a note an agent dropped in without frontmatter', () => {
+    expect(missingDateKeys('# Findings\n\nBody\n', 'created')).toEqual([
+      'created',
+      'dayCreated',
+      'modified',
+    ])
+  })
+
+  it('reports only the keys that are absent', () => {
+    const content = '---\ncreated: "2026-01-02 03:04:05"\n---\n# Note\n'
+
+    expect(missingDateKeys(content, 'created')).toEqual(['dayCreated', 'modified'])
+  })
+
+  it('reports nothing for a fully dated note', () => {
+    const content = [
+      '---',
+      'created: "2026-01-02 03:04:05"',
+      'dayCreated: Fri',
+      'modified: "2026-01-03 03:04:05"',
+      '---',
+      '# Note',
+    ].join('\n')
+
+    expect(missingDateKeys(content, 'created')).toEqual([])
+  })
+
+  it('honors a vault-configured created key', () => {
+    const content = '---\ndate: "2026-01-02 03:04:05"\n---\n# Note\n'
+
+    expect(missingDateKeys(content, 'date')).toEqual(['dayCreated', 'modified'])
+  })
+
+  it('ignores keys nested under another property', () => {
+    const content = '---\nproperties:\n  created: "2026-01-02 03:04:05"\n---\n# Note\n'
+
+    expect(missingDateKeys(content, 'created')).toContain('created')
+  })
+
+  it('treats a note with no content as missing everything', () => {
+    expect(missingDateKeys(null, 'created')).toEqual(['created', 'dayCreated', 'modified'])
   })
 })

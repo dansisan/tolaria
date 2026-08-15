@@ -80,6 +80,8 @@ interface EditorProps {
   inspectorEntry: VaultEntry | null
   inspectorContent: string | null
   gitHistory: GitCommit[]
+  frontmatterCreatedKey?: string
+  onAddNoteDates?: (path: string) => Promise<void>
   onUpdateFrontmatter?: (path: string, key: string, value: FrontmatterValue, options?: FrontmatterOpOptions) => Promise<void>
   onDeleteProperty?: (path: string, key: string, options?: FrontmatterOpOptions) => Promise<void>
   onAddProperty?: (path: string, key: string, value: FrontmatterValue, options?: FrontmatterOpOptions) => Promise<void>
@@ -429,6 +431,8 @@ function EditorLayout({
   inspectorEntry,
   inspectorContent,
   gitHistory,
+  frontmatterCreatedKey,
+  onAddNoteDates,
   noteList,
   noteListFilter,
   handleViewCommitDiff,
@@ -505,6 +509,8 @@ function EditorLayout({
   inspectorEntry: VaultEntry | null
   inspectorContent: string | null
   gitHistory: GitCommit[]
+  frontmatterCreatedKey?: string
+  onAddNoteDates?: (path: string) => Promise<void>
   noteList?: NoteListItem[]
   noteListFilter?: { type: string | null; query: string }
   handleViewCommitDiff: (commitHash: string) => Promise<void>
@@ -609,6 +615,8 @@ function EditorLayout({
           inspectorContent={inspectorContent}
           entries={entries}
           gitHistory={gitHistory}
+          frontmatterCreatedKey={frontmatterCreatedKey}
+          onAddNoteDates={onAddNoteDates}
           vaultPath={vaultPath ?? ''}
           vaultPaths={vaultPaths}
           noteList={noteList}
