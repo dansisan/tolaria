@@ -84,6 +84,55 @@ describe('useGitHistory', () => {
     ])
   })
 
+  it('keeps a pending load alive when the loader identity churns', async () => {
+    const loadGitHistory = vi.fn().mockResolvedValue(mockHistory)
+
+    const { result, rerender } = renderHook(
+      ({ load }) => useGitHistory('/vault/a.md', load, true),
+      { initialProps: { load: loadGitHistory } },
+    )
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400)
+    })
+
+    // A git status poll rebuilds the loader. That must not restart the debounce,
+    // or a vault with pending changes never settles long enough to load.
+    const rebuiltLoader = vi.fn().mockResolvedValue(mockHistory)
+    rerender({ load: rebuiltLoader })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100)
+    })
+
+    expect(rebuiltLoader).toHaveBeenCalledWith('/vault/a.md')
+    expect(loadGitHistory).not.toHaveBeenCalled()
+    expect(result.current).toEqual(mockHistory)
+  })
+
+  it('reloads history when a new commit lands', async () => {
+    const loadGitHistory = vi.fn().mockResolvedValue(mockHistory)
+
+    const { rerender } = renderHook(
+      ({ commit }) => useGitHistory('/vault/a.md', loadGitHistory, true, commit),
+      { initialProps: { commit: 'abc1234' } },
+    )
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500)
+    })
+
+    expect(loadGitHistory).toHaveBeenCalledTimes(1)
+
+    rerender({ commit: 'def5678' })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500)
+    })
+
+    expect(loadGitHistory).toHaveBeenCalledTimes(2)
+  })
+
   it('clears previously loaded history when the inspector is hidden', async () => {
     const loadGitHistory = vi.fn().mockResolvedValue(mockHistory)
 
