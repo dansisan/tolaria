@@ -18,6 +18,8 @@ function makeDeps(overrides: Partial<Parameters<typeof applyWatcherPartialRefres
   return {
     findEntry: (path: string) => known.get(path),
     reloadEntry: vi.fn(async (path: string) => entry(path)),
+    scanEntry: vi.fn(async (path: string) => entry(path)),
+    addEntry: vi.fn(),
     updateEntry: vi.fn(),
     reloadViews: vi.fn(),
     refreshGitModifiedFiles: vi.fn(),
@@ -43,14 +45,49 @@ describe('applyWatcherPartialRefresh', () => {
     expect(deps.reloadViews).not.toHaveBeenCalled()
   })
 
-  it('requires a full reload for paths not present in the entry list', async () => {
+  it('adds an externally created note without a full reload', async () => {
     const deps = makeDeps()
 
     const result = await applyWatcherPartialRefresh(['/vault/new-file.md'], deps)
 
-    expect(result).toBe('full-reload-required')
+    expect(result).toBe('handled')
+    expect(deps.scanEntry).toHaveBeenCalledWith('/vault/new-file.md')
+    expect(deps.addEntry).toHaveBeenCalledWith(expect.objectContaining({ path: '/vault/new-file.md' }))
     expect(deps.reloadEntry).not.toHaveBeenCalled()
     expect(deps.updateEntry).not.toHaveBeenCalled()
+    expect(deps.refreshGitModifiedFiles).toHaveBeenCalled()
+  })
+
+  it('refreshes known entries and adds new ones in the same batch', async () => {
+    const deps = makeDeps()
+
+    const result = await applyWatcherPartialRefresh(['/vault/a.md', '/vault/new-file.md'], deps)
+
+    expect(result).toBe('handled')
+    expect(deps.updateEntry).toHaveBeenCalledWith('/vault/a.md', expect.objectContaining({ path: '/vault/a.md' }))
+    expect(deps.addEntry).toHaveBeenCalledWith(expect.objectContaining({ path: '/vault/new-file.md' }))
+  })
+
+  it('requires a full reload when a new path is not a file the vault scan would list', async () => {
+    // Directories, dotfiles and gitignored paths resolve to null: adding them
+    // would invent an entry a full scan never produces.
+    const deps = makeDeps({ scanEntry: vi.fn(async () => null) })
+
+    const result = await applyWatcherPartialRefresh(['/vault/New Folder'], deps)
+
+    expect(result).toBe('full-reload-required')
+    expect(deps.addEntry).not.toHaveBeenCalled()
+  })
+
+  it('falls back to a full reload when scanning a new path fails', async () => {
+    const deps = makeDeps({
+      scanEntry: vi.fn(async () => {
+        throw new Error('unreadable')
+      }),
+    })
+
+    expect(await applyWatcherPartialRefresh(['/vault/new-file.md'], deps)).toBe('full-reload-required')
+    expect(deps.addEntry).not.toHaveBeenCalled()
   })
 
   it('requires a full reload when there are no paths', async () => {
@@ -82,6 +119,15 @@ describe('applyWatcherPartialRefresh', () => {
 
     await applyWatcherPartialRefresh(['/vault/.laputa/views/work.yml'], deps)
 
+    expect(deps.reloadViews).toHaveBeenCalled()
+  })
+
+  it('reloads saved views when a view definition file was added', async () => {
+    const deps = makeDeps()
+
+    await applyWatcherPartialRefresh(['/vault/.laputa/views/added.yml'], deps)
+
+    expect(deps.addEntry).toHaveBeenCalled()
     expect(deps.reloadViews).toHaveBeenCalled()
   })
 

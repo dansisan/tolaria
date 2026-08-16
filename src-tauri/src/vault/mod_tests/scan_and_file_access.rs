@@ -133,3 +133,86 @@ fn test_get_note_content_invalid_utf8() {
         format!("File is not valid UTF-8 text: {}", path.display())
     );
 }
+
+/// A file created outside the app is folded into the entry list one entry at a
+/// time. `scan_entry` decides what qualifies, so it must agree with what a full
+/// `scan_vault` would have listed.
+#[test]
+fn scan_entry_reads_a_newly_created_note() {
+    let dir = TempDir::new().unwrap();
+    create_test_file(dir.path(), "notes/fresh.md", "# Fresh\n\nBody\n");
+
+    let entry = scan_entry(&dir.path().join("notes/fresh.md"), dir.path())
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(entry.filename, "fresh.md");
+    assert_eq!(entry.title, "fresh");
+    assert_eq!(entry.file_kind, "markdown");
+}
+
+#[test]
+fn scan_entry_reads_a_newly_created_non_markdown_file() {
+    let dir = TempDir::new().unwrap();
+    create_test_file(dir.path(), "attachments/data.txt", "hello");
+
+    let entry = scan_entry(&dir.path().join("attachments/data.txt"), dir.path())
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(entry.filename, "data.txt");
+    assert_eq!(entry.file_kind, "text");
+}
+
+#[test]
+fn scan_entry_rejects_paths_a_full_scan_would_skip() {
+    let dir = TempDir::new().unwrap();
+    std::fs::create_dir_all(dir.path().join("New Folder")).unwrap();
+    create_test_file(dir.path(), ".laputa/views/work.yml", "name: Work\n");
+    create_test_file(dir.path(), ".hidden.md", "# Hidden\n");
+
+    // A new directory: the folder tree needs a reload, not an entry.
+    assert!(scan_entry(&dir.path().join("New Folder"), dir.path())
+        .unwrap()
+        .is_none());
+    assert!(
+        scan_entry(&dir.path().join(".laputa/views/work.yml"), dir.path())
+            .unwrap()
+            .is_none()
+    );
+    assert!(scan_entry(&dir.path().join(".hidden.md"), dir.path())
+        .unwrap()
+        .is_none());
+    assert!(scan_entry(&dir.path().join("missing.md"), dir.path())
+        .unwrap()
+        .is_none());
+}
+
+#[test]
+fn scan_entry_rejects_paths_outside_the_vault() {
+    let dir = TempDir::new().unwrap();
+    let outside = TempDir::new().unwrap();
+    create_test_file(outside.path(), "stray.md", "# Stray\n");
+
+    assert!(scan_entry(&outside.path().join("stray.md"), dir.path())
+        .unwrap()
+        .is_none());
+}
+
+#[test]
+fn scan_entry_accepts_every_file_a_full_scan_lists() {
+    let dir = TempDir::new().unwrap();
+    create_test_file(dir.path(), "root.md", "# Root\n");
+    create_test_file(dir.path(), "notes/nested.md", "# Nested\n");
+    create_test_file(dir.path(), "attachments/data.txt", "text");
+    create_test_file(dir.path(), "type/Project.md", "---\ntype: Type\n---\n");
+
+    for scanned in scan_vault(dir.path(), "created").unwrap() {
+        let path = PathBuf::from(&scanned.path);
+        assert!(
+            scan_entry(&path, dir.path()).unwrap().is_some(),
+            "scan_vault listed {} but scan_entry rejected it",
+            scanned.path
+        );
+    }
+}

@@ -323,6 +323,8 @@ async function installFixtureVaultInitScript({ page, vaultPath, isGitRepo, folde
       detect_renames: () => [],
       reload_vault_entry: (commandArgs?: FixtureCommandArgs) =>
         readJson(`/api/vault/entry?path=${encodeURIComponent(readCommandString(commandArgs, 'path'))}`),
+      scan_vault_entry: (commandArgs?: FixtureCommandArgs) =>
+        readJson(`/api/vault/entry?path=${encodeURIComponent(readCommandString(commandArgs, 'path'))}`),
       get_note_content: async (commandArgs?: FixtureCommandArgs) => {
         const data = await readJson(
           `/api/vault/content?path=${encodeURIComponent(readCommandString(commandArgs, 'path'))}`,

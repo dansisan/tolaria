@@ -1,6 +1,7 @@
 import type { VaultEntry, WorkspaceIdentity } from '../types'
 import type { VaultOption } from '../components/status-bar/types'
 import { ACCENT_COLOR_PICKER_KEYS } from './typeColors'
+import { isPathInsideVaultRoot } from './vaultPathContainment'
 
 export const WORKSPACE_COLORS = ACCENT_COLOR_PICKER_KEYS
 export type WorkspaceColor = typeof WORKSPACE_COLORS[number]
@@ -92,6 +93,23 @@ export function workspaceIdentityFromVault(
 
 export function workspaceForEntry(entry: Pick<VaultEntry, 'workspace' | 'path'>): WorkspaceIdentity | null {
   return entry.workspace ?? null
+}
+
+/**
+ * Which workspace owns a bare path. Entries loaded in bulk are tagged from the
+ * workspace they were scanned under; a single path arriving on its own (a file
+ * that appeared on disk) has to be matched back to its root, the deepest one
+ * containing it so nested workspaces win over their parent.
+ */
+export function workspaceIdentityForPath({
+  defaultWorkspacePath,
+  path,
+  vaults,
+}: WorkspaceIdentityOptions & { path: string; vaults?: VaultOption[] }): WorkspaceIdentity | undefined {
+  const owningVault = (vaults ?? [])
+    .filter((vault) => vault.path.trim() && isPathInsideVaultRoot(path, vault.path))
+    .sort((a, b) => b.path.length - a.path.length)[0]
+  return owningVault ? workspaceIdentityFromVault(owningVault, { defaultWorkspacePath }) : undefined
 }
 
 export function workspacePathForEntry(entry: Pick<VaultEntry, 'workspace'>): string | undefined {

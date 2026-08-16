@@ -523,6 +523,7 @@ macro_rules! app_invoke_handler {
             commands::test_ai_model_provider,
             commands::reload_vault,
             commands::reload_vault_entry,
+            commands::scan_vault_entry,
             commands::backfill_derived_frontmatter,
             commands::sync_vault_asset_scope_for_window,
             commands::open_vault_file_external,

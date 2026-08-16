@@ -3,8 +3,8 @@ import { isTauri, mockInvoke } from '../mock-tauri'
 import type { FolderNode, GitPushResult, VaultEntry, ViewFile } from '../types'
 import type { VaultOption } from '../components/status-bar/types'
 import { logExpensiveCall, startExpensiveCall } from '../utils/expensiveCallLog'
-import { normalizeVaultEntries, normalizeViewFiles } from '../utils/vaultMetadataNormalization'
-import { workspaceIdentityFromVault } from '../utils/workspaces'
+import { normalizeVaultEntries, normalizeVaultEntry, normalizeViewFiles } from '../utils/vaultMetadataNormalization'
+import { workspaceIdentityForPath, workspaceIdentityFromVault } from '../utils/workspaces'
 
 interface TauriCallOptions {
   command: string
@@ -88,6 +88,26 @@ function scanVaultEntries({ command, vaultPath }: VaultPathOptions & { command: 
       })
       return entries
     })
+}
+
+/**
+ * Parse a single path the entry list doesn't hold yet, so a file that appeared
+ * on disk can be inserted instead of triggering a whole-vault rescan. Resolves
+ * to null when a vault scan would not list that path.
+ */
+export function scanVaultEntry({
+  defaultWorkspacePath,
+  path,
+  vaults,
+}: {
+  defaultWorkspacePath?: string | null
+  path: string
+  vaults?: VaultOption[]
+}): Promise<VaultEntry | null> {
+  return tauriCall<unknown>({ command: 'scan_vault_entry', tauriArgs: { path } })
+    .then((entry) => (entry
+      ? normalizeVaultEntry(entry, '', 0, workspaceIdentityForPath({ defaultWorkspacePath, path, vaults }))
+      : null))
 }
 
 function loadVaultEntriesWithCommand({ vaultPath, command }: VaultPathOptions & { command: string }): Promise<VaultEntry[]> {

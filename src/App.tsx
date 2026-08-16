@@ -108,6 +108,7 @@ import { resolveAdjacentNote } from './utils/adjacentNote'
 import { isWindows } from './utils/platform'
 import { getPulledVaultUpdateOptions, refreshPulledVaultState } from './utils/pulledVaultRefresh'
 import { applyWatcherPartialRefresh } from './utils/watcherPartialRefresh'
+import { scanVaultEntry } from './hooks/vaultLoaderCommands'
 import { findByNotePath, notePathsMatch } from './utils/notePathIdentity'
 import { sortFavorites } from './utils/favorites'
 import { hasEverOpenedAiWorkspaceWindow, isAiWorkspaceWindow, isNoteWindow, getNoteWindowParams, type NoteWindowParams } from './utils/windowMode'
@@ -790,6 +791,11 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
   )
   const vaultEntriesRef = useRef(vault.entries)
   useEffect(() => { vaultEntriesRef.current = vault.entries }, [vault.entries])
+  const scanNewVaultEntry = useCallback((path: string) => scanVaultEntry({
+    defaultWorkspacePath: multiWorkspaceEnabled ? defaultWorkspacePath : null,
+    path,
+    vaults: graphVaults,
+  }), [defaultWorkspacePath, graphVaults, multiWorkspaceEnabled])
   const handleFocusedVaultUpdate = useCallback(
     async (updatedFiles: string[]) => {
       // A bulk operation (e.g. Apple Notes import) writes hundreds of files via
@@ -802,6 +808,8 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
         reloadEntry: (path) => (isTauri()
           ? invoke<VaultEntry>('reload_vault_entry', { path })
           : mockInvoke<VaultEntry>('reload_vault_entry', { path })),
+        scanEntry: scanNewVaultEntry,
+        addEntry: vault.addEntry,
         updateEntry: vault.updateEntry,
         reloadViews: vault.reloadViews,
         refreshGitModifiedFiles,
@@ -824,6 +832,8 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
       handleVaultUpdate,
       notes.activeTabPathRef,
       refreshGitModifiedFiles,
+      scanNewVaultEntry,
+      vault.addEntry,
       vault.reloadViews,
       vault.unsavedPaths,
       vault.updateEntry,

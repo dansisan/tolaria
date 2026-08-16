@@ -98,7 +98,12 @@ flowchart LR
 
 #### External Change Detection
 
-The main window starts a native watcher for the active vault through `start_vault_watcher` / `stop_vault_watcher` (`src-tauri/src/vault_watcher.rs`, backed by Rust `notify`). The watcher emits `vault-changed` events for content paths and ignores churn from `.git/`, `node_modules/`, temp files, and `.tolaria-rename-txn`. `useVaultWatcher` batches those events, suppresses recent app-owned saves, and sends the remaining external paths through `refreshPulledVaultState()` so folders, saved views, note-list state, and the clean active editor all refresh under the ADR-0071 unsaved-edit rules. `useVaultLoader.isReloading` drives the status-bar reload spinner for both manual and watcher-triggered reloads.
+The main window starts a native watcher for the active vault through `start_vault_watcher` / `stop_vault_watcher` (`src-tauri/src/vault_watcher.rs`, backed by Rust `notify`). The watcher emits `vault-changed` events for content paths and ignores churn from `.git/`, `node_modules/`, temp files, and `.tolaria-rename-txn`. `useVaultWatcher` batches those events and suppresses recent app-owned saves; the remaining external paths go through `applyWatcherPartialRefresh()` (`src/utils/watcherPartialRefresh.ts`), which touches only the named files:
+
+- a path already in the entry list is re-parsed with `reload_vault_entry` and updated in place;
+- a path the list doesn't hold yet — a note created outside the app — is resolved with `scan_vault_entry` and inserted, the same single-entry insert an in-app create performs.
+
+`scan_vault_entry` returns `null` for anything a full scan would not list (a directory, a hidden file, a gitignored note while those are hidden), so the two stay in agreement and no phantom entry appears. Only what a single-entry edit cannot reconcile — bulk batches above `WATCHER_PARTIAL_REFRESH_MAX_PATHS`, deletions, and those `null` paths — falls back to `refreshPulledVaultState()`, which rescans the vault and refreshes folders, saved views, note-list state, and the clean active editor under the ADR-0071 unsaved-edit rules. `useVaultLoader.isReloading` drives the status-bar reload spinner for both manual and watcher-triggered reloads.
 
 #### Progressive Vault Loading
 
@@ -758,6 +763,7 @@ The vault backend (`src-tauri/src/vault/`) is split into focused submodules:
 | `batch_delete_notes` | Permanently delete notes from disk |
 | `reload_vault` | Allow the requested vault roots in the runtime asset scope, invalidate cache, full rescan from filesystem, then apply Gitignored-content visibility → `Vec<VaultEntry>` |
 | `reload_vault_entry` | Re-read a single file from disk → `VaultEntry` |
+| `scan_vault_entry` | Read a path the entry list doesn't hold yet → `VaultEntry`, or `null` when a vault scan would not list it |
 | `open_vault_file_external` | Validate an existing file against the active vault boundary, then open it with the system default app |
 | `start_vault_watcher` / `stop_vault_watcher` | Start or stop native active-vault filesystem change events |
 | `check_vault_exists` | Check if vault path exists |

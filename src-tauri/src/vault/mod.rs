@@ -66,7 +66,7 @@ use parsing::{
 use gray_matter::engine::YAML;
 use gray_matter::Matter;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 fn preferred_relationship_refs(
@@ -249,6 +249,64 @@ pub fn reload_entry(path: &Path) -> Result<VaultEntry, String> {
     } else {
         parse_non_md_file(path)
     }
+}
+
+/// Re-read a file the entry list does not know yet, but only when a full scan
+/// would list it. `scan_all_files` skips directories, dotfiles and everything
+/// under a hidden directory, and gitignored notes are dropped afterwards when
+/// the user hides them. `None` means "not a vault entry" — adding one past
+/// those rules would be a phantom the next scan silently removes.
+pub fn scan_entry(path: &Path, vault_path: &Path) -> Result<Option<VaultEntry>, String> {
+    if !is_scannable_file(path, vault_path) {
+        return Ok(None);
+    }
+    Ok(visible_entry(reload_entry(path)?, vault_path))
+}
+
+fn is_scannable_file(path: &Path, vault_path: &Path) -> bool {
+    path.is_file() && !is_hidden_file(path) && !has_hidden_ancestor_dir(path, vault_path)
+}
+
+fn is_hidden_file(path: &Path) -> bool {
+    path.file_name()
+        .is_some_and(|name| name.to_string_lossy().starts_with('.'))
+}
+
+/// True when any directory between `vault_path` and `path` is one the scan
+/// skips. A path whose position inside the vault cannot be established counts
+/// as hidden: falling back to a full reload costs far less than a bogus entry.
+fn has_hidden_ancestor_dir(path: &Path, vault_path: &Path) -> bool {
+    let Some(relative) = relative_to_vault(path, vault_path) else {
+        return true;
+    };
+    relative
+        .parent()
+        .into_iter()
+        .flat_map(|parent| parent.components())
+        .any(|component| is_hidden_dir(&component.as_os_str().to_string_lossy()))
+}
+
+fn relative_to_vault(path: &Path, vault_path: &Path) -> Option<PathBuf> {
+    if let Ok(relative) = path.strip_prefix(vault_path) {
+        return Some(relative.to_path_buf());
+    }
+    // macOS reaches the same directory as both /tmp and /private/tmp, and a
+    // vault can be opened through a symlink, so compare resolved paths too.
+    let canonical_path = path.canonicalize().ok()?;
+    let canonical_vault = vault_path.canonicalize().ok()?;
+    canonical_path
+        .strip_prefix(canonical_vault)
+        .ok()
+        .map(Path::to_path_buf)
+}
+
+fn visible_entry(entry: VaultEntry, vault_path: &Path) -> Option<VaultEntry> {
+    if !crate::settings::hide_gitignored_files_enabled() {
+        return Some(entry);
+    }
+    ignored::filter_gitignored_entries(vault_path, vec![entry], true)
+        .into_iter()
+        .next()
 }
 
 /// Directories hidden from user-facing vault scans.

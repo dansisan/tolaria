@@ -75,6 +75,33 @@ pub fn reload_vault_entry(
     )
 }
 
+/// Resolve a path the frontend has no entry for yet — a note created outside
+/// the app — into a single entry, so the watcher can insert it instead of
+/// rescanning the vault. `None` means the path is not something the entry list
+/// holds (a directory, a hidden file, a gitignored note), leaving the caller to
+/// fall back to a full reload.
+#[tauri::command]
+pub fn scan_vault_entry(
+    path: PathBuf,
+    vault_path: Option<PathBuf>,
+) -> Result<Option<VaultEntry>, String> {
+    let Some(resolved_vault_path) =
+        resolve_reload_vault_path(path.as_path(), vault_path.as_deref())?
+    else {
+        return Ok(None);
+    };
+    let raw_path = path.to_string_lossy();
+    let raw_vault_path = resolved_vault_path.to_string_lossy().into_owned();
+    with_validated_path(
+        &raw_path,
+        Some(raw_vault_path.as_str()),
+        ValidatedPathMode::Existing,
+        |validated_path| {
+            vault::scan_entry(Path::new(validated_path), resolved_vault_path.as_path())
+        },
+    )
+}
+
 #[tauri::command]
 pub async fn reload_vault(
     app_handle: tauri::AppHandle,
@@ -135,7 +162,7 @@ pub async fn search_vault(
 mod tests {
     use super::{
         collect_registered_vault_roots, find_registered_vault_root, reload_vault_entry,
-        resolve_reload_vault_path, search_vault,
+        resolve_reload_vault_path, scan_vault_entry, search_vault,
     };
     use crate::vault_list::{VaultEntry as VaultListEntry, VaultList};
     use std::path::{Path, PathBuf};
@@ -272,6 +299,38 @@ mod tests {
         let entry = reload_vault_entry(note_path, Some(dir.path().to_path_buf())).unwrap();
 
         assert_eq!(entry.title, "note");
+    }
+
+    #[test]
+    fn scan_vault_entry_command_reads_a_note_created_outside_the_app() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let note_path = write_note(dir.path(), "dropped-in.md", "# Dropped In\n\nBody");
+
+        let entry = scan_vault_entry(note_path, Some(dir.path().to_path_buf()))
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(entry.title, "dropped-in");
+    }
+
+    #[test]
+    fn scan_vault_entry_command_reports_paths_that_are_not_entries() {
+        let dir = tempfile::TempDir::new().unwrap();
+        std::fs::create_dir_all(dir.path().join("New Folder")).unwrap();
+
+        assert!(scan_vault_entry(
+            dir.path().join("New Folder"),
+            Some(dir.path().to_path_buf())
+        )
+        .unwrap()
+        .is_none());
+    }
+
+    #[test]
+    fn scan_vault_entry_command_reports_unregistered_vault_paths() {
+        assert!(scan_vault_entry(PathBuf::from("relative/note.md"), None)
+            .unwrap()
+            .is_none());
     }
 
     #[tokio::test]

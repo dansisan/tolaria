@@ -7,6 +7,7 @@ import {
   graphWorkspaceVaultsForLoading,
   vaultPathForEntry,
   visibleWorkspacePaths,
+  workspaceIdentityForPath,
   workspaceIdentityFromVault,
   writableWorkspacePaths,
 } from './workspaces'
@@ -187,5 +188,38 @@ describe('writableWorkspacePaths', () => {
         { label: 'Archive', path: '/archive', available: false },
       ],
     })).toEqual(['/personal'])
+  })
+})
+
+describe('workspaceIdentityForPath', () => {
+  it('tags a bare path with the workspace that owns it', () => {
+    expect(workspaceIdentityForPath({ path: '/team/notes/new.md', vaults })).toMatchObject({
+      label: 'Team',
+      path: '/team',
+    })
+  })
+
+  it('prefers the deepest workspace when one is nested inside another', () => {
+    const nested: VaultOption[] = [
+      ...vaults,
+      { label: 'Archive', path: '/team/archive', alias: 'archive', available: true, mounted: true },
+    ]
+
+    expect(workspaceIdentityForPath({ path: '/team/archive/old.md', vaults: nested })).toMatchObject({
+      path: '/team/archive',
+    })
+  })
+
+  it('marks the default workspace so new notes land in the right place', () => {
+    expect(workspaceIdentityForPath({
+      defaultWorkspacePath: '/team',
+      path: '/team/notes/new.md',
+      vaults,
+    })).toMatchObject({ defaultForNewNotes: true })
+  })
+
+  it('returns nothing for paths outside every workspace', () => {
+    expect(workspaceIdentityForPath({ path: '/elsewhere/new.md', vaults })).toBeUndefined()
+    expect(workspaceIdentityForPath({ path: '/team/notes/new.md' })).toBeUndefined()
   })
 })
