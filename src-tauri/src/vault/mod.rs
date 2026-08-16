@@ -65,6 +65,7 @@ use parsing::{
 
 use gray_matter::engine::YAML;
 use gray_matter::Matter;
+use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -251,16 +252,41 @@ pub fn reload_entry(path: &Path) -> Result<VaultEntry, String> {
     }
 }
 
-/// Re-read a file the entry list does not know yet, but only when a full scan
-/// would list it. `scan_all_files` skips directories, dotfiles and everything
-/// under a hidden directory, and gitignored notes are dropped afterwards when
-/// the user hides them. `None` means "not a vault entry" — adding one past
-/// those rules would be a phantom the next scan silently removes.
-pub fn scan_entry(path: &Path, vault_path: &Path) -> Result<Option<VaultEntry>, String> {
-    if !is_scannable_file(path, vault_path) {
-        return Ok(None);
+/// What the vault holds at `path`, for a caller folding one filesystem change
+/// into the entry list.
+#[derive(Debug, Serialize)]
+#[serde(tag = "status", rename_all = "camelCase")]
+pub enum ScannedPath {
+    /// A file a full scan would list.
+    Entry { entry: Box<VaultEntry> },
+    /// Nothing is there — deleted, or the source half of a rename.
+    Missing,
+    /// Something is there that a full scan would not list: a directory, a
+    /// hidden file, or a gitignored note while those are hidden.
+    Unlisted,
+}
+
+/// Read one path the way a full scan would see it. `scan_all_files` skips
+/// directories, dotfiles and everything under a hidden directory, and
+/// gitignored notes are dropped afterwards when the user hides them; an entry
+/// added past those rules would be a phantom the next scan silently removes.
+///
+/// `Missing` and `Unlisted` both mean "hold no entry here", but they are not
+/// interchangeable: a vanished file leaves the entry list already correct,
+/// while an unlisted one can be a new directory the folder tree has yet to see.
+pub fn scan_entry(path: &Path, vault_path: &Path) -> Result<ScannedPath, String> {
+    if !path.exists() {
+        return Ok(ScannedPath::Missing);
     }
-    Ok(visible_entry(reload_entry(path)?, vault_path))
+    if !is_scannable_file(path, vault_path) {
+        return Ok(ScannedPath::Unlisted);
+    }
+    Ok(match visible_entry(reload_entry(path)?, vault_path) {
+        Some(entry) => ScannedPath::Entry {
+            entry: Box::new(entry),
+        },
+        None => ScannedPath::Unlisted,
+    })
 }
 
 fn is_scannable_file(path: &Path, vault_path: &Path) -> bool {

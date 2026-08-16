@@ -18,8 +18,9 @@ function makeDeps(overrides: Partial<Parameters<typeof applyWatcherPartialRefres
   return {
     findEntry: (path: string) => known.get(path),
     reloadEntry: vi.fn(async (path: string) => entry(path)),
-    scanEntry: vi.fn(async (path: string) => entry(path)),
+    scanEntry: vi.fn(async (path: string) => ({ status: 'entry', entry: entry(path) })),
     addEntry: vi.fn(),
+    removeEntry: vi.fn(),
     updateEntry: vi.fn(),
     reloadViews: vi.fn(),
     refreshGitModifiedFiles: vi.fn(),
@@ -71,12 +72,25 @@ describe('applyWatcherPartialRefresh', () => {
   it('requires a full reload when a new path is not a file the vault scan would list', async () => {
     // Directories, dotfiles and gitignored paths resolve to null: adding them
     // would invent an entry a full scan never produces.
-    const deps = makeDeps({ scanEntry: vi.fn(async () => null) })
+    const deps = makeDeps({ scanEntry: vi.fn(async () => ({ status: 'unlisted' })) })
 
     const result = await applyWatcherPartialRefresh(['/vault/New Folder'], deps)
 
     expect(result).toBe('full-reload-required')
     expect(deps.addEntry).not.toHaveBeenCalled()
+  })
+
+  it('ignores the echo of a delete the app already applied', async () => {
+    // The in-app delete drops the entry optimistically, so its own filesystem
+    // event arrives for a path the list no longer holds and the vault no longer
+    // has. Nothing is left to reconcile — reloading here cost seconds.
+    const deps = makeDeps({ scanEntry: vi.fn(async () => ({ status: 'missing' })) })
+
+    const result = await applyWatcherPartialRefresh(['/vault/already-deleted.md'], deps)
+
+    expect(result).toBe('handled')
+    expect(deps.addEntry).not.toHaveBeenCalled()
+    expect(deps.removeEntry).not.toHaveBeenCalled()
   })
 
   it('falls back to a full reload when scanning a new path fails', async () => {
@@ -104,14 +118,78 @@ describe('applyWatcherPartialRefresh', () => {
     expect(deps.reloadEntry).not.toHaveBeenCalled()
   })
 
-  it('falls back to a full reload when reloading an entry fails (e.g. deleted file)', async () => {
+  it('drops a note deleted outside the app without a full reload', async () => {
     const deps = makeDeps({
       reloadEntry: vi.fn(async () => {
         throw new Error('missing')
       }),
+      scanEntry: vi.fn(async () => ({ status: 'missing' })),
+    })
+
+    const result = await applyWatcherPartialRefresh(['/vault/a.md'], deps)
+
+    expect(result).toBe('handled')
+    expect(deps.removeEntry).toHaveBeenCalledWith('/vault/a.md')
+    expect(deps.refreshGitModifiedFiles).toHaveBeenCalled()
+  })
+
+  it('reloads fully when the note deleted outside the app is the open one', async () => {
+    // Closing the tab and tearing down the editor is the full reload's job.
+    const deps = makeDeps({
+      isActiveTabPath: (path: string) => path === '/vault/a.md',
+      reloadEntry: vi.fn(async () => {
+        throw new Error('missing')
+      }),
+      scanEntry: vi.fn(async () => ({ status: 'missing' })),
     })
 
     expect(await applyWatcherPartialRefresh(['/vault/a.md'], deps)).toBe('full-reload-required')
+    expect(deps.removeEntry).not.toHaveBeenCalled()
+  })
+
+  it('keeps a note whose reload failed but that is still on disk', async () => {
+    const deps = makeDeps({
+      reloadEntry: vi.fn(async () => {
+        throw new Error('busy')
+      }),
+    })
+
+    const result = await applyWatcherPartialRefresh(['/vault/a.md'], deps)
+
+    expect(result).toBe('handled')
+    expect(deps.removeEntry).not.toHaveBeenCalled()
+    expect(deps.updateEntry).toHaveBeenCalledWith('/vault/a.md', expect.objectContaining({ path: '/vault/a.md' }))
+  })
+
+  it('handles an external rename as one removal plus one insert', async () => {
+    const deps = makeDeps({
+      reloadEntry: vi.fn(async () => {
+        throw new Error('missing')
+      }),
+      scanEntry: vi.fn(async (path: string) => (path === '/vault/a.md'
+        ? { status: 'missing' }
+        : { status: 'entry', entry: entry(path) })),
+    })
+
+    const result = await applyWatcherPartialRefresh(['/vault/a.md', '/vault/renamed.md'], deps)
+
+    expect(result).toBe('handled')
+    expect(deps.removeEntry).toHaveBeenCalledWith('/vault/a.md')
+    expect(deps.addEntry).toHaveBeenCalledWith(expect.objectContaining({ path: '/vault/renamed.md' }))
+  })
+
+  it('falls back to a full reload when the vault cannot say what a path is now', async () => {
+    const deps = makeDeps({
+      reloadEntry: vi.fn(async () => {
+        throw new Error('missing')
+      }),
+      scanEntry: vi.fn(async () => {
+        throw new Error('unreadable')
+      }),
+    })
+
+    expect(await applyWatcherPartialRefresh(['/vault/a.md'], deps)).toBe('full-reload-required')
+    expect(deps.removeEntry).not.toHaveBeenCalled()
   })
 
   it('reloads saved views when a view definition file changed', async () => {

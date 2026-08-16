@@ -199,6 +199,14 @@ fn build_vault_root_paths(raw_vault_path: &str) -> Result<VaultRootPaths, String
     })
 }
 
+/// Canonicalize a path whose leaf may not exist, by resolving the nearest
+/// existing ancestor and re-appending the remainder. Callers that must reason
+/// about a path a moment after it was deleted need this — plain `canonicalize`
+/// fails outright on a missing leaf.
+pub(crate) fn canonicalize_possibly_missing(path: &Path) -> Result<PathBuf, String> {
+    canonicalize_candidate_for_write(path)
+}
+
 fn canonicalize_candidate_for_write(path: &Path) -> Result<PathBuf, String> {
     let (ancestor, tail) = find_existing_ancestor(path)?;
     Ok(tail
@@ -282,7 +290,24 @@ pub(crate) fn with_boundary<T>(
 
 pub(crate) enum ValidatedPathMode {
     Existing,
+    /// The leaf may be gone — containment is checked against the nearest
+    /// existing ancestor instead. For read-only callers that must answer
+    /// questions about a path a moment after it was deleted; grants no write.
+    PossiblyMissing,
     Writable,
+}
+
+fn validate_path_for_mode(
+    boundary: &VaultBoundary,
+    path: &str,
+    mode: &ValidatedPathMode,
+) -> Result<String, String> {
+    match mode {
+        ValidatedPathMode::Existing => boundary.validate_existing_path(path),
+        ValidatedPathMode::PossiblyMissing | ValidatedPathMode::Writable => {
+            boundary.validate_writable_path(path)
+        }
+    }
 }
 
 pub(crate) fn with_validated_path<T>(
@@ -297,19 +322,13 @@ pub(crate) fn with_validated_path<T>(
                 requested_root: root.requested,
                 canonical_root: root.canonical,
             };
-            let validated_path = match mode {
-                ValidatedPathMode::Existing => boundary.validate_existing_path(path)?,
-                ValidatedPathMode::Writable => boundary.validate_writable_path(path)?,
-            };
+            let validated_path = validate_path_for_mode(&boundary, path, &mode)?;
             return action(&validated_path);
         }
     }
 
     with_boundary(vault_path, |boundary| {
-        let validated_path = match mode {
-            ValidatedPathMode::Existing => boundary.validate_existing_path(path)?,
-            ValidatedPathMode::Writable => boundary.validate_writable_path(path)?,
-        };
+        let validated_path = validate_path_for_mode(boundary, path, &mode)?;
         action(&validated_path)
     })
 }

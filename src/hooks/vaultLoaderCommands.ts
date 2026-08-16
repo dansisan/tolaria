@@ -5,6 +5,7 @@ import type { VaultOption } from '../components/status-bar/types'
 import { logExpensiveCall, startExpensiveCall } from '../utils/expensiveCallLog'
 import { normalizeVaultEntries, normalizeVaultEntry, normalizeViewFiles } from '../utils/vaultMetadataNormalization'
 import { workspaceIdentityForPath, workspaceIdentityFromVault } from '../utils/workspaces'
+import type { ScannedVaultPath } from '../utils/watcherPartialRefresh'
 
 interface TauriCallOptions {
   command: string
@@ -91,9 +92,8 @@ function scanVaultEntries({ command, vaultPath }: VaultPathOptions & { command: 
 }
 
 /**
- * Parse a single path the entry list doesn't hold yet, so a file that appeared
- * on disk can be inserted instead of triggering a whole-vault rescan. Resolves
- * to null when a vault scan would not list that path.
+ * What the vault holds at a single path, so a change on disk can be folded into
+ * the entry list instead of triggering a whole-vault rescan.
  */
 export function scanVaultEntry({
   defaultWorkspacePath,
@@ -103,11 +103,23 @@ export function scanVaultEntry({
   defaultWorkspacePath?: string | null
   path: string
   vaults?: VaultOption[]
-}): Promise<VaultEntry | null> {
+}): Promise<ScannedVaultPath> {
   return tauriCall<unknown>({ command: 'scan_vault_entry', tauriArgs: { path } })
-    .then((entry) => (entry
-      ? normalizeVaultEntry(entry, '', 0, workspaceIdentityForPath({ defaultWorkspacePath, path, vaults }))
-      : null))
+    .then((scanned) => scannedVaultPath(scanned, { defaultWorkspacePath, path, vaults }))
+}
+
+function scannedVaultPath(
+  scanned: unknown,
+  identity: { defaultWorkspacePath?: string | null; path: string; vaults?: VaultOption[] },
+): ScannedVaultPath {
+  const record = scanned as { status?: string; entry?: unknown } | null
+  if (record?.status !== 'entry' || !record.entry) {
+    return { status: record?.status === 'missing' ? 'missing' : 'unlisted' }
+  }
+  return {
+    status: 'entry',
+    entry: normalizeVaultEntry(record.entry, '', 0, workspaceIdentityForPath(identity)),
+  }
 }
 
 function loadVaultEntriesWithCommand({ vaultPath, command }: VaultPathOptions & { command: string }): Promise<VaultEntry[]> {

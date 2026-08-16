@@ -142,9 +142,11 @@ fn scan_entry_reads_a_newly_created_note() {
     let dir = TempDir::new().unwrap();
     create_test_file(dir.path(), "notes/fresh.md", "# Fresh\n\nBody\n");
 
-    let entry = scan_entry(&dir.path().join("notes/fresh.md"), dir.path())
-        .unwrap()
-        .unwrap();
+    let ScannedPath::Entry { entry } =
+        scan_entry(&dir.path().join("notes/fresh.md"), dir.path()).unwrap()
+    else {
+        panic!("expected a listed entry")
+    };
 
     assert_eq!(entry.filename, "fresh.md");
     assert_eq!(entry.title, "fresh");
@@ -156,36 +158,41 @@ fn scan_entry_reads_a_newly_created_non_markdown_file() {
     let dir = TempDir::new().unwrap();
     create_test_file(dir.path(), "attachments/data.txt", "hello");
 
-    let entry = scan_entry(&dir.path().join("attachments/data.txt"), dir.path())
-        .unwrap()
-        .unwrap();
+    let ScannedPath::Entry { entry } =
+        scan_entry(&dir.path().join("attachments/data.txt"), dir.path()).unwrap()
+    else {
+        panic!("expected a listed entry")
+    };
 
     assert_eq!(entry.filename, "data.txt");
     assert_eq!(entry.file_kind, "text");
 }
 
 #[test]
-fn scan_entry_rejects_paths_a_full_scan_would_skip() {
+fn scan_entry_separates_a_vanished_file_from_one_the_scan_would_skip() {
     let dir = TempDir::new().unwrap();
     std::fs::create_dir_all(dir.path().join("New Folder")).unwrap();
     create_test_file(dir.path(), ".laputa/views/work.yml", "name: Work\n");
     create_test_file(dir.path(), ".hidden.md", "# Hidden\n");
 
-    // A new directory: the folder tree needs a reload, not an entry.
-    assert!(scan_entry(&dir.path().join("New Folder"), dir.path())
-        .unwrap()
-        .is_none());
-    assert!(
-        scan_entry(&dir.path().join(".laputa/views/work.yml"), dir.path())
-            .unwrap()
-            .is_none()
-    );
-    assert!(scan_entry(&dir.path().join(".hidden.md"), dir.path())
-        .unwrap()
-        .is_none());
-    assert!(scan_entry(&dir.path().join("missing.md"), dir.path())
-        .unwrap()
-        .is_none());
+    // Present but not listed: the folder tree may still need to hear about it.
+    assert!(matches!(
+        scan_entry(&dir.path().join("New Folder"), dir.path()).unwrap(),
+        ScannedPath::Unlisted
+    ));
+    assert!(matches!(
+        scan_entry(&dir.path().join(".laputa/views/work.yml"), dir.path()).unwrap(),
+        ScannedPath::Unlisted
+    ));
+    assert!(matches!(
+        scan_entry(&dir.path().join(".hidden.md"), dir.path()).unwrap(),
+        ScannedPath::Unlisted
+    ));
+    // Gone: the entry list holding nothing there is already correct.
+    assert!(matches!(
+        scan_entry(&dir.path().join("missing.md"), dir.path()).unwrap(),
+        ScannedPath::Missing
+    ));
 }
 
 #[test]
@@ -194,9 +201,10 @@ fn scan_entry_rejects_paths_outside_the_vault() {
     let outside = TempDir::new().unwrap();
     create_test_file(outside.path(), "stray.md", "# Stray\n");
 
-    assert!(scan_entry(&outside.path().join("stray.md"), dir.path())
-        .unwrap()
-        .is_none());
+    assert!(matches!(
+        scan_entry(&outside.path().join("stray.md"), dir.path()).unwrap(),
+        ScannedPath::Unlisted
+    ));
 }
 
 #[test]
@@ -210,7 +218,10 @@ fn scan_entry_accepts_every_file_a_full_scan_lists() {
     for scanned in scan_vault(dir.path(), "created").unwrap() {
         let path = PathBuf::from(&scanned.path);
         assert!(
-            scan_entry(&path, dir.path()).unwrap().is_some(),
+            matches!(
+                scan_entry(&path, dir.path()).unwrap(),
+                ScannedPath::Entry { .. }
+            ),
             "scan_vault listed {} but scan_entry rejected it",
             scanned.path
         );

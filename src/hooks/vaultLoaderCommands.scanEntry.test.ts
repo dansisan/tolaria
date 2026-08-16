@@ -24,25 +24,39 @@ describe('scanVaultEntry', () => {
   })
 
   it('normalizes a path the entry list does not hold yet', async () => {
-    mockInvoke.mockResolvedValue({ path: '/personal/new.md', filename: 'new.md', title: 'New' })
+    mockInvoke.mockResolvedValue({
+      status: 'entry',
+      entry: { path: '/personal/new.md', filename: 'new.md', title: 'New' },
+    })
 
-    const entry = await scanVaultEntry({ path: '/personal/new.md' })
+    const scanned = await scanVaultEntry({ path: '/personal/new.md' })
 
     expect(mockInvoke).toHaveBeenCalledWith('scan_vault_entry', { path: '/personal/new.md' })
-    expect(entry).toMatchObject({ path: '/personal/new.md', title: 'New', aliases: [] })
+    expect(scanned).toMatchObject({
+      status: 'entry',
+      entry: { path: '/personal/new.md', title: 'New', aliases: [] },
+    })
   })
 
   it('tags the entry with the workspace that owns the path', async () => {
-    mockInvoke.mockResolvedValue({ path: '/team/new.md', filename: 'new.md', title: 'New' })
+    mockInvoke.mockResolvedValue({
+      status: 'entry',
+      entry: { path: '/team/new.md', filename: 'new.md', title: 'New' },
+    })
 
-    const entry = await scanVaultEntry({ path: '/team/new.md', vaults })
+    const scanned = await scanVaultEntry({ path: '/team/new.md', vaults })
 
-    expect(entry?.workspace).toMatchObject({ label: 'Team', path: '/team' })
+    expect(scanned.status === 'entry' && scanned.entry.workspace).toMatchObject({
+      label: 'Team',
+      path: '/team',
+    })
   })
 
-  it('passes through the backend verdict that a path is not a vault entry', async () => {
-    mockInvoke.mockResolvedValue(null)
+  it('passes through the backend verdict for a path that holds no entry', async () => {
+    mockInvoke.mockResolvedValue({ status: 'unlisted' })
+    expect(await scanVaultEntry({ path: '/personal/New Folder' })).toEqual({ status: 'unlisted' })
 
-    expect(await scanVaultEntry({ path: '/personal/New Folder' })).toBeNull()
+    mockInvoke.mockResolvedValue({ status: 'missing' })
+    expect(await scanVaultEntry({ path: '/personal/gone.md' })).toEqual({ status: 'missing' })
   })
 })

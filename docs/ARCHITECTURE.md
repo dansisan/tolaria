@@ -101,9 +101,20 @@ flowchart LR
 The main window starts a native watcher for the active vault through `start_vault_watcher` / `stop_vault_watcher` (`src-tauri/src/vault_watcher.rs`, backed by Rust `notify`). The watcher emits `vault-changed` events for content paths and ignores churn from `.git/`, `node_modules/`, temp files, and `.tolaria-rename-txn`. `useVaultWatcher` batches those events and suppresses recent app-owned saves; the remaining external paths go through `applyWatcherPartialRefresh()` (`src/utils/watcherPartialRefresh.ts`), which touches only the named files:
 
 - a path already in the entry list is re-parsed with `reload_vault_entry` and updated in place;
-- a path the list doesn't hold yet — a note created outside the app — is resolved with `scan_vault_entry` and inserted, the same single-entry insert an in-app create performs.
+- a path the list doesn't hold yet — a note created outside the app — is resolved with `scan_vault_entry` and inserted, the same single-entry insert an in-app create performs;
+- a known path that no longer re-parses is put to `scan_vault_entry`, which separates a note that vanished (dropped from the list, the same single-entry removal an in-app delete performs) from one that was briefly unreadable (kept and updated). An external rename lands as both halves at once: the old path drops, the new one inserts.
 
-`scan_vault_entry` returns `null` for anything a full scan would not list (a directory, a hidden file, a gitignored note while those are hidden), so the two stay in agreement and no phantom entry appears. Only what a single-entry edit cannot reconcile — bulk batches above `WATCHER_PARTIAL_REFRESH_MAX_PATHS`, deletions, and those `null` paths — falls back to `refreshPulledVaultState()`, which rescans the vault and refreshes folders, saved views, note-list state, and the clean active editor under the ADR-0071 unsaved-edit rules. `useVaultLoader.isReloading` drives the status-bar reload spinner for both manual and watcher-triggered reloads.
+`scan_vault_entry` answers with one of three states, and the difference between the last two matters:
+
+| state | meaning | watcher does |
+|---|---|---|
+| `entry` | a file a full scan would list | insert or update it |
+| `missing` | nothing is there | nothing — the entry list is already right |
+| `unlisted` | something is there a full scan would not list (directory, hidden file, gitignored note) | full reload; it can be structural, e.g. a new folder |
+
+`missing` is what keeps the app's own writes cheap. Recent in-app writes are normally suppressed by `useRecentVaultWrites` before they reach the refresh, but that window is wall-clock (`INTERNAL_WRITE_SUPPRESSION_MS`) and can lapse when the main thread is busy. When it does, a delete's own filesystem echo arrives for a path the list already dropped; answering `missing` makes that echo free instead of triggering a whole-vault rescan.
+
+Only what a single-entry edit cannot reconcile — bulk batches above `WATCHER_PARTIAL_REFRESH_MAX_PATHS`, a deletion of the note currently open (its tab and editor need tearing down), and `unlisted` paths — falls back to `refreshPulledVaultState()`, which rescans the vault and refreshes folders, saved views, note-list state, and the clean active editor under the ADR-0071 unsaved-edit rules. `useVaultLoader.isReloading` drives the status-bar reload spinner for both manual and watcher-triggered reloads.
 
 #### Progressive Vault Loading
 
@@ -763,7 +774,7 @@ The vault backend (`src-tauri/src/vault/`) is split into focused submodules:
 | `batch_delete_notes` | Permanently delete notes from disk |
 | `reload_vault` | Allow the requested vault roots in the runtime asset scope, invalidate cache, full rescan from filesystem, then apply Gitignored-content visibility → `Vec<VaultEntry>` |
 | `reload_vault_entry` | Re-read a single file from disk → `VaultEntry` |
-| `scan_vault_entry` | Read a path the entry list doesn't hold yet → `VaultEntry`, or `null` when a vault scan would not list it |
+| `scan_vault_entry` | What the vault holds at a path now → `entry` / `missing` / `unlisted`, so the watcher can fold one change in without rescanning |
 | `open_vault_file_external` | Validate an existing file against the active vault boundary, then open it with the system default app |
 | `start_vault_watcher` / `stop_vault_watcher` | Start or stop native active-vault filesystem change events |
 | `check_vault_exists` | Check if vault path exists |

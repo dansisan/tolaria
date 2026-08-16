@@ -8,18 +8,27 @@ export const WATCHER_PARTIAL_REFRESH_MAX_PATHS = 25
 
 export type WatcherRefreshOutcome = 'handled' | 'full-reload-required'
 
+/**
+ * What `scan_vault_entry` found. `missing` and `unlisted` both mean the entry
+ * list should hold nothing at that path, but they are not interchangeable: a
+ * vanished file leaves the list already correct, while an unlisted one — a new
+ * directory, a hidden or gitignored file — can be a structural change the
+ * folder tree and saved views still need to see.
+ */
+export type ScannedVaultPath =
+  | { status: 'entry'; entry: VaultEntry }
+  | { status: 'missing' }
+  | { status: 'unlisted' }
+
 export interface WatcherPartialRefreshDeps {
   /** Current in-memory entry for a path, or undefined when unknown. */
   findEntry: (path: string) => VaultEntry | undefined
   /** Re-parses a single note from disk (reload_vault_entry). Throws when unreadable. */
   reloadEntry: (path: string) => Promise<VaultEntry>
-  /**
-   * Parses a path the entry list doesn't know yet (scan_vault_entry), or resolves
-   * to null when a full vault scan would not list it — a directory, a hidden
-   * file, or a gitignored path while those are hidden.
-   */
-  scanEntry: (path: string) => Promise<VaultEntry | null>
+  /** What the vault holds at a path right now (scan_vault_entry). */
+  scanEntry: (path: string) => Promise<ScannedVaultPath>
   addEntry: (entry: VaultEntry) => void
+  removeEntry: (path: string) => void
   updateEntry: (path: string, entry: VaultEntry) => void
   reloadViews: () => Promise<unknown> | unknown
   refreshGitModifiedFiles: () => Promise<unknown> | unknown
@@ -38,24 +47,68 @@ function canRefreshInPlace(paths: string[]): boolean {
   return paths.length > 0 && paths.length <= WATCHER_PARTIAL_REFRESH_MAX_PATHS
 }
 
+type ChangedPathOutcome =
+  | { kind: 'entry'; entry: VaultEntry }
+  | { kind: 'settled' }
+  | { kind: 'full-reload' }
+
+const SETTLED: ChangedPathOutcome = { kind: 'settled' }
+
 /**
- * Re-parses one changed path and folds it into the entry list: known paths are
- * updated in place, new ones are appended the same way an in-app note create
- * does. Resolves to null when the path is not something the vault list holds,
- * so the caller can fall back to a full reload.
+ * A known note whose re-parse failed either vanished or was briefly unreadable.
+ * Only the vault can tell those apart, and a path it no longer lists — deleted,
+ * or newly gitignored — drops out of the entry list either way. The open note is
+ * the exception: closing its tab and tearing down the editor is the full
+ * reload's job, so leave that case to it.
+ */
+async function applyMissingKnownPath(
+  path: string,
+  deps: WatcherPartialRefreshDeps,
+): Promise<ChangedPathOutcome> {
+  const scanned = await deps.scanEntry(path)
+  if (scanned.status === 'entry') {
+    deps.updateEntry(path, scanned.entry)
+    return { kind: 'entry', entry: scanned.entry }
+  }
+  if (deps.isActiveTabPath(path)) return { kind: 'full-reload' }
+  deps.removeEntry(path)
+  return SETTLED
+}
+
+/**
+ * A path the entry list doesn't hold. A file there is inserted; a vanished one
+ * needs nothing, which is the common case — the app's own delete drops the
+ * entry before its filesystem event arrives, so the event describes work
+ * already done. Anything else present but unlisted can be structural (a new
+ * directory), which only the full reload reconciles.
+ */
+async function applyUnknownPath(
+  path: string,
+  deps: WatcherPartialRefreshDeps,
+): Promise<ChangedPathOutcome> {
+  const scanned = await deps.scanEntry(path)
+  if (scanned.status === 'entry') {
+    deps.addEntry(scanned.entry)
+    return { kind: 'entry', entry: scanned.entry }
+  }
+  return scanned.status === 'missing' ? SETTLED : { kind: 'full-reload' }
+}
+
+/**
+ * Folds one changed path into the entry list: a known note is re-parsed in
+ * place or dropped once it is gone, and a path the list doesn't hold yet is
+ * appended the same way an in-app note create appends it.
  */
 async function applyChangedPath(
   path: string,
   deps: WatcherPartialRefreshDeps,
-): Promise<VaultEntry | null> {
-  if (deps.findEntry(path) === undefined) {
-    const addedEntry = await deps.scanEntry(path)
-    if (addedEntry) deps.addEntry(addedEntry)
-    return addedEntry
-  }
-  const entry = await deps.reloadEntry(path)
+): Promise<ChangedPathOutcome> {
+  if (deps.findEntry(path) === undefined) return applyUnknownPath(path, deps)
+
+  const entry = await deps.reloadEntry(path).catch(() => null)
+  if (!entry) return applyMissingKnownPath(path, deps)
   deps.updateEntry(path, entry)
-  return entry
+  return { kind: 'entry', entry }
 }
 
 function shouldReplaceActiveTab(path: string, deps: WatcherPartialRefreshDeps): boolean {
@@ -70,12 +123,17 @@ function shouldReplaceActiveTab(path: string, deps: WatcherPartialRefreshDeps): 
  * almost always (a synced note, another app touching one file); reloading
  * thousands of entries for that froze typing for seconds on large vaults.
  *
- * A file created outside the app is folded in with the same single-entry insert
- * an in-app create uses — there is no reason for the two to cost differently.
+ * A file created or deleted outside the app is folded in with the same
+ * single-entry insert and removal the in-app create and delete use — there is
+ * no reason for the two to cost differently.
  *
- * What still reports `full-reload-required` is what a single-entry insert cannot
- * reconcile: bulk changes, deletions (reload fails), and paths the vault list
- * would never hold, such as a new directory.
+ * The app's own writes are normally suppressed before they reach here, but that
+ * window can lapse when the main thread is busy, so an echo of work the app
+ * already applied must cost nothing rather than fall through to a reload.
+ *
+ * What still reports `full-reload-required` is what a single-entry edit cannot
+ * reconcile: bulk changes, a deletion of the note currently open, and paths
+ * that hold something the vault list would never show, such as a new directory.
  */
 export async function applyWatcherPartialRefresh(
   paths: string[],
@@ -86,9 +144,11 @@ export async function applyWatcherPartialRefresh(
   let refreshedActiveEntry: VaultEntry | null = null
   try {
     for (const path of paths) {
-      const entry = await applyChangedPath(path, deps)
-      if (!entry) return 'full-reload-required'
-      if (shouldReplaceActiveTab(path, deps)) refreshedActiveEntry = entry
+      const outcome = await applyChangedPath(path, deps)
+      if (outcome.kind === 'full-reload') return 'full-reload-required'
+      if (outcome.kind === 'entry' && shouldReplaceActiveTab(path, deps)) {
+        refreshedActiveEntry = outcome.entry
+      }
     }
   } catch {
     return 'full-reload-required'

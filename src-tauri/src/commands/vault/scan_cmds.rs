@@ -4,7 +4,7 @@ use crate::vault::VaultEntry;
 use crate::{search, vault, vault_list};
 use std::path::{Path, PathBuf};
 
-use super::boundary::{with_validated_path, ValidatedPathMode};
+use super::boundary::{canonicalize_possibly_missing, with_validated_path, ValidatedPathMode};
 
 fn collect_registered_vault_roots(vault_list: &vault_list::VaultList) -> Vec<PathBuf> {
     let mut roots = vault_list
@@ -44,9 +44,12 @@ fn resolve_reload_vault_path(
         return Ok(None);
     }
 
-    let canonical_path = match path.canonicalize() {
-        Ok(canonical_path) => canonical_path,
-        Err(_) => return Ok(None),
+    // A path this resolves for may already be gone — the watcher asks what the
+    // vault holds at a note it just saw deleted. Plain canonicalize() fails on a
+    // missing leaf, which would leave the caller unable to place the path in any
+    // vault and force a whole-vault rescan for every delete.
+    let Ok(canonical_path) = canonicalize_possibly_missing(path) else {
+        return Ok(None);
     };
 
     let vault_list = vault_list::load_vault_list()?;
@@ -75,27 +78,28 @@ pub fn reload_vault_entry(
     )
 }
 
-/// Resolve a path the frontend has no entry for yet — a note created outside
-/// the app — into a single entry, so the watcher can insert it instead of
-/// rescanning the vault. `None` means the path is not something the entry list
-/// holds (a directory, a hidden file, a gitignored note), leaving the caller to
-/// fall back to a full reload.
+/// What the vault holds at `path` right now, so the watcher can fold a single
+/// change into the entry list instead of rescanning. `None` means the entry
+/// list should hold nothing there — the file was deleted, or it is a directory,
+/// a hidden file, or a gitignored note. The path may already be gone by the
+/// time this runs, so containment is checked against its nearest existing
+/// ancestor rather than the path itself.
 #[tauri::command]
 pub fn scan_vault_entry(
     path: PathBuf,
     vault_path: Option<PathBuf>,
-) -> Result<Option<VaultEntry>, String> {
+) -> Result<vault::ScannedPath, String> {
     let Some(resolved_vault_path) =
         resolve_reload_vault_path(path.as_path(), vault_path.as_deref())?
     else {
-        return Ok(None);
+        return Ok(vault::ScannedPath::Unlisted);
     };
     let raw_path = path.to_string_lossy();
     let raw_vault_path = resolved_vault_path.to_string_lossy().into_owned();
     with_validated_path(
         &raw_path,
         Some(raw_vault_path.as_str()),
-        ValidatedPathMode::Existing,
+        ValidatedPathMode::PossiblyMissing,
         |validated_path| {
             vault::scan_entry(Path::new(validated_path), resolved_vault_path.as_path())
         },
@@ -161,9 +165,10 @@ pub async fn search_vault(
 #[cfg(test)]
 mod tests {
     use super::{
-        collect_registered_vault_roots, find_registered_vault_root, reload_vault_entry,
-        resolve_reload_vault_path, scan_vault_entry, search_vault,
+        canonicalize_possibly_missing, collect_registered_vault_roots, find_registered_vault_root,
+        reload_vault_entry, resolve_reload_vault_path, scan_vault_entry, search_vault,
     };
+    use crate::vault::ScannedPath;
     use crate::vault_list::{VaultEntry as VaultListEntry, VaultList};
     use std::path::{Path, PathBuf};
 
@@ -197,6 +202,43 @@ mod tests {
 
         assert_eq!(
             find_registered_vault_root(canonical_note_path.as_path(), &registered_roots),
+            Some(vault_root),
+        );
+    }
+
+    /// The watcher asks about a note the instant after it is deleted, and it
+    /// passes no vault path — the root has to be found from the path alone.
+    /// Plain canonicalize() fails on a gone leaf, which used to leave every
+    /// delete unplaceable and force a whole-vault rescan.
+    #[test]
+    fn finds_registered_vault_root_for_a_note_deleted_moments_ago() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let vault_root = dir.path().join("vault");
+        let note_path = vault_root.join("nested/gone.md");
+        std::fs::create_dir_all(note_path.parent().unwrap()).unwrap();
+        std::fs::write(&note_path, "# Gone\n").unwrap();
+        std::fs::remove_file(&note_path).unwrap();
+
+        let vault_list = VaultList {
+            vaults: vec![VaultListEntry {
+                label: "Test".to_string(),
+                path: vault_root.to_string_lossy().into_owned(),
+                ..Default::default()
+            }],
+            active_vault: None,
+            default_workspace_path: None,
+            hidden_defaults: vec![],
+        };
+
+        let registered_roots = collect_registered_vault_roots(&vault_list);
+        assert!(
+            note_path.canonicalize().is_err(),
+            "precondition: the leaf is gone, so plain canonicalize cannot place it"
+        );
+        let resolved = canonicalize_possibly_missing(note_path.as_path()).unwrap();
+
+        assert_eq!(
+            find_registered_vault_root(resolved.as_path(), &registered_roots),
             Some(vault_root),
         );
     }
@@ -306,9 +348,11 @@ mod tests {
         let dir = tempfile::TempDir::new().unwrap();
         let note_path = write_note(dir.path(), "dropped-in.md", "# Dropped In\n\nBody");
 
-        let entry = scan_vault_entry(note_path, Some(dir.path().to_path_buf()))
-            .unwrap()
-            .unwrap();
+        let ScannedPath::Entry { entry } =
+            scan_vault_entry(note_path, Some(dir.path().to_path_buf())).unwrap()
+        else {
+            panic!("expected a listed entry")
+        };
 
         assert_eq!(entry.title, "dropped-in");
     }
@@ -318,19 +362,46 @@ mod tests {
         let dir = tempfile::TempDir::new().unwrap();
         std::fs::create_dir_all(dir.path().join("New Folder")).unwrap();
 
+        assert!(matches!(
+            scan_vault_entry(
+                dir.path().join("New Folder"),
+                Some(dir.path().to_path_buf())
+            )
+            .unwrap(),
+            ScannedPath::Unlisted
+        ));
+    }
+
+    #[test]
+    fn scan_vault_entry_command_reports_a_note_deleted_moments_ago() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let note_path = write_note(dir.path(), "gone.md", "# Gone\n");
+        std::fs::remove_file(&note_path).unwrap();
+
+        assert!(matches!(
+            scan_vault_entry(note_path, Some(dir.path().to_path_buf())).unwrap(),
+            ScannedPath::Missing
+        ));
+    }
+
+    #[test]
+    fn scan_vault_entry_command_still_refuses_paths_outside_the_vault() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let outside = tempfile::TempDir::new().unwrap();
+
         assert!(scan_vault_entry(
-            dir.path().join("New Folder"),
+            outside.path().join("gone.md"),
             Some(dir.path().to_path_buf())
         )
-        .unwrap()
-        .is_none());
+        .is_err());
     }
 
     #[test]
     fn scan_vault_entry_command_reports_unregistered_vault_paths() {
-        assert!(scan_vault_entry(PathBuf::from("relative/note.md"), None)
-            .unwrap()
-            .is_none());
+        assert!(matches!(
+            scan_vault_entry(PathBuf::from("relative/note.md"), None).unwrap(),
+            ScannedPath::Unlisted
+        ));
     }
 
     #[tokio::test]
