@@ -144,6 +144,32 @@ describe('useDeleteActions', () => {
       })
     })
 
+    it('finishes as soon as the file is gone, without waiting for the git refresh', async () => {
+      mockInvokeFn.mockResolvedValue(['/vault/a.md'])
+      let finishGitRefresh: () => void = () => {}
+      refreshModifiedFiles.mockReturnValue(new Promise<void>((resolve) => {
+        finishGitRefresh = resolve
+      }))
+      const { result } = renderDeleteActions()
+
+      let deleted: Promise<boolean> | undefined
+      act(() => {
+        deleted = result.current.deleteNoteFromDisk('/vault/a.md')
+      })
+      await act(async () => {
+        await Promise.resolve()
+      })
+
+      expect(refreshModifiedFiles).toHaveBeenCalledTimes(1)
+      expect(result.current.pendingDeleteCount).toBe(0)
+      expect(setToastMessage).toHaveBeenLastCalledWith('Note permanently deleted')
+
+      finishGitRefresh()
+      await act(async () => {
+        await deleted
+      })
+    })
+
     it('reloads the vault and returns false on failure', async () => {
       mockInvokeFn.mockRejectedValue(new Error('disk full'))
       const { result } = renderDeleteActions()

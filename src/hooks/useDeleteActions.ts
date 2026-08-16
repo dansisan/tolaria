@@ -97,6 +97,19 @@ async function runDeleteCommand(
   return deletedGroups.flat()
 }
 
+/**
+ * Reloading the git Changes view is bookkeeping that follows a delete rather
+ * than part of it — the file is already gone, and nothing the user is waiting
+ * on depends on the answer. Awaiting it held the "Deleting..." spinner open for
+ * a git round trip per repository after the work was done.
+ */
+function refreshDetached(refresh: () => Promise<unknown> | void): void {
+  void Promise.resolve(refresh()).catch(() => {
+    // The Changes view reports its own load failures; a delete that already
+    // succeeded must not be shown as one that failed.
+  })
+}
+
 function pruneOrphanedAttachments(
   deletedPaths: string[],
   entriesBeforeDelete: VaultEntry[],
@@ -178,7 +191,7 @@ function useDeleteRunner({
         return deletedCount
       }
 
-      await Promise.resolve(refreshModifiedFiles())
+      refreshDetached(refreshModifiedFiles)
       setToastMessage(buildDeleteSuccessMessage(deletedCount))
       return deletedCount
     } catch (e) {
