@@ -35,6 +35,13 @@ struct Utf8Boundary<'a> {
 
 struct SnippetRequest<'a> {
     content: &'a str,
+    content_lower: &'a str,
+    query_lower: &'a str,
+}
+
+struct SearchCandidate<'a> {
+    exclude_frontmatter: bool,
+    path: &'a Path,
     query_lower: &'a str,
 }
 
@@ -70,8 +77,7 @@ impl Utf8Boundary<'_> {
 
 impl SnippetRequest<'_> {
     fn extract(&self) -> String {
-        let content_lower = self.content.to_lowercase();
-        let lower_pos = match content_lower.find(self.query_lower) {
+        let lower_pos = match self.content_lower.find(self.query_lower) {
             Some(p) => p,
             None => return String::new(),
         };
@@ -172,53 +178,116 @@ fn collect_markdown_paths(vault_dir: &Path, hide_gitignored_files: bool) -> Vec<
     crate::vault::filter_gitignored_paths(vault_dir, paths, hide_gitignored_files)
 }
 
-pub fn search_vault_with_options(options: SearchOptions<'_>) -> Result<SearchResponse, String> {
-    let start = Instant::now();
-    let query_lower = options.query.to_lowercase();
-    let vault_dir = Path::new(options.vault_path);
-
-    let mut results: Vec<SearchResult> = Vec::new();
-
-    for path in collect_markdown_paths(vault_dir, options.hide_gitignored_files) {
-        let content = match std::fs::read_to_string(&path) {
-            Ok(c) => c,
-            Err(_) => continue,
-        };
-
-        let searchable_content = searchable_content(&content, options.exclude_frontmatter);
+impl SearchCandidate<'_> {
+    /// Read, match, and score one note. `None` means the note is unreadable or
+    /// simply does not match — both drop it from the results.
+    fn search(&self) -> Option<SearchResult> {
+        let content = std::fs::read_to_string(self.path).ok()?;
+        let searchable_content = searchable_content(&content, self.exclude_frontmatter);
         let content_lower = searchable_content.to_lowercase();
-        let filename = path
+        let filename = self
+            .path
             .file_name()
             .and_then(|value| value.to_str())
             .unwrap_or("");
         let title = crate::vault::derive_markdown_title_from_content(&content, filename);
         let title_lower = title.to_lowercase();
 
-        if !title_lower.contains(&query_lower) && !content_lower.contains(&query_lower) {
-            continue;
+        if !title_lower.contains(self.query_lower) && !content_lower.contains(self.query_lower) {
+            return None;
         }
 
         let score = MatchScoreRequest {
             title_lower: &title_lower,
             content_lower: &content_lower,
-            query_lower: &query_lower,
+            query_lower: self.query_lower,
         }
         .score();
         let snippet = SnippetRequest {
             content: searchable_content,
-            query_lower: &query_lower,
+            content_lower: &content_lower,
+            query_lower: self.query_lower,
         }
         .extract();
-        let full_path = path.to_string_lossy().to_string();
 
-        results.push(SearchResult {
+        Some(SearchResult {
             title,
-            path: full_path,
+            path: self.path.to_string_lossy().to_string(),
             snippet,
             score,
             note_type: None,
-        });
+        })
     }
+}
+
+/// Spreading a handful of files over every core costs more in thread setup than
+/// the scan itself, so workers are only added once each has real work to do.
+const MIN_PATHS_PER_SEARCH_WORKER: usize = 64;
+
+fn search_worker_count(path_count: usize) -> usize {
+    let available = std::thread::available_parallelism()
+        .map(|count| count.get())
+        .unwrap_or(1);
+    available
+        .min(path_count.div_ceil(MIN_PATHS_PER_SEARCH_WORKER))
+        .max(1)
+}
+
+fn search_paths_in_order(
+    paths: &[PathBuf],
+    query_lower: &str,
+    exclude_frontmatter: bool,
+) -> Vec<SearchResult> {
+    paths
+        .iter()
+        .filter_map(|path| {
+            SearchCandidate {
+                exclude_frontmatter,
+                path,
+                query_lower,
+            }
+            .search()
+        })
+        .collect()
+}
+
+/// Notes are read and scored independently, so the file list splits across worker
+/// threads. Each chunk keeps its scan order and the chunks are concatenated in
+/// order, so the stable sort that follows still produces exactly the ordering the
+/// single-threaded scan produced — the win is wall clock, not a different result.
+fn search_paths(
+    paths: &[PathBuf],
+    query_lower: &str,
+    exclude_frontmatter: bool,
+) -> Vec<SearchResult> {
+    let worker_count = search_worker_count(paths.len());
+    if worker_count <= 1 {
+        return search_paths_in_order(paths, query_lower, exclude_frontmatter);
+    }
+
+    let chunk_size = paths.len().div_ceil(worker_count);
+    std::thread::scope(|scope| {
+        let workers = paths
+            .chunks(chunk_size)
+            .map(|chunk| {
+                scope.spawn(move || search_paths_in_order(chunk, query_lower, exclude_frontmatter))
+            })
+            .collect::<Vec<_>>();
+        workers
+            .into_iter()
+            .filter_map(|worker| worker.join().ok())
+            .flatten()
+            .collect()
+    })
+}
+
+pub fn search_vault_with_options(options: SearchOptions<'_>) -> Result<SearchResponse, String> {
+    let start = Instant::now();
+    let query_lower = options.query.to_lowercase();
+    let vault_dir = Path::new(options.vault_path);
+    let paths = collect_markdown_paths(vault_dir, options.hide_gitignored_files);
+
+    let mut results = search_paths(&paths, &query_lower, options.exclude_frontmatter);
 
     results.sort_by(|a, b| {
         b.score
@@ -252,13 +321,16 @@ mod tests {
     }
 
     macro_rules! snippet {
-        ($content:expr, $query_lower:expr) => {
+        ($content:expr, $query_lower:expr) => {{
+            let content: &str = $content;
+            let content_lower = content.to_lowercase();
             SnippetRequest {
-                content: $content,
+                content,
+                content_lower: &content_lower,
                 query_lower: $query_lower,
             }
             .extract()
-        };
+        }};
     }
 
     macro_rules! match_score {
@@ -464,5 +536,86 @@ mod tests {
 
         assert_eq!(response.results.len(), 1);
         assert_eq!(response.results[0].title, "body-match");
+    }
+
+    #[test]
+    fn test_search_worker_count_keeps_small_vaults_on_one_thread() {
+        assert_eq!(search_worker_count(0), 1);
+        assert_eq!(search_worker_count(1), 1);
+        assert_eq!(search_worker_count(MIN_PATHS_PER_SEARCH_WORKER), 1);
+    }
+
+    #[test]
+    fn test_search_worker_count_adds_workers_only_once_each_has_work() {
+        assert_eq!(search_worker_count(MIN_PATHS_PER_SEARCH_WORKER + 1), 2.min(available_cores()));
+        assert!(search_worker_count(usize::MAX) <= available_cores());
+    }
+
+    fn available_cores() -> usize {
+        std::thread::available_parallelism()
+            .map(|count| count.get())
+            .unwrap_or(1)
+    }
+
+    /// Enough notes to span every worker chunk on any realistic core count.
+    const MULTI_WORKER_NOTE_COUNT: usize = 400;
+
+    fn write_equal_scoring_vault(prefix: &str) -> tempfile::TempDir {
+        let dir = Builder::new()
+            .prefix(prefix)
+            .tempdir_in(std::env::current_dir().unwrap())
+            .unwrap();
+        for index in 0..MULTI_WORKER_NOTE_COUNT {
+            fs::write(
+                dir.path().join(format!("note-{index:04}.md")),
+                "Body text with a shared needle token.",
+            )
+            .unwrap();
+        }
+        dir
+    }
+
+    fn search_result_paths(dir: &Path) -> Vec<String> {
+        search_vault_with_options(SearchOptions {
+            vault_path: dir.to_str().unwrap(),
+            query: "needle",
+            mode: "keyword",
+            limit: MULTI_WORKER_NOTE_COUNT * 2,
+            hide_gitignored_files: false,
+            exclude_frontmatter: false,
+        })
+        .unwrap()
+        .results
+        .into_iter()
+        .map(|result| result.path)
+        .collect()
+    }
+
+    #[test]
+    fn test_search_vault_returns_every_match_across_worker_chunks() {
+        let dir = write_equal_scoring_vault("search-chunk-coverage-");
+
+        let paths = search_result_paths(dir.path());
+
+        assert_eq!(paths.len(), MULTI_WORKER_NOTE_COUNT);
+        assert_eq!(
+            paths.iter().collect::<std::collections::HashSet<_>>().len(),
+            MULTI_WORKER_NOTE_COUNT,
+            "every matching note must appear exactly once"
+        );
+    }
+
+    #[test]
+    fn test_search_vault_orders_equal_scoring_results_deterministically() {
+        let dir = write_equal_scoring_vault("search-chunk-order-");
+        let expected = search_result_paths(dir.path());
+
+        for attempt in 0..4 {
+            assert_eq!(
+                search_result_paths(dir.path()),
+                expected,
+                "result order drifted on attempt {attempt}"
+            );
+        }
     }
 }

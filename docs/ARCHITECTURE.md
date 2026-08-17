@@ -475,7 +475,7 @@ Search is keyword-based, using `walkdir` to scan all `.md` files in the vault di
 - Extracts contextual snippets around the first match
 - Skips hidden files
 
-The `search_vault` Tauri command runs the scan in a blocking Tokio task and returns results sorted by relevance score.
+The `search_vault` Tauri command runs the scan in a blocking Tokio task and returns results sorted by relevance score. Reading and scoring each note is independent, so the collected path list is split across scoped worker threads (capped at `available_parallelism()`, and only added once each worker holds at least `MIN_PATHS_PER_SEARCH_WORKER` files so small vaults stay single-threaded). Chunks keep their scan order and are concatenated in order, so the stable score sort still yields the same ordering a single-threaded scan produced.
 
 The note-list search field combines client-side scoped filtering with that same command: title, snippet, and visible-property matches resolve immediately, while backend body-content hits use `search_vault` with frontmatter excluded before adding matching paths for the currently visible workspace roots without displaying matched body text in the note row.
 
