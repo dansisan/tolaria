@@ -49,7 +49,7 @@ export function useWorkspaceGraphState({
   windowMode,
 }: WorkspaceGraphConfig): WorkspaceGraphState {
   const multiWorkspaceEnabled = settings.multi_workspace_enabled === true
-  const workspaceGraphLoadingEnabled = !windowMode
+  const workspaceGraphLoadingEnabled = !windowMode && multiWorkspaceEnabled
   const graphDefaultWorkspacePath = !windowMode && multiWorkspaceEnabled
     ? (defaultWorkspacePath ?? resolvedPath)
     : resolvedPath

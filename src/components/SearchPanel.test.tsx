@@ -228,6 +228,17 @@ describe('SearchPanel', () => {
     expect(screen.getByPlaceholderText('Search in all notes...')).toBeInTheDocument()
   })
 
+  it('opts the search input out of native autofill so ArrowDown cannot leave the results', () => {
+    render(
+      <SearchPanel open={true} vaultPath="/vault" entries={MOCK_ENTRIES} onSelectNote={vi.fn()} onClose={vi.fn()} />,
+    )
+    const input = screen.getByPlaceholderText(SEARCH_INPUT_PLACEHOLDER)
+    expect(input).toHaveAttribute('autocomplete', 'off')
+    expect(input).toHaveAttribute('autocorrect', 'off')
+    expect(input).toHaveAttribute('autocapitalize', 'off')
+    expect(input).toHaveAttribute('spellcheck', 'false')
+  })
+
   it('shows empty state hint when no query', () => {
     render(
       <SearchPanel open={true} vaultPath="/vault" entries={MOCK_ENTRIES} onSelectNote={vi.fn()} onClose={vi.fn()} />,

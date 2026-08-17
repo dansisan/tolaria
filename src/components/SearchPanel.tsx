@@ -412,6 +412,10 @@ const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
           type="text"
           placeholder="Search in all notes..."
           value={query}
+          spellCheck={false}
+          autoCorrect="off"
+          autoCapitalize="off"
+          autoComplete="off"
           onChange={e => onChange(e.target.value)}
         />
         {loading && (
