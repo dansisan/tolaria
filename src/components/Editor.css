@@ -142,7 +142,7 @@ body.mac-chrome .app:not(:has(.app__sidebar)):not(:has(.app__note-list)) .breadc
   --bn-colors-tooltip-text: var(--text-primary);
   --bn-colors-hovered-background: var(--state-hover);
   --bn-colors-hovered-text: var(--text-primary);
-  --bn-colors-selected-background: var(--bg-selected);
+  --bn-colors-selected-background: var(--bg-selected-editor);
   --bn-colors-selected-text: var(--text-primary);
   --bn-colors-border: var(--border-dialog);
   --bn-colors-shadow: var(--shadow-dialog);

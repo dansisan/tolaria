@@ -56,6 +56,7 @@
   --state-hover-subtle: #F0F0EF;
   --state-selected: #E8F4FE;
   --state-selected-strong: #D8ECFE;
+  --state-selected-editor: #E8F4FE;
   --state-active: #E8F4FE;
   --state-focus-ring: #155DFF;
   --state-drag-target: #155DFF18;
@@ -168,6 +169,7 @@
   --bg-hover: var(--state-hover);
   --bg-hover-subtle: var(--state-hover-subtle);
   --bg-selected: var(--state-selected);
+  --bg-selected-editor: var(--state-selected-editor);
   --bg-input: var(--surface-input);
   --bg-button: var(--surface-button);
   --bg-dialog: var(--surface-dialog);
@@ -224,6 +226,11 @@
   --state-hover-subtle: #2C313A;
   --state-selected: #2B3A4D;
   --state-selected-strong: #33475F;
+  /* Lighter/more saturated than --state-selected: that token reads fine as a subtle
+     row highlight but drops to ~1.3:1 against --surface-editor, which is why
+     selected text was nearly invisible while editing. This meets ~3:1 against the
+     editor background while keeping selected text (white or --text-secondary) legible. */
+  --state-selected-editor: #4F7099;
   --state-active: #2B3A4D;
   --state-focus-ring: #7AA6DA;
   --state-drag-target: rgba(122, 166, 218, 0.2);
@@ -340,6 +347,7 @@
   --bg-hover: var(--state-hover);
   --bg-hover-subtle: var(--state-hover-subtle);
   --bg-selected: var(--state-selected);
+  --bg-selected-editor: var(--state-selected-editor);
   --bg-input: var(--surface-input);
   --bg-button: var(--surface-button);
   --bg-dialog: var(--surface-dialog);

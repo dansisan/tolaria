@@ -123,7 +123,7 @@
     "textMuted": "var(--text-muted)",
     "heading": "var(--text-heading)",
     "accent": "var(--accent-blue)",
-    "selection": "var(--bg-selected)",
+    "selection": "var(--bg-selected-editor)",
     "cursor": "var(--text-primary)"
   }
 }
