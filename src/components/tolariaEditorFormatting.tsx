@@ -68,6 +68,7 @@ type TolariaBasicTextStyle = 'bold' | 'italic' | 'strike' | 'code'
 
 const FORMATTER_CLOSE_GRACE_MS = 160
 const FORMATTER_VIEWPORT_PADDING_PX = 8
+const FORMATTER_SELECTION_GAP_PX = 2
 type TolariaFloatingOptions = NonNullable<FloatingUIOptions['useFloatingOptions']>
 type TolariaFloatingMiddleware = NonNullable<TolariaFloatingOptions['middleware']>[number]
 
@@ -251,12 +252,26 @@ function viewportClampMiddleware(): TolariaFloatingMiddleware {
   }
 }
 
+// All toolbar placements are top-family (see textAlignmentToPlacement), so the
+// floating box always sits above the selection — subtracting from `y` always
+// pushes it further away, never into the selected text.
+function selectionGapMiddleware(): TolariaFloatingMiddleware {
+  return {
+    name: 'tolariaSelectionGap',
+    fn({ y }: { y: number }) {
+      return {
+        y: y - FORMATTER_SELECTION_GAP_PX,
+      }
+    },
+  }
+}
+
 function withViewportSafeMiddleware(
   options?: TolariaFloatingOptions,
 ): TolariaFloatingOptions {
   if (!options) {
     return {
-      middleware: [viewportClampMiddleware()],
+      middleware: [selectionGapMiddleware(), viewportClampMiddleware()],
     }
   }
 
@@ -264,6 +279,7 @@ function withViewportSafeMiddleware(
     ...options,
     middleware: [
       ...(options.middleware ?? []),
+      selectionGapMiddleware(),
       viewportClampMiddleware(),
     ],
   }
