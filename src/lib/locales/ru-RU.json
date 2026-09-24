@@ -562,6 +562,7 @@
   "tableOfContents.expandHeading": "Развернуть {heading}",
   "tableOfContents.collapseHeading": "Свернуть {heading}",
   "editor.codeBlock.copy": "Скопировать код в буфер обмена",
+  "editor.linkToolbar.copy": "Копировать ссылку",
   "editor.imageLightbox.title": "Предварительный просмотр изображения",
   "editor.filename.rename": "Переименовать файл",
   "editor.filename.renameToTitle": "Переименовать файл в соответствии с заголовком",

@@ -562,6 +562,7 @@
   "tableOfContents.expandHeading": "Perluas {heading}",
   "tableOfContents.collapseHeading": "Ciutkan {heading}",
   "editor.codeBlock.copy": "Salin kode ke papan klip",
+  "editor.linkToolbar.copy": "Salin tautan",
   "editor.imageLightbox.title": "Pratinjau gambar",
   "editor.filename.rename": "Ganti nama file",
   "editor.filename.renameToTitle": "Ganti nama file agar sesuai dengan judul",

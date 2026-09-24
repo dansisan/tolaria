@@ -562,6 +562,7 @@
   "tableOfContents.expandHeading": "Expandir {heading}",
   "tableOfContents.collapseHeading": "Contraer {heading}",
   "editor.codeBlock.copy": "Copiar código al portapapeles",
+  "editor.linkToolbar.copy": "Copiar enlace",
   "editor.imageLightbox.title": "Vista previa de la imagen",
   "editor.filename.rename": "Cambiar el nombre del archivo",
   "editor.filename.renameToTitle": "Cambiar el nombre del archivo para que coincida con el título",

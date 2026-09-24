@@ -562,6 +562,7 @@
   "tableOfContents.expandHeading": "Разгарнуць {heading}",
   "tableOfContents.collapseHeading": "Згарнуць {heading}",
   "editor.codeBlock.copy": "Капіяваць код",
+  "editor.linkToolbar.copy": "Капіраваць спасылку",
   "editor.imageLightbox.title": "Прагляд выявы",
   "editor.filename.rename": "Перайменаваць файл",
   "editor.filename.renameToTitle": "Перайменаваць файл па загалоўку",

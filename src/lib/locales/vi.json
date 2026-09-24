@@ -562,6 +562,7 @@
   "tableOfContents.expandHeading": "Mở rộng {heading}",
   "tableOfContents.collapseHeading": "Thu gọn {heading}",
   "editor.codeBlock.copy": "Copy code to clipboard",
+  "editor.linkToolbar.copy": "Sao chép liên kết",
   "editor.imageLightbox.title": "Image preview",
   "editor.filename.rename": "Đổi tên tệp",
   "editor.filename.renameToTitle": "Đổi tên tệp cho khớp với tiêu đề",

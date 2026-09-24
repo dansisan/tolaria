@@ -1,5 +1,5 @@
-import { ArrowSquareOut as ExternalLink, Hash } from '@phosphor-icons/react'
-import { Component, memo, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { ArrowSquareOut as ExternalLink, Check, Copy, Hash } from '@phosphor-icons/react'
+import { Component, memo, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   GridSuggestionMenuController,
   BlockNoteViewRaw,
@@ -29,6 +29,7 @@ import { createTranslator, type AppLocale } from '../lib/i18n'
 import { buildTypeEntryMap } from '../utils/typeColors'
 import { buildTagCounts } from '../utils/tagIndex'
 import { searchEmojis, type EmojiEntry } from '../utils/emoji'
+import { writeClipboardText } from '../utils/clipboardText'
 import { preFilterWikilinks, deduplicateByPath, recentWikilinkCandidates, MIN_QUERY_LENGTH } from '../utils/wikilinkSuggestions'
 import { filterPersonMentions, PERSON_MENTION_MIN_QUERY } from '../utils/personMentionSuggestions'
 import { attachClickHandlers, enrichSuggestionItems, hasMultipleSuggestionWorkspaces } from '../utils/suggestionEnrichment'
@@ -293,7 +294,60 @@ function TolariaOpenLinkButton({
   )
 }
 
-function TolariaLinkToolbar({ vaultPath, ...props }: LinkToolbarProps & { vaultPath?: string }) {
+const LINK_COPIED_RESET_MS = 1500
+
+function useLinkCopiedFeedback() {
+  const [copied, setCopied] = useState(false)
+  const resetTimerRef = useRef<number | null>(null)
+
+  useEffect(() => () => {
+    if (resetTimerRef.current !== null) window.clearTimeout(resetTimerRef.current)
+  }, [])
+
+  const markCopied = useCallback(() => {
+    setCopied(true)
+    if (resetTimerRef.current !== null) window.clearTimeout(resetTimerRef.current)
+    resetTimerRef.current = window.setTimeout(() => {
+      setCopied(false)
+      resetTimerRef.current = null
+    }, LINK_COPIED_RESET_MS)
+  }, [])
+
+  return { copied, markCopied }
+}
+
+function TolariaCopyLinkButton({ url, label }: Pick<LinkToolbarProps, 'url'> & { label: string }) {
+  const Components = useComponentsContext()!
+  const { copied, markCopied } = useLinkCopiedFeedback()
+  const handleCopy = useCallback(() => {
+    void writeClipboardText(url)
+      .then(() => {
+        trackEvent('link_url_copied')
+        markCopied()
+      })
+      .catch((error) => {
+        console.warn('[editor] Failed to copy link:', error)
+      })
+  }, [markCopied, url])
+
+  return (
+    <Components.LinkToolbar.Button
+      className="bn-button"
+      label={label}
+      mainTooltip={label}
+      isSelected={false}
+      onClick={handleCopy}
+      icon={copied ? <Check size={16} /> : <Copy size={16} />}
+    />
+  )
+}
+
+function TolariaLinkToolbar({
+  vaultPath,
+  locale,
+  ...props
+}: LinkToolbarProps & { vaultPath?: string; locale: AppLocale }) {
+  const t = useMemo(() => createTranslator(locale), [locale])
   return (
     <LinkToolbar {...props}>
       <EditLinkButton
@@ -304,6 +358,7 @@ function TolariaLinkToolbar({ vaultPath, ...props }: LinkToolbarProps & { vaultP
         setToolbarPositionFrozen={props.setToolbarPositionFrozen}
       />
       <TolariaOpenLinkButton url={props.url} vaultPath={vaultPath} />
+      <TolariaCopyLinkButton url={props.url} label={t('editor.linkToolbar.copy')} />
       <DeleteLinkButton
         range={props.range}
         setToolbarOpen={props.setToolbarOpen}
@@ -1088,6 +1143,7 @@ function useSuggestionMenuItems(options: {
 type EditorInteractionControllersProps = ReturnType<typeof useSuggestionMenuItems> & {
   runEditorAction: (action: SuggestionAction) => void
   vaultPath?: string
+  locale: AppLocale
 }
 
 function EditorInteractionControllers({
@@ -1098,6 +1154,7 @@ function EditorInteractionControllers({
   getWikilinkItems,
   runEditorAction,
   vaultPath,
+  locale,
 }: EditorInteractionControllersProps) {
   return (
     <>
@@ -1114,7 +1171,7 @@ function EditorInteractionControllers({
       />
       <LinkToolbarController
         linkToolbar={(props) => (
-          <TolariaLinkToolbar {...props} vaultPath={vaultPath} />
+          <TolariaLinkToolbar {...props} vaultPath={vaultPath} locale={locale} />
         )}
         floatingUIOptions={{
           elementProps: {
@@ -1161,6 +1218,7 @@ type EditorSurfaceProps = {
   suggestionMenuItems: ReturnType<typeof useSuggestionMenuItems>
   runEditorAction: (action: SuggestionAction) => void
   vaultPath?: string
+  locale: AppLocale
 }
 
 /**
@@ -1182,6 +1240,7 @@ const EditorSurface = memo(function EditorSurface({
   suggestionMenuItems,
   runEditorAction,
   vaultPath,
+  locale,
 }: EditorSurfaceProps) {
   return (
     <SharedContextBlockNoteView
@@ -1200,6 +1259,7 @@ const EditorSurface = memo(function EditorSurface({
         {...suggestionMenuItems}
         runEditorAction={runEditorAction}
         vaultPath={vaultPath}
+        locale={locale}
       />
     </SharedContextBlockNoteView>
   )
@@ -1408,6 +1468,7 @@ export function SingleEditorView({ editor, entries, recentPaths, onNavigateWikil
             suggestionMenuItems={suggestionMenuItems}
             runEditorAction={runEditorAction}
             vaultPath={vaultPath}
+            locale={locale}
           />
         )}
       </BlockNoteRenderRecoveryBoundary>

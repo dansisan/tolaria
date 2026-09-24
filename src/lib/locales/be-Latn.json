@@ -563,6 +563,7 @@
   "tableOfContents.expandHeading": "Razharnuć {heading}",
   "tableOfContents.collapseHeading": "Zharnuć {heading}",
   "editor.codeBlock.copy": "Kapijavać kod",
+  "editor.linkToolbar.copy": "Kapijavać spasylku",
   "editor.imageLightbox.title": "Prahliad vyjavy",
   "editor.filename.rename": "Pierajmienavać fajl",
   "editor.filename.renameToTitle": "Pierajmienavać fajl pa zahaloŭku",

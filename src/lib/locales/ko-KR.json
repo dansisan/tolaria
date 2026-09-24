@@ -562,6 +562,7 @@
   "tableOfContents.expandHeading": "{heading} 펼치기",
   "tableOfContents.collapseHeading": "{heading} 접기",
   "editor.codeBlock.copy": "클립보드에 코드 복사",
+  "editor.linkToolbar.copy": "링크 복사",
   "editor.imageLightbox.title": "이미지 미리 보기",
   "editor.filename.rename": "파일 이름 변경",
   "editor.filename.renameToTitle": "파일 이름을 제목과 일치하도록 변경",

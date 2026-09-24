@@ -562,6 +562,7 @@
   "tableOfContents.expandHeading": "Expandir {heading}",
   "tableOfContents.collapseHeading": "Fechar {heading}",
   "editor.codeBlock.copy": "Copiar código para a área de transferência",
+  "editor.linkToolbar.copy": "Copiar link",
   "editor.imageLightbox.title": "Pré-visualização da imagem",
   "editor.filename.rename": "Mudar o nome do ficheiro",
   "editor.filename.renameToTitle": "Mudar o nome do ficheiro para corresponder ao título",

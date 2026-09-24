@@ -562,6 +562,7 @@
   "tableOfContents.expandHeading": "{heading}を展開",
   "tableOfContents.collapseHeading": "{heading}を折りたたむ",
   "editor.codeBlock.copy": "コードをクリップボードにコピー",
+  "editor.linkToolbar.copy": "リンクをコピー",
   "editor.imageLightbox.title": "画像プレビュー",
   "editor.filename.rename": "ファイル名を変更",
   "editor.filename.renameToTitle": "タイトルと一致するようにファイル名を変更する",

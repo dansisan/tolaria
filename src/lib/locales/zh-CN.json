@@ -562,6 +562,7 @@
   "tableOfContents.expandHeading": "展开 {heading}",
   "tableOfContents.collapseHeading": "折叠 {heading}",
   "editor.codeBlock.copy": "将代码复制到剪贴板",
+  "editor.linkToolbar.copy": "复制链接",
   "editor.imageLightbox.title": "图像预览",
   "editor.filename.rename": "重命名文件名",
   "editor.filename.renameToTitle": "将文件重命名为匹配标题",

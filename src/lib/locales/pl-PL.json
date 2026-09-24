@@ -562,6 +562,7 @@
   "tableOfContents.expandHeading": "Rozwiń {heading}",
   "tableOfContents.collapseHeading": "Zwiń {heading}",
   "editor.codeBlock.copy": "Skopiuj kod do schowka",
+  "editor.linkToolbar.copy": "Kopiuj link",
   "editor.imageLightbox.title": "Podgląd obrazu",
   "editor.filename.rename": "Zmień nazwę pliku",
   "editor.filename.renameToTitle": "Zmień nazwę pliku na zgodną z tytułem",

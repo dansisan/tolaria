@@ -1323,6 +1323,21 @@ describe('SingleEditorView', () => {
     expect(mockOpenExternalUrl).toHaveBeenCalledWith('https://example.com/docs')
   })
 
+  it('copies the link URL from the link toolbar', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(window.navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    })
+    renderLinkToolbarOpenButton({ url: 'https://example.com/docs' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy link' }))
+
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith('https://example.com/docs')
+    })
+  })
+
   it('routes link-toolbar attachment actions through the active vault path', () => {
     renderLinkToolbarOpenButton({
       url: 'attachments/report.pdf',
