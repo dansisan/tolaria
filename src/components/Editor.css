@@ -398,7 +398,7 @@ body.mac-chrome .app:not(:has(.app__sidebar)):not(:has(.app__note-list)) .breadc
     color: #111 !important;
   }
 
-  body.tolaria-note-pdf-exporting :is(.editor__code-block-copy, .mermaid-diagram__expand-button, .tldraw-whiteboard__resize-handle, .tlui-layout, .tlui-popover, [data-radix-popper-content-wrapper]) {
+  body.tolaria-note-pdf-exporting :is(.editor__code-block-copy, .editor__inline-code-hint, .mermaid-diagram__expand-button, .tldraw-whiteboard__resize-handle, .tlui-layout, .tlui-popover, [data-radix-popper-content-wrapper]) {
     display: none !important;
   }
 }

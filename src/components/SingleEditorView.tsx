@@ -30,6 +30,7 @@ import { buildTypeEntryMap } from '../utils/typeColors'
 import { buildTagCounts } from '../utils/tagIndex'
 import { searchEmojis, type EmojiEntry } from '../utils/emoji'
 import { writeClipboardText } from '../utils/clipboardText'
+import { isMac } from '../utils/platform'
 import { preFilterWikilinks, deduplicateByPath, recentWikilinkCandidates, MIN_QUERY_LENGTH } from '../utils/wikilinkSuggestions'
 import { filterPersonMentions, PERSON_MENTION_MIN_QUERY } from '../utils/personMentionSuggestions'
 import { attachClickHandlers, enrichSuggestionItems, hasMultipleSuggestionWorkspaces } from '../utils/suggestionEnrichment'
@@ -53,6 +54,8 @@ import { useEditorLinkActivation } from './useEditorLinkActivation'
 import { findNearestTextCursorBlock } from './blockNoteCursorTarget'
 import { ImageLightbox } from './ImageLightbox'
 import { CodeBlockChrome, CodeBlockFenceLine } from './codeBlockChrome'
+import { InlineCodeCopyHint } from './inlineCodeChrome'
+import { copyInlineCodeAtCaret, useInlineCodeChromeTarget } from './inlineCodeChromeState'
 import { CODE_BLOCK_SELECTOR, useActiveCodeBlockFence, useCodeBlockChromeTarget } from './codeBlockChromeState'
 import {
   activatePlainTextPasteTarget,
@@ -954,6 +957,7 @@ function handleSelectedEditorCopy(event: React.ClipboardEvent<HTMLDivElement>) {
 
 function handleEditorCopy(event: React.ClipboardEvent<HTMLDivElement>) {
   if (handleCodeBlockCopy(event)) return
+  if (copyInlineCodeAtCaret(event)) return
 
   handleSelectedEditorCopy(event)
 }
@@ -1360,6 +1364,15 @@ export function SingleEditorView({ editor, entries, recentPaths, onNavigateWikil
     handleFocus: handleCodeBlockCopyFocus,
     handleMouseMove: handleCodeBlockCopyMouseMove,
   } = useCodeBlockChromeTarget(containerRef)
+  const isMacPlatform = isMac()
+  const {
+    clearInlineCodeTarget,
+    handleInlineCodeClick,
+    handleInlineCodeMouseDown,
+    handleInlineCodeMouseMove,
+    inlineCodeCopied,
+    inlineCodeTarget,
+  } = useInlineCodeChromeTarget(containerRef, isMacPlatform)
   const { beginFenceEditing, clearFenceTarget, endFenceEditing, fenceTarget } = useActiveCodeBlockFence(editor, containerRef, editable)
   useBlockNoteSideMenuHoverGuard(containerRef)
   useEditorLinkActivation(containerRef, onNavigateWikilink, vaultPath, onClickTag)
@@ -1375,7 +1388,8 @@ export function SingleEditorView({ editor, entries, recentPaths, onNavigateWikil
   useEffect(() => {
     clearChromeTarget()
     clearFenceTarget()
-  }, [sourceEntry?.path, clearChromeTarget, clearFenceTarget])
+    clearInlineCodeTarget()
+  }, [sourceEntry?.path, clearChromeTarget, clearFenceTarget, clearInlineCodeTarget])
 
   useEffect(() => {
     const container = containerRef.current
@@ -1409,10 +1423,20 @@ export function SingleEditorView({ editor, entries, recentPaths, onNavigateWikil
     activatePlainTextPaste()
     handleCodeBlockCopyFocus(event)
   }, [activatePlainTextPaste, handleCodeBlockCopyFocus])
+  const handleMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    handleCodeBlockCopyMouseMove(event)
+    handleInlineCodeMouseMove(event)
+  }, [handleCodeBlockCopyMouseMove, handleInlineCodeMouseMove])
+  const handleMouseLeave = useCallback(() => {
+    clearChromeTarget()
+    clearInlineCodeTarget()
+  }, [clearChromeTarget, clearInlineCodeTarget])
   const handleMouseDownCapture = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    handleInlineCodeMouseDown(event)
+    if (event.isPropagationStopped()) return
     activatePlainTextPaste()
     handleWhitespaceMouseSelection(event)
-  }, [activatePlainTextPaste, handleWhitespaceMouseSelection])
+  }, [activatePlainTextPaste, handleInlineCodeMouseDown, handleWhitespaceMouseSelection])
 
   useEffect(() => {
     const container = containerRef.current
@@ -1445,11 +1469,12 @@ export function SingleEditorView({ editor, entries, recentPaths, onNavigateWikil
       aria-label="Rich text editor"
       className={`editor__blocknote-container${isDragOver ? ' editor__blocknote-container--drag-over' : ''}`}
       style={cssVars as React.CSSProperties}
+      onClickCapture={handleInlineCodeClick}
       onCopyCapture={handleEditorCopy}
       onFocusCapture={handleFocusCapture}
-      onMouseLeave={clearChromeTarget}
+      onMouseLeave={handleMouseLeave}
       onMouseDownCapture={handleMouseDownCapture}
-      onMouseMove={handleCodeBlockCopyMouseMove}
+      onMouseMove={handleMouseMove}
       onPasteCapture={handlePasteCapture}
     >
       {isDragOver && (
@@ -1473,6 +1498,9 @@ export function SingleEditorView({ editor, entries, recentPaths, onNavigateWikil
         )}
       </BlockNoteRenderRecoveryBoundary>
       {chromeTarget && <CodeBlockChrome target={chromeTarget} editor={editor} editable={editable} locale={locale} />}
+      {inlineCodeTarget && (
+        <InlineCodeCopyHint target={inlineCodeTarget} copied={inlineCodeCopied} isMacPlatform={isMacPlatform} locale={locale} />
+      )}
       {fenceTarget && (
         <CodeBlockFenceLine
           target={fenceTarget}
