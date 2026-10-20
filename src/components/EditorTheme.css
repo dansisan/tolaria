@@ -622,13 +622,19 @@
 
 .editor__blocknote-container .bn-block-content[data-content-type="codeBlock"] > div > select {
   color: var(--editor-code-block-language) !important;
-  /* Always show the language in the reserved top row (BlockNote only reveals
-     it on hover); the editable fence line replaces it while editing. */
-  opacity: 1 !important;
+  /* Hidden until the block is hovered (or the select has focus); the row stays
+     reserved so nothing shifts. The editable fence line replaces it while editing. */
+  opacity: 0 !important;
+  transition: opacity 120ms ease;
   font-family: var(--inline-styles-code-font-family);
   font-size: 12px;
   top: 9px;
   left: 16px;
+}
+
+.editor__blocknote-container .bn-block-content[data-content-type="codeBlock"]:hover:not([data-fence-line-active]) > div > select,
+.editor__blocknote-container .bn-block-content[data-content-type="codeBlock"] > div > select:focus-visible {
+  opacity: 1 !important;
 }
 
 .editor__blocknote-container .bn-block-content[data-content-type="codeBlock"] > div > select > option {
