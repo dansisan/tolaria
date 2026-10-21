@@ -17,6 +17,7 @@ const MIN_NOTE_FONT_SIZE: u32 = 12;
 const MAX_NOTE_FONT_SIZE: u32 = 22;
 const MIN_CODE_FONT_SIZE: u32 = 10;
 const MAX_CODE_FONT_SIZE: u32 = 22;
+const MAX_RECENT_NOTES_COUNT: u32 = 20;
 const SUPPORTED_UI_LANGUAGE_ALIASES: &[(&str, &str)] = &[
     ("en", "en"),
     ("en-us", "en"),
@@ -107,6 +108,7 @@ pub struct Settings {
     pub image_rename_mode: Option<String>,
     pub image_rename_command: Option<String>,
     pub sidebar_type_pluralization_enabled: Option<bool>,
+    pub recent_notes_count: Option<u32>,
     pub ai_features_enabled: Option<bool>,
     pub default_ai_agent: Option<String>,
     pub default_ai_target: Option<String>,
@@ -191,6 +193,12 @@ pub fn normalize_code_font_size(value: Option<u32>) -> Option<u32> {
         Some(size) if (MIN_CODE_FONT_SIZE..=MAX_CODE_FONT_SIZE).contains(&size) => Some(size),
         _ => None,
     }
+}
+
+/// Keep the sidebar Recent count within what the UI offers (0 hides the section);
+/// anything larger is dropped so the renderer falls back to its default.
+pub fn normalize_recent_notes_count(value: Option<u32>) -> Option<u32> {
+    value.filter(|count| *count <= MAX_RECENT_NOTES_COUNT)
 }
 
 pub fn normalize_date_display_format(value: Option<&str>) -> Option<String> {
@@ -302,6 +310,7 @@ fn normalize_settings(settings: Settings) -> Settings {
         image_rename_mode: normalize_image_rename_mode(settings.image_rename_mode.as_deref()),
         image_rename_command: normalize_optional_string(settings.image_rename_command),
         sidebar_type_pluralization_enabled: settings.sidebar_type_pluralization_enabled,
+        recent_notes_count: normalize_recent_notes_count(settings.recent_notes_count),
         ai_features_enabled: settings.ai_features_enabled,
         default_ai_agent: normalize_default_ai_agent(settings.default_ai_agent.as_deref()),
         default_ai_target: normalize_optional_string(settings.default_ai_target),
@@ -548,6 +557,7 @@ mod tests {
             image_rename_mode: Some("command".to_string()),
             image_rename_command: Some("name-image.sh".to_string()),
             sidebar_type_pluralization_enabled: Some(false),
+            recent_notes_count: Some(8),
             ai_features_enabled: Some(false),
             default_ai_agent: Some("codex".to_string()),
             default_ai_target: Some("agent:codex".to_string()),
@@ -594,6 +604,7 @@ mod tests {
             image_rename_mode: Some("command".to_string()),
             image_rename_command: Some("name-image.sh".to_string()),
             sidebar_type_pluralization_enabled: Some(false),
+            recent_notes_count: Some(8),
             ai_features_enabled: Some(false),
             default_ai_agent: Some("codex".to_string()),
             hide_gitignored_files: Some(false),
@@ -621,6 +632,7 @@ mod tests {
         assert_eq!(loaded.image_rename_mode.as_deref(), Some("command"));
         assert_eq!(loaded.image_rename_command.as_deref(), Some("name-image.sh"));
         assert_eq!(loaded.sidebar_type_pluralization_enabled, Some(false));
+        assert_eq!(loaded.recent_notes_count, Some(8));
         assert_eq!(loaded.ai_features_enabled, Some(false));
         assert_eq!(loaded.default_ai_agent.as_deref(), Some("codex"));
         assert_eq!(loaded.hide_gitignored_files, Some(false));
@@ -891,6 +903,15 @@ mod tests {
             ..Default::default()
         });
         assert_eq!(in_range.note_body_font_size, Some(16));
+    }
+
+    #[test]
+    fn test_recent_notes_count_keeps_zero_and_drops_out_of_range() {
+        let off = save_and_reload(Settings { recent_notes_count: Some(0), ..Default::default() });
+        assert_eq!(off.recent_notes_count, Some(0));
+
+        let too_large = save_and_reload(Settings { recent_notes_count: Some(500), ..Default::default() });
+        assert!(too_large.recent_notes_count.is_none());
     }
 
     #[test]

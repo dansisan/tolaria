@@ -38,6 +38,7 @@ import { useCodeFontSize } from './hooks/useCodeFontSize'
 import { useCodeLineNumbers } from './hooks/useCodeLineNumbers'
 import { useWritingSuggestions } from './hooks/useWritingSuggestions'
 import { normalizeCodeFontSize } from './utils/codeFontSize'
+import { normalizeRecentNotesCount } from './utils/recentNotes'
 import { resolveImageRenameCommand } from './utils/imageRename'
 import { useNoteActions } from './hooks/useNoteActions'
 import { planNewTypeCreation } from './hooks/useNoteCreation'
@@ -908,6 +909,12 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     handleSetSelection({ kind: 'filter', filter: 'all' })
     void handleReplaceActiveTab(entry)
   }, [visibleEntries, handleSetSelection, handleReplaceActiveTab])
+
+  const handleOpenRecent = useCallback((entry: VaultEntry) => {
+    // Same in-place reveal as handleJumpToFavorite: keep the note list wide.
+    handleSetSelection({ kind: 'filter', filter: 'all' })
+    void handleReplaceActiveTab(entry)
+  }, [handleSetSelection, handleReplaceActiveTab])
 
   const vaultBridge = useVaultBridge({
     entriesByPath,
@@ -2255,7 +2262,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
           {sidebarVisible && (
             <>
               <div className="app__sidebar" style={{ width: layout.sidebarWidth }}>
-                <Sidebar {...sidebarStableHandlers} entries={visibleEntries} folders={vault.folders} views={vault.views} selection={effectiveSelection} onSelect={handleSetSelection} onTagSearch={handleTagSearch} onPersonSearch={handlePersonSearch} currentSearch={noteListSearchQuery} onCreateNewType={dialogs.openCreateType} onRenameFolder={folderActions.renameFolder} onDeleteFolder={folderActions.requestDeleteFolder} folderFileActions={fileActions.folderActions} renamingFolderPath={folderActions.renamingFolderPath} onStartRenameFolder={folderActions.startFolderRename} onCancelRenameFolder={folderActions.cancelFolderRename} onCreateView={dialogs.openCreateView} onReorderViews={canReorderSavedViews ? viewOrdering.onReorderViews : undefined} showInbox={explicitOrganizationEnabled} inboxCount={inboxCount} allNotesFileVisibility={allNotesFileVisibility} pluralizeTypeLabels={settings.sidebar_type_pluralization_enabled ?? true} onCollapse={handleCollapseSidebar} canGoBack={canGoBack} canGoForward={canGoForward} locale={appLocale} loading={isVaultContentLoading} vaultRootPath={resolvedPath} workspaceOrder={vaultWorkspaceOrder} />
+                <Sidebar {...sidebarStableHandlers} entries={visibleEntries} folders={vault.folders} views={vault.views} selection={effectiveSelection} onSelect={handleSetSelection} onTagSearch={handleTagSearch} onPersonSearch={handlePersonSearch} currentSearch={noteListSearchQuery} onCreateNewType={dialogs.openCreateType} onRenameFolder={folderActions.renameFolder} onDeleteFolder={folderActions.requestDeleteFolder} folderFileActions={fileActions.folderActions} renamingFolderPath={folderActions.renamingFolderPath} onStartRenameFolder={folderActions.startFolderRename} onCancelRenameFolder={folderActions.cancelFolderRename} onCreateView={dialogs.openCreateView} onReorderViews={canReorderSavedViews ? viewOrdering.onReorderViews : undefined} showInbox={explicitOrganizationEnabled} inboxCount={inboxCount} allNotesFileVisibility={allNotesFileVisibility} pluralizeTypeLabels={settings.sidebar_type_pluralization_enabled ?? true} recentPaths={recentPaths} recentNotesCount={normalizeRecentNotesCount(settings.recent_notes_count)} activeNotePath={notes.activeTabPath} onSelectRecent={handleOpenRecent} onCollapse={handleCollapseSidebar} canGoBack={canGoBack} canGoForward={canGoForward} locale={appLocale} loading={isVaultContentLoading} vaultRootPath={resolvedPath} workspaceOrder={vaultWorkspaceOrder} />
               </div>
               <ResizeHandle onResize={layout.handleSidebarResize} />
             </>

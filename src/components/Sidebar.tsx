@@ -31,6 +31,7 @@ import {
 import { useSidebarTypeInteractions } from './sidebar/useSidebarTypeInteractions'
 import { TagsSection } from './sidebar/TagsSection'
 import { PeopleSection } from './sidebar/PeopleSection'
+import { RecentSection } from './sidebar/RecentSection'
 import type { AppLocale } from '../lib/i18n'
 import type { FolderFileActions } from '../hooks/useFileActions'
 import type { AllNotesFileVisibility } from '../utils/allNotesFileVisibility'
@@ -81,6 +82,10 @@ interface SidebarProps {
   canGoBack?: boolean
   canGoForward?: boolean
   loading?: boolean
+  recentPaths?: readonly string[]
+  recentNotesCount?: number
+  activeNotePath?: string | null
+  onSelectRecent?: (entry: VaultEntry) => void
 }
 
 interface SidebarNavigationProps extends Pick<
@@ -114,6 +119,10 @@ interface SidebarNavigationProps extends Pick<
   | 'onCreateNewType'
   | 'locale'
   | 'loading'
+  | 'recentPaths'
+  | 'recentNotesCount'
+  | 'activeNotePath'
+  | 'onSelectRecent'
 > {
   activeCount: number
   archivedCount: number
@@ -409,6 +418,20 @@ function SidebarTopNavigation(props: SidebarNavigationProps) {
           locale={props.locale}
         />
       )}
+      {!props.loading && props.onSelectRecent && (
+        <div className="border-b border-border empty:hidden">
+          <RecentSection
+            entries={props.entries}
+            recentPaths={props.recentPaths ?? []}
+            count={props.recentNotesCount ?? 0}
+            activePath={props.activeNotePath}
+            onSelectNote={props.onSelectRecent}
+            collapsed={props.groupCollapsed.recent}
+            locale={props.locale}
+            onToggle={() => props.toggleGroup('recent')}
+          />
+        </div>
+      )}
     </>
   )
 }
@@ -644,6 +667,10 @@ function SidebarRuntimeNavigation({
       inboxCount={props.inboxCount}
       locale={props.locale}
       loading={props.loading}
+      recentPaths={props.recentPaths}
+      recentNotesCount={props.recentNotesCount}
+      activeNotePath={props.activeNotePath}
+      onSelectRecent={props.onSelectRecent}
       onCreateNewType={props.onCreateNewType}
       activeCount={runtime.activeCount}
       archivedCount={runtime.archivedCount}

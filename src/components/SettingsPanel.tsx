@@ -69,6 +69,7 @@ import {
 import { DEFAULT_NOTE_WIDTH_MODE, normalizeNoteWidthMode } from '../utils/noteWidth'
 import { resolveNoteFontSize } from '../utils/noteBodyFontSize'
 import { normalizeCodeFontSize } from '../utils/codeFontSize'
+import { normalizeRecentNotesCount } from '../utils/recentNotes'
 import { DEFAULT_IMAGE_RENAME_COMMAND, type ImageRenameMode, normalizeImageRenameMode } from '../utils/imageRename'
 import {
   DEFAULT_DATE_DISPLAY_FORMAT,
@@ -143,6 +144,7 @@ interface SettingsDraft {
   imageRenameMode: ImageRenameMode
   imageRenameCommand: string
   sidebarTypePluralizationEnabled: boolean
+  recentNotesCount: number
   frontmatterCreatedKey: string
   hideGitignoredFiles: boolean
   allNotesFileVisibility: AllNotesFileVisibility
@@ -206,7 +208,9 @@ interface SettingsBodyProps {
   imageRenameCommand: string
   setImageRenameCommand: (value: string) => void
   sidebarTypePluralizationEnabled: boolean
+  recentNotesCount: number
   setSidebarTypePluralizationEnabled: (value: boolean) => void
+  setRecentNotesCount: (value: number) => void
   locale: AppLocale
   systemLocale: AppLocale
   frontmatterCreatedKey: string
@@ -273,6 +277,7 @@ function createSettingsDraft(
     imageRenameMode: normalizeImageRenameMode(settings.image_rename_mode),
     imageRenameCommand: settings.image_rename_command ?? DEFAULT_IMAGE_RENAME_COMMAND,
     sidebarTypePluralizationEnabled: settings.sidebar_type_pluralization_enabled ?? true,
+    recentNotesCount: normalizeRecentNotesCount(settings.recent_notes_count),
     frontmatterCreatedKey: settings.frontmatter_created_key ?? 'created',
     hideGitignoredFiles: shouldHideGitignoredFiles(settings),
     allNotesFileVisibility: resolveAllNotesFileVisibility(settings),
@@ -334,6 +339,7 @@ function buildSettingsFromDraft(settings: Settings, draft: SettingsDraft): Setti
     image_rename_mode: draft.imageRenameMode,
     image_rename_command: draft.imageRenameCommand,
     sidebar_type_pluralization_enabled: draft.sidebarTypePluralizationEnabled,
+    recent_notes_count: draft.recentNotesCount,
     frontmatter_created_key: draft.frontmatterCreatedKey,
     ai_features_enabled: draft.aiFeaturesEnabled,
     default_ai_agent: draft.defaultAiAgent,
@@ -659,7 +665,9 @@ function SettingsBodyFromDraft({
       imageRenameCommand={draft.imageRenameCommand}
       setImageRenameCommand={(value) => updateDraft('imageRenameCommand', value)}
       sidebarTypePluralizationEnabled={draft.sidebarTypePluralizationEnabled}
+      recentNotesCount={draft.recentNotesCount}
       setSidebarTypePluralizationEnabled={(value) => updateDraft('sidebarTypePluralizationEnabled', value)}
+      setRecentNotesCount={(value) => updateDraft('recentNotesCount', value)}
       frontmatterCreatedKey={draft.frontmatterCreatedKey}
       setFrontmatterCreatedKey={(value) => updateDraft('frontmatterCreatedKey', value)}
       hideGitignoredFiles={draft.hideGitignoredFiles}
@@ -807,7 +815,9 @@ function SettingsContentSections({
   imageRenameCommand,
   setImageRenameCommand,
   sidebarTypePluralizationEnabled,
+  recentNotesCount,
   setSidebarTypePluralizationEnabled,
+  setRecentNotesCount,
   frontmatterCreatedKey,
   setFrontmatterCreatedKey,
   hideGitignoredFiles,
@@ -842,7 +852,9 @@ function SettingsContentSections({
         imageRenameCommand={imageRenameCommand}
         setImageRenameCommand={setImageRenameCommand}
         sidebarTypePluralizationEnabled={sidebarTypePluralizationEnabled}
+        recentNotesCount={recentNotesCount}
         setSidebarTypePluralizationEnabled={setSidebarTypePluralizationEnabled}
+        setRecentNotesCount={setRecentNotesCount}
         frontmatterCreatedKey={frontmatterCreatedKey}
         setFrontmatterCreatedKey={setFrontmatterCreatedKey}
         hideGitignoredFiles={hideGitignoredFiles}

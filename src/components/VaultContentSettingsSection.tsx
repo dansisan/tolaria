@@ -13,6 +13,7 @@ import {
 } from '../utils/noteListPreview'
 import { NOTE_FONT_SIZE_OPTIONS } from '../utils/noteBodyFontSize'
 import { CODE_FONT_SIZE_OPTIONS, normalizeCodeFontSize } from '../utils/codeFontSize'
+import { RECENT_NOTES_COUNT_OPTIONS } from '../utils/recentNotes'
 import {
   SectionHeading,
   SelectControl,
@@ -49,7 +50,9 @@ interface VaultContentSettingsSectionProps {
   imageRenameCommand: string
   setImageRenameCommand: (value: string) => void
   sidebarTypePluralizationEnabled: boolean
+  recentNotesCount: number
   setSidebarTypePluralizationEnabled: (value: boolean) => void
+  setRecentNotesCount: (value: number) => void
   hideGitignoredFiles: boolean
   setHideGitignoredFiles: (value: boolean) => void
   allNotesFileVisibility: AllNotesFileVisibility
@@ -89,6 +92,13 @@ function buildCodeFontSizeOptions(t: Translate): Array<{ value: string; label: s
     { value: CODE_FONT_SIZE_DEFAULT_OPTION, label: t('settings.codeFontSize.defaultOption') },
     ...CODE_FONT_SIZE_OPTIONS.map((size) => ({ value: String(size), label: `${size}px` })),
   ]
+}
+
+function buildRecentNotesCountOptions(t: Translate): Array<{ value: string; label: string }> {
+  return RECENT_NOTES_COUNT_OPTIONS.map((count) => ({
+    value: String(count),
+    label: count === 0 ? t('settings.recentNotes.off') : String(count),
+  }))
 }
 
 const IMAGE_RENAME_LABEL_KEYS: Record<ImageRenameMode, TranslationKey> = {
@@ -192,7 +202,9 @@ export function VaultContentSettingsSection({
   imageRenameCommand,
   setImageRenameCommand,
   sidebarTypePluralizationEnabled,
+  recentNotesCount,
   setSidebarTypePluralizationEnabled,
+  setRecentNotesCount,
   hideGitignoredFiles,
   setHideGitignoredFiles,
   allNotesFileVisibility,
@@ -343,6 +355,19 @@ export function VaultContentSettingsSection({
           onChange={setSidebarTypePluralizationEnabled}
           testId="settings-sidebar-type-pluralization"
         />
+
+        <SettingsRow
+          label={t('settings.recentNotes.label')}
+          description={t('settings.recentNotes.description')}
+        >
+          <SelectControl
+            ariaLabel={t('settings.recentNotes.label')}
+            value={String(recentNotesCount)}
+            onValueChange={(value) => setRecentNotesCount(Number(value))}
+            options={buildRecentNotesCountOptions(t)}
+            testId="settings-recent-notes-count"
+          />
+        </SettingsRow>
 
         <SettingsSwitchRow
           label={t('settings.vaultContent.hideGitignored')}

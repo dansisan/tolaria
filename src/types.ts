@@ -147,6 +147,7 @@ export interface Settings {
   image_rename_mode?: ImageRenameMode | null
   image_rename_command?: string | null
   sidebar_type_pluralization_enabled?: boolean | null
+  recent_notes_count?: number | null
   ai_features_enabled?: boolean | null
   default_ai_agent?: AiAgentId | null
   default_ai_target?: string | null
