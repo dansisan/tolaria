@@ -1181,7 +1181,7 @@ describe('App', () => {
     })
   }, 10_000)
 
-  it('opens favorites directly into Neighborhood mode', async () => {
+  it('opens a clicked favorite in place without entering Neighborhood mode', async () => {
     configureNeighborhoodFavoritesVault()
 
     render(<App />)
@@ -1197,11 +1197,11 @@ describe('App', () => {
 
     const noteListContainer = await screen.findByTestId('note-list-container')
     await waitFor(() => {
-      expect(getHeaderForNoteList(noteListContainer)).toHaveTextContent('Alpha')
+      expect(window.__laputaTest?.activeTabPath).toBe('/vault/alpha.md')
     })
 
-    expect(screen.getByText('Related to')).toBeInTheDocument()
-    expect(screen.getByText('Beta')).toBeInTheDocument()
+    expect(getHeaderForNoteList(noteListContainer)).toHaveTextContent('Notes')
+    expect(screen.queryByText('Related to')).not.toBeInTheDocument()
   })
 
   it('Cmd+1/2/3 jump to favorites in list order without entering Neighborhood mode', async () => {

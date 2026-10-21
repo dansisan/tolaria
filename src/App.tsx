@@ -895,26 +895,18 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     onSelectNote: notes.handleSelectNote,
   })
 
-  const handleOpenFavorite = useCallback(async (entry: VaultEntry) => {
-    await handleReplaceActiveTab(entry)
-    handleEnterNeighborhood(entry)
-  }, [handleEnterNeighborhood, handleReplaceActiveTab])
-
-  const handleJumpToFavorite = useCallback((index: number) => {
-    const entry = sortFavorites(visibleEntries)[index - 1]
-    if (!entry) return
-    // Reveal in place rather than entering Neighborhood mode (handleOpenFavorite):
-    // switch to All Notes so the note list can scroll the row into view instead
-    // of narrowing the list down to just this note's neighborhood.
-    handleSetSelection({ kind: 'filter', filter: 'all' })
-    void handleReplaceActiveTab(entry)
-  }, [visibleEntries, handleSetSelection, handleReplaceActiveTab])
-
-  const handleOpenRecent = useCallback((entry: VaultEntry) => {
-    // Same in-place reveal as handleJumpToFavorite: keep the note list wide.
+  // Reveal in place rather than entering Neighborhood mode: switch to All Notes
+  // so the note list can scroll the row into view instead of narrowing the list
+  // down to just this note's neighborhood.
+  const handleRevealNote = useCallback((entry: VaultEntry) => {
     handleSetSelection({ kind: 'filter', filter: 'all' })
     void handleReplaceActiveTab(entry)
   }, [handleSetSelection, handleReplaceActiveTab])
+
+  const handleJumpToFavorite = useCallback((index: number) => {
+    const entry = sortFavorites(visibleEntries)[index - 1]
+    if (entry) handleRevealNote(entry)
+  }, [visibleEntries, handleRevealNote])
 
   const vaultBridge = useVaultBridge({
     entriesByPath,
@@ -2183,7 +2175,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
   // and StatusBar, re-rendering all app chrome on every note switch.
   const sidebarStableHandlers = useStableHandlers({
     onSelectNote: notes.handleSelectNote,
-    onSelectFavorite: handleOpenFavorite,
+    onSelectFavorite: handleRevealNote,
     onReorderFavorites: entryActions.handleReorderFavorites,
     onCreateType: notes.handleCreateNoteImmediate,
     onCustomizeType: entryActions.handleCustomizeType,
@@ -2262,7 +2254,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
           {sidebarVisible && (
             <>
               <div className="app__sidebar" style={{ width: layout.sidebarWidth }}>
-                <Sidebar {...sidebarStableHandlers} entries={visibleEntries} folders={vault.folders} views={vault.views} selection={effectiveSelection} onSelect={handleSetSelection} onTagSearch={handleTagSearch} onPersonSearch={handlePersonSearch} currentSearch={noteListSearchQuery} onCreateNewType={dialogs.openCreateType} onRenameFolder={folderActions.renameFolder} onDeleteFolder={folderActions.requestDeleteFolder} folderFileActions={fileActions.folderActions} renamingFolderPath={folderActions.renamingFolderPath} onStartRenameFolder={folderActions.startFolderRename} onCancelRenameFolder={folderActions.cancelFolderRename} onCreateView={dialogs.openCreateView} onReorderViews={canReorderSavedViews ? viewOrdering.onReorderViews : undefined} showInbox={explicitOrganizationEnabled} inboxCount={inboxCount} allNotesFileVisibility={allNotesFileVisibility} pluralizeTypeLabels={settings.sidebar_type_pluralization_enabled ?? true} recentPaths={recentPaths} recentNotesCount={normalizeRecentNotesCount(settings.recent_notes_count)} activeNotePath={notes.activeTabPath} onSelectRecent={handleOpenRecent} onCollapse={handleCollapseSidebar} canGoBack={canGoBack} canGoForward={canGoForward} locale={appLocale} loading={isVaultContentLoading} vaultRootPath={resolvedPath} workspaceOrder={vaultWorkspaceOrder} />
+                <Sidebar {...sidebarStableHandlers} entries={visibleEntries} folders={vault.folders} views={vault.views} selection={effectiveSelection} onSelect={handleSetSelection} onTagSearch={handleTagSearch} onPersonSearch={handlePersonSearch} currentSearch={noteListSearchQuery} onCreateNewType={dialogs.openCreateType} onRenameFolder={folderActions.renameFolder} onDeleteFolder={folderActions.requestDeleteFolder} folderFileActions={fileActions.folderActions} renamingFolderPath={folderActions.renamingFolderPath} onStartRenameFolder={folderActions.startFolderRename} onCancelRenameFolder={folderActions.cancelFolderRename} onCreateView={dialogs.openCreateView} onReorderViews={canReorderSavedViews ? viewOrdering.onReorderViews : undefined} showInbox={explicitOrganizationEnabled} inboxCount={inboxCount} allNotesFileVisibility={allNotesFileVisibility} pluralizeTypeLabels={settings.sidebar_type_pluralization_enabled ?? true} recentPaths={recentPaths} recentNotesCount={normalizeRecentNotesCount(settings.recent_notes_count)} activeNotePath={notes.activeTabPath} onSelectRecent={handleRevealNote} onCollapse={handleCollapseSidebar} canGoBack={canGoBack} canGoForward={canGoForward} locale={appLocale} loading={isVaultContentLoading} vaultRootPath={resolvedPath} workspaceOrder={vaultWorkspaceOrder} />
               </div>
               <ResizeHandle onResize={layout.handleSidebarResize} />
             </>
