@@ -59,6 +59,7 @@ import { ImageLightbox } from './ImageLightbox'
 import { CodeBlockChrome, CodeBlockFenceLine } from './codeBlockChrome'
 import { InlineCodeCopyHint } from './inlineCodeChrome'
 import { copyInlineCodeAtCaret, useInlineCodeChromeTarget } from './inlineCodeChromeState'
+import { copyLinkAtCaret } from './linkCopyAtCaret'
 import { CODE_BLOCK_SELECTOR, useActiveCodeBlockFence, useCodeBlockChromeTarget } from './codeBlockChromeState'
 import {
   activatePlainTextPasteTarget,
@@ -961,6 +962,7 @@ function handleSelectedEditorCopy(event: React.ClipboardEvent<HTMLDivElement>) {
 function handleEditorCopy(event: React.ClipboardEvent<HTMLDivElement>) {
   if (handleCodeBlockCopy(event)) return
   if (copyInlineCodeAtCaret(event)) return
+  if (copyLinkAtCaret(event)) return
 
   handleSelectedEditorCopy(event)
 }
