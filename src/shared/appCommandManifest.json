@@ -617,7 +617,14 @@
           "accelerator": "CmdOrCtrl+F",
           "enabled": false
         },
-        { "kind": "command", "command": "editToggleDiff", "label": "Toggle Diff Mode" }
+        { "kind": "command", "command": "editToggleDiff", "label": "Toggle Diff Mode" },
+        { "kind": "separator" },
+        {
+          "kind": "menu-event",
+          "id": "edit-move-selection-to-new-note",
+          "label": "Move Selection to New Note",
+          "enabled": false
+        }
       ]
     },
     {
@@ -711,6 +718,9 @@
     "editorFindDependent": [
       { "command": "editFindInNote" },
       { "command": "editReplaceInNote" }
+    ],
+    "moveSelectionDependent": [
+      { "id": "edit-move-selection-to-new-note" }
     ],
     "noteListSearchDependent": [
       { "id": "edit-toggle-note-list-search" }

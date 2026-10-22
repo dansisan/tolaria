@@ -20,6 +20,7 @@ use tauri::{
 const APP_COMMAND_MANIFEST_JSON: &str = include_str!("../../src/shared/appCommandManifest.json");
 const NOTE_DEPENDENT_GROUP: &str = "noteDependent";
 const EDITOR_FIND_DEPENDENT_GROUP: &str = "editorFindDependent";
+const MOVE_SELECTION_DEPENDENT_GROUP: &str = "moveSelectionDependent";
 const NOTE_LIST_SEARCH_DEPENDENT_GROUP: &str = "noteListSearchDependent";
 const RESTORE_DELETED_DEPENDENT_GROUP: &str = "restoreDeletedDependent";
 const GIT_COMMIT_DEPENDENT_GROUP: &str = "gitCommitDependent";
@@ -509,6 +510,11 @@ pub fn set_note_items_enabled(app_handle: &AppHandle, enabled: bool) {
 /// Enable or disable menu items that depend on the editor being the active surface.
 pub fn set_editor_find_items_enabled(app_handle: &AppHandle, enabled: bool) {
     set_menu_state_group_enabled(app_handle, EDITOR_FIND_DEPENDENT_GROUP, enabled);
+}
+
+/// Enable or disable menu items that need highlighted text in the editor.
+pub fn set_move_selection_items_enabled(app_handle: &AppHandle, enabled: bool) {
+    set_menu_state_group_enabled(app_handle, MOVE_SELECTION_DEPENDENT_GROUP, enabled);
 }
 
 /// Enable or disable menu items that depend on the note list being the active surface.

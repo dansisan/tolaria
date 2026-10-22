@@ -15,9 +15,15 @@ import {
   EDITOR_FIND_AVAILABILITY_EVENT,
   readEditorFindAvailability,
 } from '../utils/editorFindEvents'
+import {
+  MOVE_SELECTION_AVAILABILITY_EVENT,
+  dispatchMoveSelectionToNewNote,
+  readMoveSelectionAvailability,
+} from '../utils/moveSelectionEvents'
 import { cleanupTauriEventListener, type TauriUnlisten } from '../utils/tauriEventCleanup'
 
 const NOTE_LIST_SEARCH_MENU_ID = 'edit-toggle-note-list-search'
+const MOVE_SELECTION_MENU_ID = 'edit-move-selection-to-new-note'
 
 export interface MenuEventHandlers extends AppCommandHandlers {
   activeTabPath: string | null
@@ -35,6 +41,7 @@ interface MenuStatePayload {
   hasNoRemote?: boolean
   noteListSearchEnabled?: boolean
   editorFindEnabled?: boolean
+  moveSelectionEnabled?: boolean
 }
 
 function readCustomEventDetail(event: Event): string | null {
@@ -157,6 +164,10 @@ export function dispatchMenuEvent(id: string, h: MenuEventHandlers): void {
     dispatchNoteListSearchToggle()
     return
   }
+  if (id === MOVE_SELECTION_MENU_ID) {
+    dispatchMoveSelectionToNewNote()
+    return
+  }
   if (!isAppCommandId(id)) return
   executeAppCommand(id, h, 'native-menu')
 }
@@ -172,6 +183,10 @@ export function useMenuEvents(handlers: MenuEventHandlers) {
     EDITOR_FIND_AVAILABILITY_EVENT,
     readEditorFindAvailability,
   )
+  const moveSelectionEnabled = useAvailabilityMenuState(
+    MOVE_SELECTION_AVAILABILITY_EVENT,
+    readMoveSelectionAvailability,
+  )
   const hasActiveNote = handlers.activeTabPath !== null
   const hasModifiedFiles = handlers.modifiedCount != null ? handlers.modifiedCount > 0 : undefined
   const hasConflicts = handlers.conflictCount != null ? handlers.conflictCount > 0 : undefined
@@ -185,6 +200,7 @@ export function useMenuEvents(handlers: MenuEventHandlers) {
     hasNoRemote,
     noteListSearchEnabled,
     editorFindEnabled,
+    moveSelectionEnabled,
   }), [
     hasActiveNote,
     hasModifiedFiles,
@@ -193,6 +209,7 @@ export function useMenuEvents(handlers: MenuEventHandlers) {
     hasNoRemote,
     noteListSearchEnabled,
     editorFindEnabled,
+    moveSelectionEnabled,
   ])
 
   useEffect(() => {

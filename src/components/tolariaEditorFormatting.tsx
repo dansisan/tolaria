@@ -48,6 +48,7 @@ import {
   ArrowSquareOut as ExternalLink,
   CaretDown as ChevronDown,
   Code as Code2,
+  FileArrowUp as MoveToNote,
   TextB as Bold,
   TextItalic as Italic,
   TextStrikethrough as Strikethrough,
@@ -678,8 +679,37 @@ function insertInlineCodeButton(items: ReactElement[]) {
   ]
 }
 
-function getTolariaFormattingToolbarItems(vaultPath?: string) {
-  return insertInlineCodeButton(
+export interface TolariaMoveToNewNoteAction {
+  label: string
+  shortcut: string
+  onClick: () => void
+}
+
+function TolariaMoveToNewNoteButton({ action }: { action: TolariaMoveToNewNoteAction }) {
+  const Components = useComponentsContext()!
+  const editor = useBlockNoteEditor<BlockSchema, InlineContentSchema, StyleSchema>()
+  const canMove = useEditorState({
+    editor,
+    selector: ({ editor }) => editor.isEditable && selectionSupportsInlineFormatting(editor),
+  })
+  if (!canMove) return null
+
+  return (
+    <Components.FormattingToolbar.Button
+      className="bn-button"
+      data-test="moveToNewNote"
+      onClick={action.onClick}
+      isSelected={false}
+      label={action.label}
+      mainTooltip={action.label}
+      secondaryTooltip={action.shortcut}
+      icon={<MoveToNote />}
+    />
+  )
+}
+
+function getTolariaFormattingToolbarItems(vaultPath?: string, moveToNewNote?: TolariaMoveToNewNoteAction) {
+  const items = insertInlineCodeButton(
     replaceToolbarControls(
       filterTolariaFormattingToolbarItems(
         getFormattingToolbarItems(),
@@ -687,10 +717,15 @@ function getTolariaFormattingToolbarItems(vaultPath?: string) {
       vaultPath,
     ),
   )
+  if (!moveToNewNote) return items
+  return [...items, <TolariaMoveToNewNoteButton key="moveToNewNoteButton" action={moveToNewNote} />]
 }
 
-export function TolariaFormattingToolbar({ vaultPath }: { vaultPath?: string } = {}) {
-  return <FormattingToolbar>{getTolariaFormattingToolbarItems(vaultPath)}</FormattingToolbar>
+export function TolariaFormattingToolbar({ vaultPath, moveToNewNote }: {
+  vaultPath?: string
+  moveToNewNote?: TolariaMoveToNewNoteAction
+} = {}) {
+  return <FormattingToolbar>{getTolariaFormattingToolbarItems(vaultPath, moveToNewNote)}</FormattingToolbar>
 }
 
 export function TolariaFormattingToolbarController(props: {

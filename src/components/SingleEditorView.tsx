@@ -48,7 +48,10 @@ import { getTolariaSlashMenuItems } from './tolariaEditorFormattingConfig'
 import {
   TolariaFormattingToolbar,
   TolariaFormattingToolbarController,
+  type TolariaMoveToNewNoteAction,
 } from './tolariaEditorFormatting'
+import { MoveToNewNoteDialog } from './MoveToNewNoteDialog'
+import { useMoveSelectionToNewNote } from './useMoveSelectionToNewNote'
 import { TolariaSideMenu } from './tolariaBlockNoteSideMenu'
 import { useEditorLinkActivation } from './useEditorLinkActivation'
 import { findNearestTextCursorBlock } from './blockNoteCursorTarget'
@@ -1148,6 +1151,7 @@ type EditorInteractionControllersProps = ReturnType<typeof useSuggestionMenuItem
   runEditorAction: (action: SuggestionAction) => void
   vaultPath?: string
   locale: AppLocale
+  moveToNewNote: TolariaMoveToNewNoteAction
 }
 
 function EditorInteractionControllers({
@@ -1159,13 +1163,14 @@ function EditorInteractionControllers({
   runEditorAction,
   vaultPath,
   locale,
+  moveToNewNote,
 }: EditorInteractionControllersProps) {
   return (
     <>
       <SideMenuController sideMenu={TolariaSideMenu} />
       <TolariaFormattingToolbarController
         formattingToolbar={(props) => (
-          <TolariaFormattingToolbar {...props} vaultPath={vaultPath} />
+          <TolariaFormattingToolbar {...props} vaultPath={vaultPath} moveToNewNote={moveToNewNote} />
         )}
         floatingUIOptions={{
           elementProps: {
@@ -1223,6 +1228,7 @@ type EditorSurfaceProps = {
   runEditorAction: (action: SuggestionAction) => void
   vaultPath?: string
   locale: AppLocale
+  moveToNewNote: TolariaMoveToNewNoteAction
 }
 
 /**
@@ -1245,6 +1251,7 @@ const EditorSurface = memo(function EditorSurface({
   runEditorAction,
   vaultPath,
   locale,
+  moveToNewNote,
 }: EditorSurfaceProps) {
   return (
     <SharedContextBlockNoteView
@@ -1264,6 +1271,7 @@ const EditorSurface = memo(function EditorSurface({
         runEditorAction={runEditorAction}
         vaultPath={vaultPath}
         locale={locale}
+        moveToNewNote={moveToNewNote}
       />
     </SharedContextBlockNoteView>
   )
@@ -1449,6 +1457,7 @@ export function SingleEditorView({ editor, entries, recentPaths, onNavigateWikil
   }, [handleContainerClick])
 
   const insertWikilink = useInsertWikilink(editor, runEditorAction)
+  const moveToNewNote = useMoveSelectionToNewNote({ editor, locale, sourceEntry, vaultPath })
   const suggestionMenuItems = useSuggestionMenuItems({
     baseItems,
     editor,
@@ -1494,6 +1503,7 @@ export function SingleEditorView({ editor, entries, recentPaths, onNavigateWikil
             runEditorAction={runEditorAction}
             vaultPath={vaultPath}
             locale={locale}
+            moveToNewNote={moveToNewNote.action}
           />
         )}
       </BlockNoteRenderRecoveryBoundary>
@@ -1510,6 +1520,7 @@ export function SingleEditorView({ editor, entries, recentPaths, onNavigateWikil
           onEndEditing={endFenceEditing}
         />
       )}
+      <MoveToNewNoteDialog {...moveToNewNote.dialogProps} />
       <ImageLightbox image={lightbox.image} locale={locale} onClose={lightbox.close} />
     </div>
   )

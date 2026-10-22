@@ -414,6 +414,9 @@ vi.mock('@blocknote/react', () => ({
     Provider: ({ children }: { children?: ReactNode }) => <>{children}</>,
   },
   useCreateBlockNote: () => ({
+    isEditable: true,
+    prosemirrorState: { selection: { empty: true } },
+    onSelectionChange: () => () => {},
     tryParseMarkdownToBlocks: async () => [],
     replaceBlocks: () => {},
     document: [],

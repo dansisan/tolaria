@@ -165,7 +165,8 @@ vi.mock('../utils/url', () => ({
   openLocalFile: vi.fn().mockResolvedValue(undefined),
 }))
 
-vi.mock('../utils/typeColors', () => ({
+vi.mock('../utils/typeColors', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../utils/typeColors')>(),
   buildTypeEntryMap: () => ({}),
 }))
 
@@ -286,6 +287,9 @@ function createEditor() {
       cursorBlock,
     ],
     domElement: undefined as HTMLElement | undefined,
+    isEditable: true,
+    prosemirrorState: { selection: { empty: true } },
+    onSelectionChange: vi.fn(() => () => {}),
     tryParseMarkdownToBlocks: vi.fn(async () => [
       { type: 'table', content: { type: 'tableContent' } },
     ]),

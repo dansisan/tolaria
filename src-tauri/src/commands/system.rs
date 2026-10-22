@@ -211,6 +211,7 @@ pub struct MenuStateUpdate {
     has_no_remote: Option<bool>,
     note_list_search_enabled: Option<bool>,
     editor_find_enabled: Option<bool>,
+    move_selection_enabled: Option<bool>,
 }
 
 #[cfg(desktop)]
@@ -237,6 +238,9 @@ pub fn update_menu_state(
     }
     if let Some(v) = state.editor_find_enabled {
         menu::set_editor_find_items_enabled(&app_handle, v);
+    }
+    if let Some(v) = state.move_selection_enabled {
+        menu::set_move_selection_items_enabled(&app_handle, v);
     }
     Ok(())
 }

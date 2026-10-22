@@ -26,6 +26,9 @@ vi.mock('@tauri-apps/api/core', () => ({
 // Hoisted mock editor — available before vi.mock factory runs.
 // Tests can reconfigure spies (e.g. mockTryParse.mockResolvedValue) before rendering.
 const mockEditor = vi.hoisted(() => ({
+  isEditable: true,
+  prosemirrorState: { selection: { empty: true } },
+  onSelectionChange: vi.fn(() => () => {}),
   tryParseMarkdownToBlocks: vi.fn(async () => [] as unknown[]),
   replaceBlocks: vi.fn(),
   insertBlocks: vi.fn(),

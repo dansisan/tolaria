@@ -955,3 +955,11 @@ describe('useNoteCreation hook', () => {
   })
 
 })
+
+describe('buildNoteContent body', () => {
+  it('writes a provided body after the frontmatter and ignores the template', () => {
+    const content = buildNoteContent({ title: 'Aside', type: 'Note', status: null, template: '## Template', body: 'Moved text.\n' })
+    expect(content.endsWith('---\n\nMoved text.\n')).toBe(true)
+    expect(content).not.toContain('## Template')
+  })
+})
