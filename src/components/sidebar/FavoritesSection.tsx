@@ -14,6 +14,10 @@ import { isSelectionActive } from '../SidebarParts'
 import { SidebarGroupHeader } from './SidebarGroupHeader'
 import { SIDEBAR_ITEM_PADDING, SIDEBAR_SECTION_CONTENT_PADDING_BOTTOM } from './sidebarStyles'
 import { translate, type AppLocale } from '../../lib/i18n'
+import { useCommandKeyHeld } from '../../hooks/useModifierHeld'
+import { isMac } from '../../utils/platform'
+
+const MAX_SHORTCUT_FAVORITES = 9
 
 const FAVORITE_TYPE_ICON_MAP: Record<string, string> = {
   Project: 'wrench',
@@ -44,9 +48,11 @@ function SortableFavoriteItem({
   isActive,
   onSelect,
   typeEntryMap,
+  shortcutHint,
 }: {
   entry: VaultEntry
   isActive: boolean
+  shortcutHint?: string
   onSelect: () => void
   typeEntryMap: Record<string, VaultEntry>
 }) {
@@ -75,6 +81,14 @@ function SortableFavoriteItem({
             {entry.title}
           </span>
         </div>
+        {shortcutHint && (
+          <span
+            data-testid="favorite-shortcut-hint"
+            className="shrink-0 rounded bg-muted px-1 text-[11px] font-medium text-muted-foreground"
+          >
+            {shortcutHint}
+          </span>
+        )}
       </button>
     </div>
   )
@@ -113,6 +127,8 @@ export function FavoritesSection({
   const favorites = useMemo(() => sortFavorites(entries), [entries])
   const favoriteIds = useMemo(() => favorites.map((entry) => entry.path), [favorites])
   const typeEntryMap = useMemo(() => buildTypeEntryMap(entries), [entries])
+  const commandHeld = useCommandKeyHeld()
+  const modifierLabel = isMac() ? '⌘' : 'Ctrl+'
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
@@ -138,13 +154,14 @@ export function FavoritesSection({
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={favoriteIds} strategy={verticalListSortingStrategy}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingBottom: SIDEBAR_SECTION_CONTENT_PADDING_BOTTOM }}>
-              {favorites.map((entry) => (
+              {favorites.map((entry, index) => (
                 <SortableFavoriteItem
                   key={entry.path}
                   entry={entry}
                   isActive={isSelectionActive(selection, { kind: 'entity', entry })}
                   typeEntryMap={typeEntryMap}
                   onSelect={() => handleFavoriteSelect(entry)}
+                  shortcutHint={commandHeld && index < MAX_SHORTCUT_FAVORITES ? `${modifierLabel}${index + 1}` : undefined}
                 />
               ))}
             </div>
