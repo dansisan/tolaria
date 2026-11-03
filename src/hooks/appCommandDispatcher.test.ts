@@ -46,6 +46,7 @@ function makeHandlers(): AppCommandHandlers {
     onToggleOrganized: vi.fn(),
     onToggleFavorite: vi.fn(),
     onJumpToFavorite: vi.fn(),
+    onJumpToRecent: vi.fn(),
     onArchiveNote: vi.fn(),
     onDeleteNote: vi.fn(),
     onSearch: vi.fn(),
@@ -214,7 +215,7 @@ describe('appCommandDispatcher', () => {
 
   it('resolves event modifiers through the shared shortcut catalog', () => {
     expectShortcutEventCommand({ key: '1', metaKey: true }, APP_COMMAND_IDS.favoriteJump1)
-    expectShortcutEventCommand({ key: '1', metaKey: true, shiftKey: true }, APP_COMMAND_IDS.viewEditorOnly)
+    expectShortcutEventCommand({ key: '1', metaKey: true, shiftKey: true }, APP_COMMAND_IDS.recentJump1)
     expectShortcutEventCommand({ key: 'o', code: 'KeyO', metaKey: true }, APP_COMMAND_IDS.fileQuickOpen)
     expectShortcutEventCommand({ key: '¬', code: 'KeyL', metaKey: true, shiftKey: true }, APP_COMMAND_IDS.viewToggleAiChat)
     expectShortcutEventCommand({ key: 'I', code: 'KeyI', metaKey: true, shiftKey: true }, APP_COMMAND_IDS.viewToggleProperties)
@@ -360,6 +361,17 @@ describe('appCommandDispatcher', () => {
     expect(dispatchAppCommand(APP_COMMAND_IDS.favoriteJump9, handlers)).toBe(true)
     expect(handlers.onJumpToFavorite).toHaveBeenNthCalledWith(1, 1)
     expect(handlers.onJumpToFavorite).toHaveBeenNthCalledWith(2, 9)
+  })
+
+  it('maps Cmd+Shift+1 through Cmd+Shift+9 to the recent-jump commands', () => {
+    expect(findShortcutCommandId('command-or-ctrl-shift', '1')).toBe(APP_COMMAND_IDS.recentJump1)
+    expect(findShortcutCommandId('command-or-ctrl-shift', '9')).toBe(APP_COMMAND_IDS.recentJump9)
+  })
+
+  it('dispatches recent-jump commands with their 1-based index', () => {
+    const handlers = makeHandlers()
+    expect(dispatchAppCommand(APP_COMMAND_IDS.recentJump3, handlers)).toBe(true)
+    expect(handlers.onJumpToRecent).toHaveBeenCalledWith(3)
   })
 
   it('keeps favorite-jump shortcuts off the native menu', () => {

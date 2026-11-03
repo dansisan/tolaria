@@ -38,7 +38,7 @@ import { useCodeFontSize } from './hooks/useCodeFontSize'
 import { useCodeLineNumbers } from './hooks/useCodeLineNumbers'
 import { useWritingSuggestions } from './hooks/useWritingSuggestions'
 import { normalizeCodeFontSize } from './utils/codeFontSize'
-import { normalizeRecentNotesCount } from './utils/recentNotes'
+import { normalizeRecentNotesCount, resolveRecentEntries } from './utils/recentNotes'
 import { resolveImageRenameCommand } from './utils/imageRename'
 import { useNoteActions } from './hooks/useNoteActions'
 import { planNewTypeCreation } from './hooks/useNoteCreation'
@@ -907,6 +907,12 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     const entry = sortFavorites(visibleEntries)[index - 1]
     if (entry) handleRevealNote(entry)
   }, [visibleEntries, handleRevealNote])
+
+  const handleJumpToRecent = useCallback((index: number) => {
+    const count = normalizeRecentNotesCount(settings.recent_notes_count)
+    const entry = resolveRecentEntries(visibleEntries, recentPaths, count)[index - 1]
+    if (entry) handleRevealNote(entry)
+  }, [visibleEntries, recentPaths, settings.recent_notes_count, handleRevealNote])
 
   const vaultBridge = useVaultBridge({
     entriesByPath,
@@ -2074,6 +2080,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     onOpenActiveFileExternal: fileActions.openExternalFile,
     onToggleFavorite: entryActions.handleToggleFavorite,
     onJumpToFavorite: handleJumpToFavorite,
+    onJumpToRecent: handleJumpToRecent,
     onToggleOrganized: toggleOrganizedCommand,
     onToggleBulkSelect: () => multiSelectionCommandRef.current?.toggleBulkMode?.(),
     onCustomizeNoteListColumns: handleCustomizeNoteListColumns,

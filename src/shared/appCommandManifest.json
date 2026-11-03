@@ -180,35 +180,17 @@
     "viewEditorOnly": {
       "id": "view-editor-only",
       "route": { "kind": "view-mode", "value": "editor-only" },
-      "menuOwned": true,
-      "shortcut": {
-        "combo": "command-or-ctrl-shift",
-        "key": "1",
-        "display": "⌘⇧1",
-        "accelerator": "CmdOrCtrl+Shift+1"
-      }
+      "menuOwned": true
     },
     "viewEditorList": {
       "id": "view-editor-list",
       "route": { "kind": "view-mode", "value": "editor-list" },
-      "menuOwned": true,
-      "shortcut": {
-        "combo": "command-or-ctrl-shift",
-        "key": "2",
-        "display": "⌘⇧2",
-        "accelerator": "CmdOrCtrl+Shift+2"
-      }
+      "menuOwned": true
     },
     "viewAll": {
       "id": "view-all",
       "route": { "kind": "view-mode", "value": "all" },
-      "menuOwned": true,
-      "shortcut": {
-        "combo": "command-or-ctrl-shift",
-        "key": "3",
-        "display": "⌘⇧3",
-        "accelerator": "CmdOrCtrl+Shift+3"
-      }
+      "menuOwned": true
     },
     "viewToggleProperties": {
       "id": "view-toggle-properties",
@@ -470,6 +452,114 @@
         "key": "9",
         "display": "⌘9",
         "accelerator": "CmdOrCtrl+9"
+      }
+    },
+    "recentJump1": {
+      "id": "recent-jump-1",
+      "route": { "kind": "recent-jump", "index": 1 },
+      "menuOwned": false,
+      "shortcut": {
+        "combo": "command-or-ctrl-shift",
+        "key": "1",
+        "code": "Digit1",
+        "display": "⌘⇧1",
+        "accelerator": "CmdOrCtrl+Shift+1"
+      }
+    },
+    "recentJump2": {
+      "id": "recent-jump-2",
+      "route": { "kind": "recent-jump", "index": 2 },
+      "menuOwned": false,
+      "shortcut": {
+        "combo": "command-or-ctrl-shift",
+        "key": "2",
+        "code": "Digit2",
+        "display": "⌘⇧2",
+        "accelerator": "CmdOrCtrl+Shift+2"
+      }
+    },
+    "recentJump3": {
+      "id": "recent-jump-3",
+      "route": { "kind": "recent-jump", "index": 3 },
+      "menuOwned": false,
+      "shortcut": {
+        "combo": "command-or-ctrl-shift",
+        "key": "3",
+        "code": "Digit3",
+        "display": "⌘⇧3",
+        "accelerator": "CmdOrCtrl+Shift+3"
+      }
+    },
+    "recentJump4": {
+      "id": "recent-jump-4",
+      "route": { "kind": "recent-jump", "index": 4 },
+      "menuOwned": false,
+      "shortcut": {
+        "combo": "command-or-ctrl-shift",
+        "key": "4",
+        "code": "Digit4",
+        "display": "⌘⇧4",
+        "accelerator": "CmdOrCtrl+Shift+4"
+      }
+    },
+    "recentJump5": {
+      "id": "recent-jump-5",
+      "route": { "kind": "recent-jump", "index": 5 },
+      "menuOwned": false,
+      "shortcut": {
+        "combo": "command-or-ctrl-shift",
+        "key": "5",
+        "code": "Digit5",
+        "display": "⌘⇧5",
+        "accelerator": "CmdOrCtrl+Shift+5"
+      }
+    },
+    "recentJump6": {
+      "id": "recent-jump-6",
+      "route": { "kind": "recent-jump", "index": 6 },
+      "menuOwned": false,
+      "shortcut": {
+        "combo": "command-or-ctrl-shift",
+        "key": "6",
+        "code": "Digit6",
+        "display": "⌘⇧6",
+        "accelerator": "CmdOrCtrl+Shift+6"
+      }
+    },
+    "recentJump7": {
+      "id": "recent-jump-7",
+      "route": { "kind": "recent-jump", "index": 7 },
+      "menuOwned": false,
+      "shortcut": {
+        "combo": "command-or-ctrl-shift",
+        "key": "7",
+        "code": "Digit7",
+        "display": "⌘⇧7",
+        "accelerator": "CmdOrCtrl+Shift+7"
+      }
+    },
+    "recentJump8": {
+      "id": "recent-jump-8",
+      "route": { "kind": "recent-jump", "index": 8 },
+      "menuOwned": false,
+      "shortcut": {
+        "combo": "command-or-ctrl-shift",
+        "key": "8",
+        "code": "Digit8",
+        "display": "⌘⇧8",
+        "accelerator": "CmdOrCtrl+Shift+8"
+      }
+    },
+    "recentJump9": {
+      "id": "recent-jump-9",
+      "route": { "kind": "recent-jump", "index": 9 },
+      "menuOwned": false,
+      "shortcut": {
+        "combo": "command-or-ctrl-shift",
+        "key": "9",
+        "code": "Digit9",
+        "display": "⌘⇧9",
+        "accelerator": "CmdOrCtrl+Shift+9"
       }
     },
     "noteArchive": {

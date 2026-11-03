@@ -44,6 +44,7 @@ export interface AppCommandHandlers {
   onToggleOrganized?: (path: string) => void
   onToggleFavorite?: (path: string) => void
   onJumpToFavorite?: (index: number) => void
+  onJumpToRecent?: (index: number) => void
   onArchiveNote: (path: string) => void
   onDeleteNote: (path: string) => void
   onFindInNote?: () => void
@@ -282,6 +283,9 @@ function dispatchDefinition(
       return true
     case 'favorite-jump':
       handlers.onJumpToFavorite?.(definition.route.index)
+      return true
+    case 'recent-jump':
+      handlers.onJumpToRecent?.(definition.route.index)
       return true
     case 'handler': {
       runSimpleHandler(definition.route.handler as SimpleHandlerKey, handlers)

@@ -6,6 +6,10 @@ import { SidebarGroupHeader } from './SidebarGroupHeader'
 import { SIDEBAR_ITEM_PADDING, SIDEBAR_SECTION_CONTENT_PADDING_BOTTOM } from './sidebarStyles'
 import { translate, type AppLocale } from '../../lib/i18n'
 import { resolveRecentEntries } from '../../utils/recentNotes'
+import { useHeldModifierMode } from '../../hooks/useModifierHeld'
+import { isMac } from '../../utils/platform'
+import { ShortcutHintBadge } from './ShortcutHintBadge'
+import { MAX_SHORTCUT_ITEMS, formatShortcutHint } from './shortcutHints'
 
 const DEFAULT_NOTE_ICON = 'file-text'
 
@@ -14,7 +18,9 @@ function RecentItem({
   isActive,
   onSelect,
   typeEntryMap,
+  shortcutHint,
 }: {
+  shortcutHint?: string
   entry: VaultEntry
   isActive: boolean
   onSelect: () => void
@@ -40,6 +46,7 @@ function RecentItem({
       >
         {entry.title}
       </span>
+      {shortcutHint && <span className="ml-auto flex"><ShortcutHintBadge label={shortcutHint} /></span>}
     </button>
   )
 }
@@ -67,6 +74,7 @@ export function RecentSection({
 }: RecentSectionProps) {
   const recent = useMemo(() => resolveRecentEntries(entries, recentPaths, count), [entries, recentPaths, count])
   const typeEntryMap = useMemo(() => buildTypeEntryMap(entries), [entries])
+  const heldMode = useHeldModifierMode()
 
   if (recent.length === 0) return null
 
@@ -75,12 +83,13 @@ export function RecentSection({
       <SidebarGroupHeader label={translate(locale, 'sidebar.group.recent')} collapsed={collapsed} onToggle={onToggle} count={recent.length} />
       {!collapsed && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingBottom: SIDEBAR_SECTION_CONTENT_PADDING_BOTTOM }}>
-          {recent.map((entry) => (
+          {recent.map((entry, index) => (
             <RecentItem
               key={entry.path}
               entry={entry}
               isActive={entry.path === activePath}
               typeEntryMap={typeEntryMap}
+              shortcutHint={heldMode === 'command-shift' && index < MAX_SHORTCUT_ITEMS ? formatShortcutHint(true, index + 1, isMac()) : undefined}
               onSelect={() => onSelectNote(entry)}
             />
           ))}

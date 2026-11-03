@@ -47,6 +47,7 @@ function makeActions() {
     onArchiveNote: vi.fn(),
     onToggleOrganized: vi.fn(),
     onJumpToFavorite: vi.fn(),
+    onJumpToRecent: vi.fn(),
     onSetViewMode: vi.fn(),
     onZoomIn: vi.fn(),
     onZoomOut: vi.fn(),
@@ -76,25 +77,13 @@ describe('useAppKeyboard', () => {
     vi.restoreAllMocks()
   })
 
-  it('Cmd+Shift+1 sets view mode to editor-only', () => {
+  it.each([1, 2, 3, 4, 5, 6, 7, 8, 9])('Cmd+Shift+%i jumps to recent note %i', (n) => {
     const actions = makeActions()
     renderHook(() => useAppKeyboard(actions))
-    fireKey('1', { metaKey: true, shiftKey: true })
-    expect(actions.onSetViewMode).toHaveBeenCalledWith('editor-only')
-  })
-
-  it('Cmd+Shift+2 sets view mode to editor-list', () => {
-    const actions = makeActions()
-    renderHook(() => useAppKeyboard(actions))
-    fireKey('2', { metaKey: true, shiftKey: true })
-    expect(actions.onSetViewMode).toHaveBeenCalledWith('editor-list')
-  })
-
-  it('Cmd+Shift+3 sets view mode to all', () => {
-    const actions = makeActions()
-    renderHook(() => useAppKeyboard(actions))
-    fireKey('3', { metaKey: true, shiftKey: true })
-    expect(actions.onSetViewMode).toHaveBeenCalledWith('all')
+    fireKey(String(n), { metaKey: true, shiftKey: true })
+    expect(actions.onJumpToRecent).toHaveBeenCalledWith(n)
+    expect(actions.onJumpToFavorite).not.toHaveBeenCalled()
+    expect(actions.onSetViewMode).not.toHaveBeenCalled()
   })
 
   it('does not fire view mode when Cmd+Alt pressed', () => {

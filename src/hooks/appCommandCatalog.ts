@@ -84,6 +84,7 @@ type AppCommandRoute =
   | { kind: 'handler'; handler: SimpleHandlerKey }
   | { kind: 'active-tab-handler'; handler: ActiveTabHandlerKey }
   | { kind: 'favorite-jump'; index: number }
+  | { kind: 'recent-jump'; index: number }
 
 interface AppCommandShortcutDefinition {
   combo: AppCommandShortcutCombo

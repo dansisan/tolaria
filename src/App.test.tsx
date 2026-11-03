@@ -51,6 +51,10 @@ vi.mock('@tauri-apps/api/window', async () => {
 })
 
 // Mock mock-tauri module
+function runAppCommand(id: string) {
+  act(() => { window.dispatchEvent(new CustomEvent(APP_COMMAND_EVENT_NAME, { detail: id })) })
+}
+
 const mockEntries = [
   {
     path: '/vault/project/test.md',
@@ -468,6 +472,7 @@ import App from './App'
 import { TooltipProvider } from './components/ui/tooltip'
 import { useUpdater } from './hooks/useUpdater'
 import { isTauri } from './mock-tauri'
+import { APP_COMMAND_EVENT_NAME, APP_COMMAND_IDS } from './hooks/appCommandDispatcher'
 import { streamAiAgent } from './utils/streamAiAgent'
 import { publishAiWorkspaceWindowSharedContext } from './lib/aiWorkspaceWindowSharedContext'
 import { rememberAiWorkspaceWindow } from './utils/windowMode'
@@ -1399,57 +1404,6 @@ describe('App', () => {
     })
   })
 
-  it('Cmd+Shift+1 hides sidebar and note list (editor-only mode)', async () => {
-    render(<App />)
-    await waitFor(() => {
-      expect(screen.getByText('All Notes')).toBeInTheDocument()
-    })
-
-    // All panels visible by default
-    expect(document.querySelector('.app__sidebar')).toBeInTheDocument()
-    expect(document.querySelector('.app__note-list')).toBeInTheDocument()
-
-    // Cmd+Shift+1 → editor-only
-    fireEvent.keyDown(window, { key: '1', metaKey: true, shiftKey: true })
-    await waitFor(() => {
-      expect(document.querySelector('.app__sidebar')).not.toBeInTheDocument()
-      expect(document.querySelector('.app__note-list')).not.toBeInTheDocument()
-    })
-  })
-
-  it('Cmd+Shift+2 shows editor + note list (sidebar hidden)', async () => {
-    render(<App />)
-    await waitFor(() => {
-      expect(screen.getByText('All Notes')).toBeInTheDocument()
-    })
-
-    fireEvent.keyDown(window, { key: '2', metaKey: true, shiftKey: true })
-    await waitFor(() => {
-      expect(document.querySelector('.app__sidebar')).not.toBeInTheDocument()
-      expect(document.querySelector('.app__note-list')).toBeInTheDocument()
-    })
-  })
-
-  it('Cmd+Shift+3 restores all panels after Cmd+Shift+1', async () => {
-    render(<App />)
-    await waitFor(() => {
-      expect(screen.getByText('All Notes')).toBeInTheDocument()
-    })
-
-    // Switch to editor-only first
-    fireEvent.keyDown(window, { key: '1', metaKey: true, shiftKey: true })
-    await waitFor(() => {
-      expect(document.querySelector('.app__sidebar')).not.toBeInTheDocument()
-    })
-
-    // Cmd+Shift+3 → all panels
-    fireEvent.keyDown(window, { key: '3', metaKey: true, shiftKey: true })
-    await waitFor(() => {
-      expect(document.querySelector('.app__sidebar')).toBeInTheDocument()
-      expect(document.querySelector('.app__note-list')).toBeInTheDocument()
-    })
-  })
-
   it('updates the main-window size constraints when the view mode changes', async () => {
     const { invoke } = await import('@tauri-apps/api/core') as { invoke: ReturnType<typeof vi.fn> }
 
@@ -1461,7 +1415,7 @@ describe('App', () => {
     invoke.mockClear()
 
     // Editor-only min width plus the inspector, which defaults to open.
-    fireEvent.keyDown(window, { key: '1', metaKey: true, shiftKey: true })
+    runAppCommand(APP_COMMAND_IDS.viewEditorOnly)
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith('update_current_window_min_size', {
         minWidth: 760,
@@ -1472,7 +1426,7 @@ describe('App', () => {
 
     invoke.mockClear()
 
-    fireEvent.keyDown(window, { key: '3', metaKey: true, shiftKey: true })
+    runAppCommand(APP_COMMAND_IDS.viewAll)
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith('update_current_window_min_size', {
         minWidth: 1310,
