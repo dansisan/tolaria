@@ -201,7 +201,7 @@ describe('NoteItem', () => {
     expect(onClickNote).toHaveBeenCalled()
   })
 
-  it('uses CSS named colors from the Type document for note type indicators', () => {
+  it('does not render a type icon on plain notes', () => {
     const ideaType = makeEntry({
       path: '/vault/type/idea.md',
       filename: 'idea.md',
@@ -225,7 +225,7 @@ describe('NoteItem', () => {
       />,
     )
 
-    expect(screen.getByTestId('type-icon')).toHaveStyle({ color: 'rgb(0, 255, 255)' })
+    expect(screen.queryByTestId('type-icon')).not.toBeInTheDocument()
   })
 
   it('shows the title with filename metadata when a change status is present', () => {

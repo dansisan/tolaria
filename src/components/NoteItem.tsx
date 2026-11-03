@@ -101,7 +101,7 @@ type NoteItemSurfaceProps = {
 }
 
 const NOTE_ITEM_BASE_CLASS_NAME = 'relative w-full border-0 border-b border-r border-[var(--border)] bg-transparent p-0 text-left transition-colors'
-const BINARY_NOTE_STYLE: CSSProperties = { padding: '14px 16px' }
+const BINARY_NOTE_STYLE: CSSProperties = { padding: '7px 16px' }
 const NOTE_ITEM_ROW_CLASS_NAMES: Record<NoteItemRowState, string> = {
   binary: 'cursor-default opacity-50',
   multiSelected: 'cursor-pointer',
@@ -246,6 +246,11 @@ function InteractiveNoteDetails({
   )
 }
 
+/** Plain notes stay icon-free; only files (previews, text, binary) show a kind icon. */
+function hasTypeIndicator(entry: VaultEntry): boolean {
+  return Boolean(filePreviewKind(entry)) || Boolean(entry.fileKind && entry.fileKind !== 'markdown')
+}
+
 function resolveNoteTypeIcon(entry: VaultEntry, customIcon?: string | null): ComponentType<SVGAttributes<SVGSVGElement>> {
   const previewKind = filePreviewKind(entry)
   if (previewKind === 'image') return ImageSquare
@@ -287,7 +292,9 @@ function StandardNoteContent({
 
   return (
     <>
-      <NoteTypeIndicator TypeIcon={TypeIcon} typeColor={typeColor} filePreviewKind={previewKind} />
+      {hasTypeIndicator(entry) && (
+        <NoteTypeIndicator TypeIcon={TypeIcon} typeColor={typeColor} filePreviewKind={previewKind} />
+      )}
       <div className="space-y-2" data-testid="note-content-stack">
         {isBinary ? (
           <>
@@ -330,7 +337,7 @@ function NoteTitleRow({
 }) {
   return (
     <div
-      className={cn('truncate pr-5 text-[13px]', isBinary ? 'text-muted-foreground' : 'text-foreground', isSelected && !isBinary ? 'font-semibold' : 'font-medium')}
+      className={cn('truncate text-[12px]', hasTypeIndicator(entry) && 'pr-5', isBinary ? 'text-muted-foreground' : 'text-foreground', isSelected && !isBinary ? 'font-semibold' : 'font-medium')}
       data-testid="note-title-row"
     >
       {hasStatusDot(noteStatus) && !isBinary && <StatusDot noteStatus={noteStatus} />}
@@ -388,7 +395,7 @@ function noteItemStyle({ isSelected, isMultiSelected, isPanelActive }: {
   isMultiSelected: boolean
   isPanelActive: boolean
 }): CSSProperties {
-  const base: CSSProperties = { padding: isSelected && !isMultiSelected ? '14px 16px 14px 13px' : '14px 16px' }
+  const base: CSSProperties = { padding: isSelected && !isMultiSelected ? '7px 16px 7px 13px' : '7px 16px' }
   if (isMultiSelected) base.backgroundColor = 'color-mix(in srgb, var(--accent-blue) 10%, transparent)'
   else if (isSelected) Object.assign(base, selectedRowColors(isPanelActive))
   return base
