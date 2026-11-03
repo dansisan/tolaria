@@ -3,28 +3,39 @@ import { isMac } from '../utils/platform'
 
 const REVEAL_DELAY_MS = 250
 
-export type HeldModifierMode = 'command' | 'command-shift' | null
+export type HeldModifierMode = 'command' | 'ctrl-alt' | null
 
-function isCommandKey(event: KeyboardEvent): boolean {
-  return isMac() ? event.key === 'Meta' : event.key === 'Control'
+interface HeldKeys {
+  meta: boolean
+  ctrl: boolean
+  alt: boolean
 }
 
-function isModifierKey(event: KeyboardEvent): boolean {
-  return isCommandKey(event) || event.key === 'Shift'
+function modifierName(event: KeyboardEvent): keyof HeldKeys | null {
+  if (event.key === 'Meta') return 'meta'
+  if (event.key === 'Control') return 'ctrl'
+  if (event.key === 'Alt') return 'alt'
+  return null
+}
+
+/** The modifier set currently held on its own, or null when none of our shortcut sets is. */
+function resolveMode({ meta, ctrl, alt }: HeldKeys, mac: boolean): HeldModifierMode {
+  if (ctrl && alt && !(mac && meta)) return 'ctrl-alt'
+  const commandDown = mac ? meta && !ctrl : ctrl
+  return commandDown && !alt ? 'command' : null
 }
 
 /**
  * Reports which shortcut modifier set is being held on its own: the platform
- * command key (⌘ / Ctrl), optionally with Shift. Only reports after a short
- * hold so executing a shortcut quickly never flashes hints.
+ * command key (⌘ / Ctrl) or Control+Option. Only reports after a short hold so
+ * executing a shortcut quickly never flashes hints.
  */
 export function useHeldModifierMode(): HeldModifierMode {
   const [mode, setMode] = useState<HeldModifierMode>(null)
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null
-    let commandDown = false
-    let shiftDown = false
+    const held: HeldKeys = { meta: false, ctrl: false, alt: false }
 
     const clearTimer = () => {
       if (timer) clearTimeout(timer)
@@ -32,37 +43,33 @@ export function useHeldModifierMode(): HeldModifierMode {
     }
     const reset = () => {
       clearTimer()
-      commandDown = false
-      shiftDown = false
+      held.meta = held.ctrl = held.alt = false
       setMode(null)
     }
     const sync = () => {
       clearTimer()
-      if (!commandDown) {
-        setMode(null)
-        return
-      }
-      const next: HeldModifierMode = shiftDown ? 'command-shift' : 'command'
-      timer = setTimeout(() => setMode(next), REVEAL_DELAY_MS)
-      // Changing the held set (e.g. adding Shift) hides stale hints immediately.
+      const next = resolveMode(held, isMac())
+      // Changing the held set hides stale hints immediately.
       setMode((current) => (current === next ? current : null))
+      if (next) timer = setTimeout(() => setMode(next), REVEAL_DELAY_MS)
     }
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!isModifierKey(event)) {
-        // A real shortcut is being executed: hide hints and wait for release.
+      const name = modifierName(event)
+      if (!name) {
+        // Shift alone is irrelevant; any other key means a shortcut is being executed.
+        if (event.key === 'Shift') return
         clearTimer()
         setMode(null)
         return
       }
       if (event.repeat) return
-      if (isCommandKey(event)) commandDown = true
-      else shiftDown = true
+      held[name] = true
       sync()
     }
     const onKeyUp = (event: KeyboardEvent) => {
-      if (!isModifierKey(event)) return
-      if (isCommandKey(event)) commandDown = false
-      else shiftDown = false
+      const name = modifierName(event)
+      if (!name) return
+      held[name] = false
       sync()
     }
 

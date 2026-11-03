@@ -215,7 +215,7 @@ describe('appCommandDispatcher', () => {
 
   it('resolves event modifiers through the shared shortcut catalog', () => {
     expectShortcutEventCommand({ key: '1', metaKey: true }, APP_COMMAND_IDS.favoriteJump1)
-    expectShortcutEventCommand({ key: '1', metaKey: true, shiftKey: true }, APP_COMMAND_IDS.recentJump1)
+    expectShortcutEventCommand({ key: '¡', code: 'Digit1', ctrlKey: true, altKey: true }, APP_COMMAND_IDS.recentJump1)
     expectShortcutEventCommand({ key: 'o', code: 'KeyO', metaKey: true }, APP_COMMAND_IDS.fileQuickOpen)
     expectShortcutEventCommand({ key: '¬', code: 'KeyL', metaKey: true, shiftKey: true }, APP_COMMAND_IDS.viewToggleAiChat)
     expectShortcutEventCommand({ key: 'I', code: 'KeyI', metaKey: true, shiftKey: true }, APP_COMMAND_IDS.viewToggleProperties)
@@ -363,9 +363,9 @@ describe('appCommandDispatcher', () => {
     expect(handlers.onJumpToFavorite).toHaveBeenNthCalledWith(2, 9)
   })
 
-  it('maps Cmd+Shift+1 through Cmd+Shift+9 to the recent-jump commands', () => {
-    expect(findShortcutCommandId('command-or-ctrl-shift', '1')).toBe(APP_COMMAND_IDS.recentJump1)
-    expect(findShortcutCommandId('command-or-ctrl-shift', '9')).toBe(APP_COMMAND_IDS.recentJump9)
+  it('maps Ctrl+Option+1 through Ctrl+Option+9 to the recent-jump commands', () => {
+    expect(findShortcutCommandId('ctrl-alt', '1')).toBe(APP_COMMAND_IDS.recentJump1)
+    expect(findShortcutCommandId('ctrl-alt', '9')).toBe(APP_COMMAND_IDS.recentJump9)
   })
 
   it('dispatches recent-jump commands with their 1-based index', () => {

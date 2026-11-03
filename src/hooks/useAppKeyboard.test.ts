@@ -77,12 +77,21 @@ describe('useAppKeyboard', () => {
     vi.restoreAllMocks()
   })
 
-  it.each([1, 2, 3, 4, 5, 6, 7, 8, 9])('Cmd+Shift+%i jumps to recent note %i', (n) => {
+  it.each([1, 2, 3, 4, 5, 6, 7, 8, 9])('Ctrl+Option+%i jumps to recent note %i', (n) => {
     const actions = makeActions()
     renderHook(() => useAppKeyboard(actions))
-    fireKey(String(n), { metaKey: true, shiftKey: true })
+    // Option rewrites event.key on macOS, so the shortcut must match on the physical key.
+    fireKey('¡', { ctrlKey: true, altKey: true, code: `Digit${n}` })
     expect(actions.onJumpToRecent).toHaveBeenCalledWith(n)
     expect(actions.onJumpToFavorite).not.toHaveBeenCalled()
+    expect(actions.onSetViewMode).not.toHaveBeenCalled()
+  })
+
+  it('Cmd+Shift+1 no longer does anything', () => {
+    const actions = makeActions()
+    renderHook(() => useAppKeyboard(actions))
+    fireKey('!', { metaKey: true, shiftKey: true, code: 'Digit1' })
+    expect(actions.onJumpToRecent).not.toHaveBeenCalled()
     expect(actions.onSetViewMode).not.toHaveBeenCalled()
   })
 

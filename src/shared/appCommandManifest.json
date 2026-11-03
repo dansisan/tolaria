@@ -459,11 +459,11 @@
       "route": { "kind": "recent-jump", "index": 1 },
       "menuOwned": false,
       "shortcut": {
-        "combo": "command-or-ctrl-shift",
+        "combo": "ctrl-alt",
         "key": "1",
         "code": "Digit1",
-        "display": "⌘⇧1",
-        "accelerator": "CmdOrCtrl+Shift+1"
+        "display": "⌃⌥1",
+        "accelerator": "Ctrl+Alt+1"
       }
     },
     "recentJump2": {
@@ -471,11 +471,11 @@
       "route": { "kind": "recent-jump", "index": 2 },
       "menuOwned": false,
       "shortcut": {
-        "combo": "command-or-ctrl-shift",
+        "combo": "ctrl-alt",
         "key": "2",
         "code": "Digit2",
-        "display": "⌘⇧2",
-        "accelerator": "CmdOrCtrl+Shift+2"
+        "display": "⌃⌥2",
+        "accelerator": "Ctrl+Alt+2"
       }
     },
     "recentJump3": {
@@ -483,11 +483,11 @@
       "route": { "kind": "recent-jump", "index": 3 },
       "menuOwned": false,
       "shortcut": {
-        "combo": "command-or-ctrl-shift",
+        "combo": "ctrl-alt",
         "key": "3",
         "code": "Digit3",
-        "display": "⌘⇧3",
-        "accelerator": "CmdOrCtrl+Shift+3"
+        "display": "⌃⌥3",
+        "accelerator": "Ctrl+Alt+3"
       }
     },
     "recentJump4": {
@@ -495,11 +495,11 @@
       "route": { "kind": "recent-jump", "index": 4 },
       "menuOwned": false,
       "shortcut": {
-        "combo": "command-or-ctrl-shift",
+        "combo": "ctrl-alt",
         "key": "4",
         "code": "Digit4",
-        "display": "⌘⇧4",
-        "accelerator": "CmdOrCtrl+Shift+4"
+        "display": "⌃⌥4",
+        "accelerator": "Ctrl+Alt+4"
       }
     },
     "recentJump5": {
@@ -507,11 +507,11 @@
       "route": { "kind": "recent-jump", "index": 5 },
       "menuOwned": false,
       "shortcut": {
-        "combo": "command-or-ctrl-shift",
+        "combo": "ctrl-alt",
         "key": "5",
         "code": "Digit5",
-        "display": "⌘⇧5",
-        "accelerator": "CmdOrCtrl+Shift+5"
+        "display": "⌃⌥5",
+        "accelerator": "Ctrl+Alt+5"
       }
     },
     "recentJump6": {
@@ -519,11 +519,11 @@
       "route": { "kind": "recent-jump", "index": 6 },
       "menuOwned": false,
       "shortcut": {
-        "combo": "command-or-ctrl-shift",
+        "combo": "ctrl-alt",
         "key": "6",
         "code": "Digit6",
-        "display": "⌘⇧6",
-        "accelerator": "CmdOrCtrl+Shift+6"
+        "display": "⌃⌥6",
+        "accelerator": "Ctrl+Alt+6"
       }
     },
     "recentJump7": {
@@ -531,11 +531,11 @@
       "route": { "kind": "recent-jump", "index": 7 },
       "menuOwned": false,
       "shortcut": {
-        "combo": "command-or-ctrl-shift",
+        "combo": "ctrl-alt",
         "key": "7",
         "code": "Digit7",
-        "display": "⌘⇧7",
-        "accelerator": "CmdOrCtrl+Shift+7"
+        "display": "⌃⌥7",
+        "accelerator": "Ctrl+Alt+7"
       }
     },
     "recentJump8": {
@@ -543,11 +543,11 @@
       "route": { "kind": "recent-jump", "index": 8 },
       "menuOwned": false,
       "shortcut": {
-        "combo": "command-or-ctrl-shift",
+        "combo": "ctrl-alt",
         "key": "8",
         "code": "Digit8",
-        "display": "⌘⇧8",
-        "accelerator": "CmdOrCtrl+Shift+8"
+        "display": "⌃⌥8",
+        "accelerator": "Ctrl+Alt+8"
       }
     },
     "recentJump9": {
@@ -555,11 +555,11 @@
       "route": { "kind": "recent-jump", "index": 9 },
       "menuOwned": false,
       "shortcut": {
-        "combo": "command-or-ctrl-shift",
+        "combo": "ctrl-alt",
         "key": "9",
         "code": "Digit9",
-        "display": "⌘⇧9",
-        "accelerator": "CmdOrCtrl+Shift+9"
+        "display": "⌃⌥9",
+        "accelerator": "Ctrl+Alt+9"
       }
     },
     "noteArchive": {

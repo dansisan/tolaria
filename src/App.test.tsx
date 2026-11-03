@@ -1242,6 +1242,26 @@ describe('App', () => {
     expect(screen.queryByText('Related to')).not.toBeInTheDocument()
   })
 
+  it('Ctrl+Option+N jumps to the Nth recent note', async () => {
+    configureNeighborhoodMultiFavoritesVault()
+
+    render(<App />)
+    await waitFor(() => {
+      expect(screen.getByText('All Notes')).toBeInTheDocument()
+    })
+
+    await screen.findByTestId('note-list-container')
+
+    fireEvent.keyDown(window, { key: '1', metaKey: true })
+    await waitFor(() => expect(window.__laputaTest?.activeTabPath).toBe('/vault/alpha.md'))
+    fireEvent.keyDown(window, { key: '2', metaKey: true })
+    await waitFor(() => expect(window.__laputaTest?.activeTabPath).toBe('/vault/beta.md'))
+
+    // Recent is newest-first: [beta, alpha]. Option rewrites event.key, so match on code.
+    fireEvent.keyDown(window, { key: '™', code: 'Digit2', ctrlKey: true, altKey: true })
+    await waitFor(() => expect(window.__laputaTest?.activeTabPath).toBe('/vault/alpha.md'))
+  })
+
   it('defaults to All Notes when explicit organization is disabled in vault config', async () => {
     const workVaultPath = '/Users/mock/Documents/Work'
     mockCommandResults.load_vault_list = {

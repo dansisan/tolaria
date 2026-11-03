@@ -26,24 +26,34 @@ describe('useHeldModifierMode', () => {
     expect(result.current).toBeNull()
   })
 
-  it('reports command-shift when Shift joins, and falls back when Shift is released', () => {
+  it('reports ctrl-alt when Control and Option are held, and falls back when Option is released', () => {
+    const { result } = renderHook(() => useHeldModifierMode())
+    act(() => key('keydown', 'Control'))
+    act(() => key('keydown', 'Alt'))
+    wait(300)
+    expect(result.current).toBe('ctrl-alt')
+    act(() => key('keyup', 'Alt'))
+    wait(300)
+    expect(result.current).toBeNull()
+  })
+
+  it('does not reveal for Command+Option or for Option alone', () => {
+    const { result } = renderHook(() => useHeldModifierMode())
+    act(() => key('keydown', 'Alt'))
+    wait(300)
+    expect(result.current).toBeNull()
+    act(() => key('keydown', 'Meta'))
+    wait(300)
+    expect(result.current).toBeNull()
+  })
+
+  it('ignores Shift while Command is held', () => {
     const { result } = renderHook(() => useHeldModifierMode())
     act(() => key('keydown', 'Meta'))
     wait(300)
     act(() => key('keydown', 'Shift'))
-    expect(result.current).toBeNull()
-    wait(300)
-    expect(result.current).toBe('command-shift')
-    act(() => key('keyup', 'Shift'))
     wait(300)
     expect(result.current).toBe('command')
-  })
-
-  it('does not reveal when Shift is held alone', () => {
-    const { result } = renderHook(() => useHeldModifierMode())
-    act(() => key('keydown', 'Shift'))
-    wait(300)
-    expect(result.current).toBeNull()
   })
 
   it('does not reveal when a shortcut is executed quickly', () => {

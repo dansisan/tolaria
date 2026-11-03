@@ -153,7 +153,7 @@ export function FavoritesSection({
                   isActive={isSelectionActive(selection, { kind: 'entity', entry })}
                   typeEntryMap={typeEntryMap}
                   onSelect={() => handleFavoriteSelect(entry)}
-                  shortcutHint={heldMode === 'command' && index < MAX_SHORTCUT_ITEMS ? formatShortcutHint(false, index + 1, isMac()) : undefined}
+                  shortcutHint={heldMode === 'command' && index < MAX_SHORTCUT_ITEMS ? formatShortcutHint('command', index + 1, isMac()) : undefined}
                 />
               ))}
             </div>

@@ -89,7 +89,7 @@ export function RecentSection({
               entry={entry}
               isActive={entry.path === activePath}
               typeEntryMap={typeEntryMap}
-              shortcutHint={heldMode === 'command-shift' && index < MAX_SHORTCUT_ITEMS ? formatShortcutHint(true, index + 1, isMac()) : undefined}
+              shortcutHint={heldMode === 'ctrl-alt' && index < MAX_SHORTCUT_ITEMS ? formatShortcutHint('ctrl-alt', index + 1, isMac()) : undefined}
               onSelect={() => onSelectNote(entry)}
             />
           ))}
