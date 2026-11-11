@@ -226,6 +226,24 @@ pub fn frontmatter_has_key(content: &str, key: &str) -> bool {
         })
 }
 
+/// The unquoted scalar text of a top-level `key` in the frontmatter block, or
+/// `None` when the note has no such key or the value is empty.
+pub fn frontmatter_scalar(content: &str, key: &str) -> Option<String> {
+    let Ok(Some(block)) = split_frontmatter_block(content) else {
+        return None;
+    };
+    let prefix = format!("{key}:");
+    block.body.lines().find_map(|line| {
+        let value = line.strip_prefix(&prefix)?.trim();
+        let value = value
+            .strip_prefix('"')
+            .and_then(|v| v.strip_suffix('"'))
+            .or_else(|| value.strip_prefix('\'').and_then(|v| v.strip_suffix('\'')))
+            .unwrap_or(value);
+        (!value.is_empty()).then(|| value.to_string())
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

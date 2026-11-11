@@ -59,6 +59,23 @@ pub fn resolve_note_dates(
     }
 }
 
+/// The weekday name for a note's own `created` value, when it has a parseable one.
+///
+/// Accepts the space-separated shape Tolaria writes and the `T`-separated ISO shape
+/// other tools write (Apple Notes import), with or without seconds, or a bare date.
+/// The weekday comes from the date as written — no zone conversion — so it stays
+/// the day the note is about.
+pub fn day_from_created_value(content: &str, created_key: &str) -> Option<&'static str> {
+    let value = super::frontmatter_scalar(content, created_key)?;
+    let date = ["%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M"]
+        .iter()
+        .find_map(|format| chrono::NaiveDateTime::parse_from_str(&value, format).ok())
+        .map(|datetime| datetime.date())
+        .or_else(|| NaiveDate::parse_from_str(&value, "%Y-%m-%d").ok())?;
+
+    Some(SHORT_DAYS[date.weekday().num_days_from_sunday() as usize])
+}
+
 /// The value belonging to one date key.
 pub fn note_date_value<'dates>(
     dates: &'dates NoteDates,

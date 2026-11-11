@@ -10,8 +10,10 @@ use std::fs;
 use std::path::Path;
 
 pub use derive::{apply_content_frontmatter, apply_derived_frontmatter, DeriveContext};
-pub use note_dates::{missing_date_keys, note_date_value, resolve_note_dates, NoteDates};
-pub use ops::{frontmatter_has_key, update_frontmatter_content};
+pub use note_dates::{
+    day_from_created_value, missing_date_keys, note_date_value, resolve_note_dates, NoteDates,
+};
+pub use ops::{frontmatter_has_key, frontmatter_scalar, update_frontmatter_content};
 pub use yaml::{format_yaml_key, FrontmatterValue};
 
 /// Refresh the `modified` frontmatter timestamp to `timestamp` on every save,

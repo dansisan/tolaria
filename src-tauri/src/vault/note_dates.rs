@@ -31,12 +31,15 @@ pub fn missing_note_dates(
         .map(|name| name.to_string_lossy().to_string())
         .unwrap_or_default();
 
-    let dates = crate::frontmatter::resolve_note_dates(
+    let mut dates = crate::frontmatter::resolve_note_dates(
         &filename,
         fs_created,
         fs_modified,
         chrono::Local::now(),
     );
+    if let Some(day) = crate::frontmatter::day_from_created_value(&content, created_key) {
+        dates.day_created = day.to_string();
+    }
 
     Ok(missing
         .into_iter()
@@ -87,6 +90,42 @@ mod tests {
 
         assert_eq!(value_of(&suggestions, "created"), "2025-12-17 00:00:00");
         assert_eq!(value_of(&suggestions, "dayCreated"), "Wed");
+    }
+
+    /// An imported note's `created` is the day it is about; the file's birth time
+    /// only records when it reached this machine.
+    #[test]
+    fn derives_day_created_from_the_existing_created_value() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("note.md");
+        fs::write(&path, "---\ncreated: \"2023-12-23T23:00:59\"\n---\n# Note\n").unwrap();
+
+        let suggestions = missing_note_dates(&path, "created").unwrap();
+
+        assert_eq!(keys(&suggestions), vec!["dayCreated", "modified"]);
+        assert_eq!(value_of(&suggestions, "dayCreated"), "Sat");
+    }
+
+    #[test]
+    fn derives_day_created_from_a_space_separated_created_value() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("note.md");
+        fs::write(&path, "---\ncreated: 2023-12-26 08:00:00\n---\n# Note\n").unwrap();
+
+        let suggestions = missing_note_dates(&path, "created").unwrap();
+
+        assert_eq!(value_of(&suggestions, "dayCreated"), "Tue");
+    }
+
+    #[test]
+    fn ignores_an_unparseable_created_value() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("note.md");
+        fs::write(&path, "---\ncreated: someday\n---\n# Note\n").unwrap();
+
+        let suggestions = missing_note_dates(&path, "created").unwrap();
+
+        assert_eq!(keys(&suggestions), vec!["dayCreated", "modified"]);
     }
 
     #[test]
