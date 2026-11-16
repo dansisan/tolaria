@@ -43,6 +43,14 @@ function extractWikilinks(value: FrontmatterValue): WikilinkText[] {
   return []
 }
 
+/** The non-wikilink part of a value, or null when nothing but wikilinks (or nothing) is left. */
+function withoutWikilinks(value: FrontmatterValue): FrontmatterValue | null {
+  if (typeof value === 'string') return isWikilink(value) ? null : value
+  if (!Array.isArray(value)) return value
+  const plain = value.filter((item) => !(typeof item === 'string' && isWikilink(item)))
+  return plain.length > 0 ? plain : null
+}
+
 /**
  * Relationship patch: a partial update to merge into `entry.relationships`.
  * Keys map to their new ref arrays. A `null` value means "remove this key".
@@ -157,7 +165,11 @@ function propertiesUpdatePatch({
 }: FrontmatterPatchInput): PropertiesPatch | null {
   const knownUpdates = knownFrontmatterUpdates(value)
   if (systemMetadataKey || Object.hasOwn(knownUpdates, lookupKey) || value == null) return null
-  return singleEntryRecord({ key, value: propertyValue(value) })
+  // Wikilink items are relationships, never properties (the Rust parser splits them the same way).
+  // Whatever plain values remain stay properties; with none left, clear any stale copy so the
+  // Properties panel doesn't show raw `[[...]]`.
+  const plain = withoutWikilinks(value)
+  return singleEntryRecord({ key, value: plain === null ? null : propertyValue(plain) })
 }
 
 function updateEntryPatch(input: FrontmatterPatchInput): EntryPatchResult {
@@ -179,6 +191,11 @@ export function frontmatterToEntryPatch(
   return op === 'delete' ? deleteEntryPatch(input) : updateEntryPatch(input)
 }
 
+/** Building properties from scratch: a `null` ("clear this key") just means the key is absent. */
+function omitClearedProperties(patch: PropertiesPatch): PropertiesPatch {
+  return Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== null))
+}
+
 /** Parse frontmatter from full content and return a merged VaultEntry patch for all known fields. */
 export function contentToEntryPatch(content: MarkdownContent): Partial<VaultEntry> {
   const fm = parseFrontmatter(content)
@@ -187,7 +204,7 @@ export function contentToEntryPatch(content: MarkdownContent): Partial<VaultEntr
   for (const [key, value] of Object.entries(fm)) {
     const { patch, propertiesPatch } = frontmatterToEntryPatch('update', key, value)
     Object.assign(merged, patch)
-    if (propertiesPatch) Object.assign(customProps, propertiesPatch)
+    if (propertiesPatch) Object.assign(customProps, omitClearedProperties(propertiesPatch))
   }
   if (Object.keys(customProps).length > 0) merged.properties = customProps
   return merged

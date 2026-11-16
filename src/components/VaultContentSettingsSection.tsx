@@ -391,6 +391,14 @@ export function VaultContentSettingsSection({
         </SettingsRow>
 
         <SettingsSwitchRow
+          label={t('settings.allNotesVisibility.typeNotes')}
+          description={t('settings.allNotesVisibility.typeNotesDescription')}
+          checked={allNotesFileVisibility.typeNotes}
+          onChange={(checked) => updateAllNotesFileVisibility({ typeNotes: checked })}
+          testId="settings-all-notes-show-type-notes"
+        />
+
+        <SettingsSwitchRow
           label={t('settings.allNotesVisibility.pdfs')}
           description={t('settings.allNotesVisibility.pdfsDescription')}
           checked={allNotesFileVisibility.pdfs}

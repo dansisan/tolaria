@@ -50,6 +50,7 @@ const defaultSettings: Settings = {
   all_notes_show_pdfs: null,
   all_notes_show_images: null,
   all_notes_show_unsupported: null,
+  all_notes_show_type_notes: null,
 }
 
 const savedSettings: Settings = {
@@ -90,6 +91,7 @@ const savedSettings: Settings = {
   all_notes_show_pdfs: null,
   all_notes_show_images: null,
   all_notes_show_unsupported: null,
+  all_notes_show_type_notes: null,
 }
 
 let mockSettingsStore: Settings = { ...defaultSettings }
@@ -167,6 +169,7 @@ function changedSettings(): Settings {
     all_notes_show_pdfs: true,
     all_notes_show_images: false,
     all_notes_show_unsupported: true,
+    all_notes_show_type_notes: null,
   }
 }
 

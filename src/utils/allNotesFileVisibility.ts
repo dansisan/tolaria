@@ -5,17 +5,20 @@ export interface AllNotesFileVisibility {
   pdfs: boolean
   images: boolean
   unsupported: boolean
+  /** Type-definition notes (`type: Type`), e.g. project.md. */
+  typeNotes: boolean
 }
 
 export const DEFAULT_ALL_NOTES_FILE_VISIBILITY: AllNotesFileVisibility = {
   pdfs: false,
   images: false,
   unsupported: false,
+  typeNotes: false,
 }
 
 type AllNotesFileVisibilitySettings = Pick<
   Settings,
-  'all_notes_show_pdfs' | 'all_notes_show_images' | 'all_notes_show_unsupported'
+  'all_notes_show_pdfs' | 'all_notes_show_images' | 'all_notes_show_unsupported' | 'all_notes_show_type_notes'
 >
 
 export function resolveAllNotesFileVisibility(
@@ -25,6 +28,7 @@ export function resolveAllNotesFileVisibility(
     pdfs: settings?.all_notes_show_pdfs === true,
     images: settings?.all_notes_show_images === true,
     unsupported: settings?.all_notes_show_unsupported === true,
+    typeNotes: settings?.all_notes_show_type_notes === true,
   }
 }
 
@@ -37,6 +41,7 @@ export function settingsWithAllNotesFileVisibility(
     all_notes_show_pdfs: visibility.pdfs,
     all_notes_show_images: visibility.images,
     all_notes_show_unsupported: visibility.unsupported,
+    all_notes_show_type_notes: visibility.typeNotes,
   }
 }
 

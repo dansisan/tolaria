@@ -79,6 +79,7 @@ const EMPTY_SETTINGS: Settings = {
   all_notes_show_pdfs: null,
   all_notes_show_images: null,
   all_notes_show_unsupported: null,
+  all_notes_show_type_notes: null,
   multi_workspace_enabled: null,
 }
 
@@ -116,6 +117,7 @@ function normalizeSettings(settings: Settings): Settings {
     all_notes_show_pdfs: settings.all_notes_show_pdfs ?? null,
     all_notes_show_images: settings.all_notes_show_images ?? null,
     all_notes_show_unsupported: settings.all_notes_show_unsupported ?? null,
+    all_notes_show_type_notes: settings.all_notes_show_type_notes ?? null,
     multi_workspace_enabled: settings.multi_workspace_enabled ?? null,
   }
 }

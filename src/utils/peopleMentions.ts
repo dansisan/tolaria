@@ -17,14 +17,19 @@ function caseInsensitiveGet(record: Record<string, unknown>, key: string): unkno
   return match ? Reflect.get(record, match) : undefined
 }
 
-/** Read the `people` field of an entry as a list of raw values (relationship or property). */
+function propertyValues(property: unknown): string[] {
+  if (Array.isArray(property)) return property.map(String)
+  return property != null && property !== '' ? [String(property)] : []
+}
+
+/**
+ * Read the `people` field of an entry as a list of raw values. A mixed list such as
+ * `[[[Alice]], Bob]` is split on load: wikilinks land in relationships, plain names in properties.
+ */
 function peopleFieldValues(entry: VaultEntry): string[] {
   const relationship = caseInsensitiveGet(entry.relationships, PEOPLE_FIELD)
-  if (Array.isArray(relationship)) return relationship.map(String)
-  const property = caseInsensitiveGet(entry.properties, PEOPLE_FIELD)
-  if (Array.isArray(property)) return property.map(String)
-  if (property != null && property !== '') return [String(property)]
-  return []
+  const links = Array.isArray(relationship) ? relationship.map(String) : []
+  return [...links, ...propertyValues(caseInsensitiveGet(entry.properties, PEOPLE_FIELD))]
 }
 
 interface ParsedPerson {

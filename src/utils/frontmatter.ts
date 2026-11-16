@@ -35,7 +35,9 @@ function isBlockScalar(value: FrontmatterText): boolean {
 }
 
 function isInlineArrayLiteral(value: FrontmatterText): boolean {
-  return value.startsWith('[') && value.endsWith(']') && !value.startsWith('[[')
+  if (!value.startsWith('[') || !value.endsWith(']')) return false
+  // `[[x]]` is a single wikilink scalar, but `[[[x]], y]` is a list whose first item is a wikilink.
+  return !value.startsWith('[[') || value.startsWith('[[[')
 }
 
 function parseInlineArray(value: FrontmatterText): FrontmatterValue {

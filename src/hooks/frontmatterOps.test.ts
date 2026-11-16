@@ -64,6 +64,27 @@ describe('frontmatterToEntryPatch', () => {
     expect(result.relationshipPatch).toEqual({ Notes: ['[[note-a]]', '[[note-b|Note B]]'] })
   })
 
+  it.each([
+    ['single wikilink string', '[[Alice]]', { people: ['[[Alice]]'] }],
+    ['wikilink array', ['[[Alice]]', '[[Bob]]'], { people: ['[[Alice]]', '[[Bob]]'] }],
+  ])('keeps %s out of properties so the Properties panel does not show raw brackets', (_label, value, relationships) => {
+    const result = frontmatterToEntryPatch('update', 'people', value)
+    expect(result.relationshipPatch).toEqual(relationships)
+    // null clears any stale plain-text copy, matching what a reload from disk produces
+    expect(result.propertiesPatch).toEqual({ people: null })
+  })
+
+  it('keeps plain names from a mixed list as properties while wikilinks become relationships', () => {
+    const result = frontmatterToEntryPatch('update', 'people', ['[[H]]', '[[V]]', 'Martha', 'Kate'])
+    expect(result.relationshipPatch).toEqual({ people: ['[[H]]', '[[V]]'] })
+    expect(result.propertiesPatch).toEqual({ people: ['Martha', 'Kate'] })
+  })
+
+  it('collapses a single plain name left over from a mixed list', () => {
+    const result = frontmatterToEntryPatch('update', 'people', ['[[H]]', 'Martha'])
+    expect(result.propertiesPatch).toEqual({ people: 'Martha' })
+  })
+
   it('produces relationship patch for single wikilink string', () => {
     const result = frontmatterToEntryPatch('update', 'Owner', '[[person/alice]]')
     expect(result.patch).toEqual({})

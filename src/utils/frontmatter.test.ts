@@ -77,6 +77,12 @@ describe('parseFrontmatter', () => {
     expect(fm['Belongs to']).toBe('[[project/alpha]]')
   })
 
+  it('parses inline lists that start with a wikilink and mix in plain names', () => {
+    const content = '---\npeople: [[[H]], [[V]], Martha, Kate]\n---\nBody'
+
+    expect(parseFrontmatter(content).people).toEqual(['[[H]]', '[[V]]', 'Martha', 'Kate'])
+  })
+
   it('parses CRLF frontmatter from Windows-authored notes', () => {
     const fm = parseFrontmatter('---\r\ntype: Note\r\nstatus: Active\r\n---\r\n# Title')
     expect(fm['type']).toBe('Note')

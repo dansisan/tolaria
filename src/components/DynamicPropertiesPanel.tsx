@@ -32,6 +32,7 @@ import {
   type SuggestedProperty,
 } from '../utils/suggestedProperties'
 import { useSuggestedProperties } from '../hooks/useAppPreferences'
+import { withPreservedWikilinks, wikilinkItems } from '../utils/mixedWikilinkLists'
 
 // eslint-disable-next-line react-refresh/only-export-components -- utility co-located with component
 export function containsWikilinks(value: FrontmatterValue): boolean {
@@ -660,12 +661,32 @@ interface DynamicPropertiesPanelProps {
   locale?: AppLocale
 }
 
+/** Wrap property writes so editing the plain half of a mixed list never drops its wikilinks. */
+function useLinkPreservingWrites({ frontmatter, onUpdateProperty, onDeleteProperty }: {
+  frontmatter: Record<string, FrontmatterValue>
+  onUpdateProperty?: (key: string, value: FrontmatterValue) => void
+  onDeleteProperty?: (key: string) => void
+}) {
+  const update = useMemo(() => onUpdateProperty && ((key: string, value: FrontmatterValue) => {
+    onUpdateProperty(key, withPreservedWikilinks(frontmatter[key], value))
+  }), [frontmatter, onUpdateProperty])
+  const remove = useMemo(() => onDeleteProperty && ((key: string) => {
+    const links = wikilinkItems(frontmatter[key])
+    if (links.length > 0 && onUpdateProperty) onUpdateProperty(key, links.length === 1 ? links[0] : links)
+    else onDeleteProperty(key)
+  }), [frontmatter, onDeleteProperty, onUpdateProperty])
+  return { onUpdateProperty: update, onDeleteProperty: remove }
+}
+
 export function DynamicPropertiesPanel({
   entry, frontmatter, entries,
-  onUpdateProperty, onDeleteProperty, onAddProperty, onNavigate, onCreateMissingType,
+  onUpdateProperty: rawUpdateProperty, onDeleteProperty: rawDeleteProperty, onAddProperty, onNavigate, onCreateMissingType,
   onChangeWorkspace, workspaces,
   locale = 'en',
 }: DynamicPropertiesPanelProps) {
+  const { onUpdateProperty, onDeleteProperty } = useLinkPreservingWrites({
+    frontmatter, onUpdateProperty: rawUpdateProperty, onDeleteProperty: rawDeleteProperty,
+  })
   const propertyState = usePropertyPanelState({ entries, entryIsA: entry.isA, frontmatter, onUpdateProperty, onDeleteProperty, onAddProperty })
   const [pendingSuggestedKey, setPendingSuggestedKey] = useState<string | null>(null)
   const missingTypeName = useMemo(() => resolveMissingTypeName(entry.isA, propertyState.availableTypes), [entry.isA, propertyState.availableTypes])

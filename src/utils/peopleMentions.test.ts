@@ -40,6 +40,21 @@ describe('buildPeopleMentions', () => {
     expect(result).toContainEqual({ name: 'bob', query: 'bob', count: 1 })
   })
 
+  it('counts plain names from a mixed list alongside its wikilinks', () => {
+    const notes = [
+      MATTEO,
+      makeEntry({
+        path: '/v/n1.md',
+        relationships: { people: ['[[person-matteo]]'] },
+        properties: { people: ['Martha', 'Kate'] },
+      }),
+    ]
+    const result = buildPeopleMentions(notes)
+    expect(result).toContainEqual({ name: 'Matteo Cellini', query: 'Matteo Cellini', count: 1 })
+    expect(result).toContainEqual({ name: 'Martha', query: 'Martha', count: 1 })
+    expect(result).toContainEqual({ name: 'Kate', query: 'Kate', count: 1 })
+  })
+
   it('merges name variants that are aliases of one note', () => {
     const harold = makeEntry({ path: '/v/harold.md', filename: 'harold.md', title: 'Harold', isA: 'Person', aliases: ['H', 'H.'] })
     const notes = [

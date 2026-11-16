@@ -26,6 +26,7 @@ interface SettingsCommandsConfig {
   onReloadVault?: () => void
   onRepairVault?: () => void
   onRecomputeMetadata?: () => void
+  onLinkPeople?: () => void
   onToggleGitignoredFilesVisibility?: () => void
   locale?: AppLocale
   systemLocale?: AppLocale
@@ -159,8 +160,9 @@ function buildMaintenanceCommands({
   onReloadVault,
   onRepairVault,
   onRecomputeMetadata,
+  onLinkPeople,
   onToggleGitignoredFilesVisibility,
-}: Pick<SettingsCommandsConfig, 'mcpStatus' | 'onInstallMcp' | 'onReloadVault' | 'onRepairVault' | 'onRecomputeMetadata' | 'onToggleGitignoredFilesVisibility'>): CommandAction[] {
+}: Pick<SettingsCommandsConfig, 'mcpStatus' | 'onInstallMcp' | 'onReloadVault' | 'onRepairVault' | 'onRecomputeMetadata' | 'onLinkPeople' | 'onToggleGitignoredFilesVisibility'>): CommandAction[] {
   return [
     {
       id: 'install-mcp',
@@ -181,6 +183,7 @@ function buildMaintenanceCommands({
     { id: 'reload-vault', label: 'Reload Vault', group: 'Settings', keywords: ['reload', 'refresh', 'rescan', 'sync', 'filesystem', 'cache'], enabled: !!onReloadVault, execute: () => onReloadVault?.() },
     { id: 'repair-vault', label: 'Repair Vault', group: 'Settings', keywords: ['repair', 'fix', 'restore', 'config', 'agents', 'themes', 'missing', 'reset', 'flatten', 'structure'], enabled: !!onRepairVault, execute: () => onRepairVault?.() },
     { id: 'recompute-metadata', label: 'Recompute Note Metadata', group: 'Settings', keywords: ['recompute', 'rebuild', 'metadata', 'frontmatter', 'derived', 'code', 'codeblocks', 'count', 'backfill', 'sync', 'refresh'], enabled: !!onRecomputeMetadata, execute: () => onRecomputeMetadata?.() },
+    { id: 'link-people', label: 'Link People Names to Person Notes', group: 'Settings', keywords: ['link', 'people', 'person', 'names', 'wikilink', 'convert', 'frontmatter', 'relationships'], enabled: !!onLinkPeople, execute: () => onLinkPeople?.() },
   ]
 }
 
@@ -188,7 +191,7 @@ export function buildSettingsCommands(config: SettingsCommandsConfig): CommandAc
   const {
     mcpStatus, vaultCount, isGettingStartedHidden,
     onOpenSettings, onOpenVault, onCreateEmptyVault, onRemoveActiveVault, onRestoreGettingStarted,
-    onCheckForUpdates, onInstallMcp, onReloadVault, onRepairVault, onRecomputeMetadata, onToggleGitignoredFilesVisibility,
+    onCheckForUpdates, onInstallMcp, onReloadVault, onRepairVault, onRecomputeMetadata, onLinkPeople, onToggleGitignoredFilesVisibility,
     locale = 'en', systemLocale = locale, selectedUiLanguage = SYSTEM_UI_LANGUAGE, onSetUiLanguage, onSetThemeMode,
   } = config
 
@@ -216,6 +219,7 @@ export function buildSettingsCommands(config: SettingsCommandsConfig): CommandAc
       onReloadVault,
       onRepairVault,
       onRecomputeMetadata,
+      onLinkPeople,
       onToggleGitignoredFilesVisibility,
     }),
   ]

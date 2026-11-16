@@ -292,12 +292,17 @@ fn nested_flow_wikilink(arr: &[serde_json::Value], depth: usize) -> Option<Strin
     }
 }
 
+/// Scalar items of a list property. Wikilink items belong to the relationship
+/// extraction, so a mixed list like `[[[H]], Martha]` keeps only `Martha` here.
 fn scalar_array_property_value(arr: &[serde_json::Value]) -> Option<serde_json::Value> {
     let mut values = Vec::new();
     for item in arr {
+        if is_wikilink_array_item(item) {
+            continue;
+        }
         let sanitized = sanitize_array_item(item)?;
         match sanitized {
-            serde_json::Value::String(ref s) if contains_wikilink(s) => return None,
+            serde_json::Value::String(ref s) if contains_wikilink(s) => {}
             serde_json::Value::String(_)
             | serde_json::Value::Number(_)
             | serde_json::Value::Bool(_) => values.push(sanitized),
@@ -306,9 +311,18 @@ fn scalar_array_property_value(arr: &[serde_json::Value]) -> Option<serde_json::
     }
 
     match values.as_slice() {
+        [] => None,
         [single] => Some(single.clone()),
         _ => Some(serde_json::Value::Array(values)),
     }
+}
+
+/// A list item that `extract_relationships` reads as a wikilink: a string containing one,
+/// or YAML's nested-flow spelling of an unquoted `[[x]]`.
+fn is_wikilink_array_item(item: &serde_json::Value) -> bool {
+    let mut wikilinks = Vec::new();
+    collect_relationship_wikilinks(item, 1, &mut wikilinks);
+    !wikilinks.is_empty()
 }
 
 /// Extract custom scalar and scalar-array properties from raw YAML frontmatter.

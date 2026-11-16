@@ -13,6 +13,7 @@ import {
   formatWikilinkRef,
 } from '../../utils/wikilink'
 import { isWikilink, resolveRefProps } from './shared'
+import { linksWithPlainItems } from '../../utils/mixedWikilinkLists'
 import { LinkButton } from './LinkButton'
 import {
   PROPERTY_PANEL_GRID_STYLE,
@@ -40,7 +41,7 @@ type RelationshipEntryGroup = {
 
 type RelationshipPanelEditHandlers = {
   onAddProperty?: (key: string, value: FrontmatterValue) => void
-  onUpdateProperty?: (key: string, value: FrontmatterValue) => void
+  onUpdateProperty?: (key: string, value: FrontmatterValue) => void | Promise<void>
   onDeleteProperty?: (key: string) => void
 }
 
@@ -102,6 +103,24 @@ function RelationshipActionRow({ children }: { children: ReactNode }) {
 }
 
 /** Check whether any entry resolves for the given title (exact match via wikilink resolution). */
+/** Relationship fields whose targets are always one type (the `people` field holds Person notes). */
+function targetTypeForRelationship(label: string): string | undefined {
+  return label.trim().toLowerCase() === 'people' ? 'Person' : undefined
+}
+
+/**
+ * Fields like `people` only take notes of one type, so suggestions and "create" stay within that type.
+ * The exception is a note of another type whose title matches the query exactly: creating a new
+ * note would collide with its filename, so it is offered for linking instead.
+ */
+function candidatesForTargetType(entries: VaultEntry[], targetType: string | undefined, query: string): VaultEntry[] {
+  if (!targetType) return entries
+  const wanted = query.toLowerCase()
+  const namesIt = (entry: VaultEntry) =>
+    entry.title.toLowerCase() === wanted || entry.filename.replace(/\.md$/i, '').toLowerCase() === wanted
+  return entries.filter((entry) => entry.isA === targetType || (wanted !== '' && namesIt(entry)))
+}
+
 function hasExactTitleMatch({ entries, title }: { entries: VaultEntry[]; title: string }): boolean {
   return resolveEntry(entries, title) !== undefined
 }
@@ -196,21 +215,30 @@ function useSearchKeyboard(
   }, [search, totalItems, onConfirm, onEscape])
 }
 
-/** Wraps the create-and-open-note pattern: calls the async creator, then defers a side-effect to the next tick. */
+/**
+ * Create a note, link it from this note, then open it. The note is created without opening so this
+ * note stays active while the link is written; the app skips refreshing a note that is no longer
+ * active, which silently dropped the new link when creation opened the new note first.
+ */
 function useCreateAndOpen(
-  onCreateAndOpenNote: ((title: string) => Promise<boolean>) | undefined,
-  afterCreate: (title: string) => void,
+  onCreateAndOpenNote: ((title: string, type?: string, options?: { openTab?: boolean }) => Promise<boolean>) | undefined,
+  afterCreate: (title: string) => void | Promise<void>,
   onDone: () => void,
+  targetType?: string,
+  onOpenCreated?: (title: string) => void,
 ) {
   return useCallback(async (title: string) => {
     if (!onCreateAndOpenNote || !title) return
-    const ok = await onCreateAndOpenNote(title)
+    const ok = await onCreateAndOpenNote(title, targetType, { openTab: false })
     if (!ok) return
     // Defer frontmatter update to next tick to avoid radix-ui
     // infinite setState loop from overlapping render batches
-    setTimeout(() => afterCreate(title), 0)
+    await new Promise<void>((resolve) => {
+      setTimeout(() => { Promise.resolve(afterCreate(title)).finally(resolve) }, 0)
+    })
     onDone()
-  }, [onCreateAndOpenNote, afterCreate, onDone])
+    onOpenCreated?.(title)
+  }, [onCreateAndOpenNote, afterCreate, onDone, targetType, onOpenCreated])
 }
 
 /** Derives create-option state from search results and entries. */
@@ -298,18 +326,25 @@ function useInlineAddNoteState(
   entries: VaultEntry[],
   vaultPath: string,
   sourceEntry: VaultEntry | undefined,
-  onAdd: (ref: string) => void,
-  onCreateAndOpenNote?: (title: string) => Promise<boolean>,
+  onAdd: (ref: string) => void | Promise<void>,
+  onCreateAndOpenNote?: (title: string, type?: string, options?: { openTab?: boolean }) => Promise<boolean>,
+  targetType?: string,
+  onOpenCreated?: (title: string) => void,
 ) {
   const [active, setActive] = useState(false)
   const [query, setQuery] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
-  const search = useNoteSearch(entries, query, 8)
+  const trimmedQuery = query.trim()
+  const candidates = useMemo(
+    () => candidatesForTargetType(entries, targetType, trimmedQuery),
+    [entries, targetType, trimmedQuery],
+  )
+  const search = useNoteSearch(candidates, query, 8)
   const lookupContext = useMemo(() => ({ entries, sourceEntry, vaultPath }), [entries, sourceEntry, vaultPath])
 
   const trimmed = query.trim()
   const { showCreate, createIndex, totalItems } = useCreateOption({
-    entries,
+    entries: candidates,
     trimmedQuery: trimmed,
     resultCount: search.results.length,
     hasCreator: !!onCreateAndOpenNote,
@@ -333,6 +368,8 @@ function useInlineAddNoteState(
     onCreateAndOpenNote,
     (title) => onAdd(canonicalRefForTitle({ title, ...lookupContext })),
     dismiss,
+    targetType,
+    onOpenCreated,
   )
 
   const handleFallback = useCallback(() => {
@@ -374,15 +411,20 @@ function useInlineAddNoteState(
     selectEntryAndClose,
     showCreate,
     handleCreateAndOpen,
+    candidates,
   }
 }
 
-function InlineAddNote({ entries, sourceEntry, vaultPath, locale, onAdd, onCreateAndOpenNote }: {
+function InlineAddNote({ entries, sourceEntry, vaultPath, locale, onAdd, onCreateAndOpenNote, targetType, onOpenCreated }: {
   entries: VaultEntry[]
   sourceEntry?: VaultEntry
+  /** Restrict suggestions, and the type of notes created from here, to this type. */
+  targetType?: string
+  /** Called with the title of a note created from this picker, once it has been linked. */
+  onOpenCreated?: (title: string) => void
   vaultPath: string
-  onAdd: (ref: string) => void
-  onCreateAndOpenNote?: (title: string) => Promise<boolean>
+  onAdd: (ref: string) => void | Promise<void>
+  onCreateAndOpenNote?: (title: string, type?: string, options?: { openTab?: boolean }) => Promise<boolean>
   locale: AppLocale
 }) {
   const {
@@ -397,7 +439,8 @@ function InlineAddNote({ entries, sourceEntry, vaultPath, locale, onAdd, onCreat
     showDropdown,
     selectEntryAndClose,
     handleCreateAndOpen,
-  } = useInlineAddNoteState(entries, vaultPath, sourceEntry, onAdd, onCreateAndOpenNote)
+    candidates,
+  } = useInlineAddNoteState(entries, vaultPath, sourceEntry, onAdd, onCreateAndOpenNote, targetType, onOpenCreated)
 
   useEffect(() => {
     if (active) inputRef.current?.focus()
@@ -441,7 +484,7 @@ function InlineAddNote({ entries, sourceEntry, vaultPath, locale, onAdd, onCreat
           search={search}
           onSelect={selectEntryAndClose}
           query={query}
-          entries={entries}
+          entries={candidates}
           onCreateAndOpen={onCreateAndOpenNote ? (title) => { handleCreateAndOpen(title) } : undefined}
           locale={locale}
         />
@@ -455,8 +498,8 @@ function RelationshipGroup({ label, refs, entries, sourceEntry, typeEntryMap, va
   sourceEntry?: VaultEntry
   onNavigate: (target: string) => void
   onRemoveRef?: (ref: string) => void
-  onAddRef?: (ref: string) => void
-  onCreateAndOpenNote?: (title: string) => Promise<boolean>
+  onAddRef?: (ref: string) => void | Promise<void>
+  onCreateAndOpenNote?: (title: string, type?: string, options?: { openTab?: boolean }) => Promise<boolean>
   locale: AppLocale
 }) {
   if (refs.length === 0) return null
@@ -482,6 +525,8 @@ function RelationshipGroup({ label, refs, entries, sourceEntry, typeEntryMap, va
           vaultPath={vaultPath}
           onAdd={onAddRef}
           onCreateAndOpenNote={onCreateAndOpenNote}
+          targetType={targetTypeForRelationship(label)}
+          onOpenCreated={onNavigate}
           locale={locale}
         />
       )}
@@ -556,7 +601,7 @@ function NoteTargetInput({ entries, value, locale, onChange, onSelectEntry, onSu
   onSelectEntry?: (entry: VaultEntry) => void
   onSubmit?: () => void
   onCancel?: () => void
-  onCreateAndOpenNote?: (title: string) => Promise<boolean>
+  onCreateAndOpenNote?: (title: string, type?: string, options?: { openTab?: boolean }) => Promise<boolean>
   onSubmitWithCreate?: (title: string) => void
   locale: AppLocale
 }) {
@@ -631,24 +676,28 @@ function NoteTargetInput({ entries, value, locale, onChange, onSelectEntry, onSu
 function useRelationshipMutations(
   relationshipEntries: RelationshipEntryGroup[],
   handlers: RelationshipPanelEditHandlers,
+  frontmatter: ParsedFrontmatter,
 ) {
   const { onUpdateProperty, onDeleteProperty } = handlers
 
+  // A list can mix wikilinks with plain names (`people: [[[Alice]], Bob]`). The relationship
+  // groups only hold the links, so every write puts the field's plain names back.
   const handleRemoveRef = useCallback((key: string, refToRemove: string) => {
     if (!onUpdateProperty || !onDeleteProperty) return
     const group = relationshipEntries.find(g => g.key === key)
     if (!group) return
-    const result = updateRefsForRemoval(group.refs, refToRemove)
-    if (result === null) onDeleteProperty(key)
-    else onUpdateProperty(key, result)
-  }, [relationshipEntries, onUpdateProperty, onDeleteProperty])
+    const remaining = group.refs.filter((ref) => ref !== refToRemove)
+    const value = linksWithPlainItems(frontmatter[key], remaining)
+    if (value === null) onDeleteProperty(key)
+    else onUpdateProperty(key, value)
+  }, [relationshipEntries, frontmatter, onUpdateProperty, onDeleteProperty])
 
   const handleAddRef = useCallback((key: string, ref: string) => {
     if (!onUpdateProperty) return
     const existing = relationshipEntries.find(g => g.key === key)?.refs ?? []
-    const result = updateRefsForAddition(existing, ref)
-    if (result !== false) onUpdateProperty(key, result)
-  }, [relationshipEntries, onUpdateProperty])
+    if (existing.includes(ref)) return
+    return onUpdateProperty(key, linksWithPlainItems(frontmatter[key], [...existing, ref]) ?? ref)
+  }, [relationshipEntries, frontmatter, onUpdateProperty])
 
   return {
     handleRemoveRef,
@@ -704,7 +753,7 @@ function useRelationshipPanelState({
     onAddProperty,
     onUpdateProperty,
     onDeleteProperty,
-  })
+  }, frontmatter)
   const missingSuggestedRels = useMissingSuggestedRelationships(
     [...relationshipEntries, ...typeDerivedRelationshipEntries],
     suggestedRelationships,
@@ -726,8 +775,9 @@ interface AddRelationshipFormProps {
   entries: VaultEntry[]
   sourceEntry?: VaultEntry
   vaultPath: string
-  onAddProperty: (key: string, value: FrontmatterValue) => void
-  onCreateAndOpenNote?: (title: string) => Promise<boolean>
+  onAddProperty: (key: string, value: FrontmatterValue) => void | Promise<void>
+  onCreateAndOpenNote?: (title: string, type?: string, options?: { openTab?: boolean }) => Promise<boolean>
+  onOpenCreated?: (title: string) => void
   locale: AppLocale
 }
 
@@ -795,7 +845,7 @@ function AddRelationshipActions({
   )
 }
 
-function AddRelationshipForm({ entries, sourceEntry, vaultPath, locale, onAddProperty, onCreateAndOpenNote }: AddRelationshipFormProps) {
+function AddRelationshipForm({ entries, sourceEntry, vaultPath, locale, onAddProperty, onCreateAndOpenNote, onOpenCreated }: AddRelationshipFormProps) {
   const [relKey, setRelKey] = useState('')
   const [relTarget, setRelTarget] = useState('')
   const [selectedTargetEntry, setSelectedTargetEntry] = useState<VaultEntry | null>(null)
@@ -837,10 +887,10 @@ function AddRelationshipForm({ entries, sourceEntry, vaultPath, locale, onAddPro
 
   const addPropertyForKey = useCallback((title: string) => {
     const key = relKey.trim()
-    if (key) onAddProperty(key, canonicalRefForTitle({ title, entries, sourceEntry, vaultPath }))
+    if (key) return onAddProperty(key, canonicalRefForTitle({ title, entries, sourceEntry, vaultPath }))
   }, [relKey, entries, sourceEntry, vaultPath, onAddProperty])
 
-  const handleCreateAndSubmit = useCreateAndOpen(onCreateAndOpenNote, addPropertyForKey, resetForm)
+  const handleCreateAndSubmit = useCreateAndOpen(onCreateAndOpenNote, addPropertyForKey, resetForm, undefined, onOpenCreated)
 
   if (!showForm) {
     return <AddRelationshipButton locale={locale} onClick={openForm} />
@@ -877,31 +927,20 @@ function AddRelationshipForm({ entries, sourceEntry, vaultPath, locale, onAddPro
   )
 }
 
-function updateRefsForRemoval(refs: string[], refToRemove: string): FrontmatterValue | null {
-  const remaining = refs.filter(r => r !== refToRemove)
-  if (remaining.length === 0) return null
-  return remaining.length === 1 ? remaining[0] : remaining
-}
-
-function updateRefsForAddition(refs: string[], refToAdd: string): FrontmatterValue | false {
-  if (refs.includes(refToAdd)) return false
-  const updated = [...refs, refToAdd]
-  return updated.length === 1 ? updated[0] : updated
-}
-
 function DisabledLinkButton({ locale }: { locale: AppLocale }) {
   return (
     <button type="button" className="mt-2 w-full border border-border bg-transparent text-center text-muted-foreground" style={{ borderRadius: 6, padding: '6px 12px', fontSize: 12, opacity: 0.5, cursor: 'not-allowed' }} disabled>{translate(locale, 'inspector.relationship.addRelationship')}</button>
   )
 }
 
-function SuggestedRelationshipSlot({ label, entries, sourceEntry, vaultPath, locale, onAdd, onCreateAndOpenNote, dataTestId = 'suggested-relationship' }: {
+function SuggestedRelationshipSlot({ label, entries, sourceEntry, vaultPath, locale, onAdd, onCreateAndOpenNote, onOpenCreated, dataTestId = 'suggested-relationship' }: {
   label: string
   entries: VaultEntry[]
   sourceEntry?: VaultEntry
   vaultPath: string
-  onAdd: (ref: string) => void
-  onCreateAndOpenNote?: (title: string) => Promise<boolean>
+  onAdd: (ref: string) => void | Promise<void>
+  onCreateAndOpenNote?: (title: string, type?: string, options?: { openTab?: boolean }) => Promise<boolean>
+  onOpenCreated?: (title: string) => void
   locale: AppLocale
   dataTestId?: string
 }) {
@@ -913,6 +952,8 @@ function SuggestedRelationshipSlot({ label, entries, sourceEntry, vaultPath, loc
         vaultPath={vaultPath}
         onAdd={onAdd}
         onCreateAndOpenNote={onCreateAndOpenNote}
+        targetType={targetTypeForRelationship(label)}
+        onOpenCreated={onOpenCreated}
         locale={locale}
       />
     </RelationshipSectionRow>
@@ -925,7 +966,7 @@ export function DynamicRelationshipsPanel({ entry, frontmatter, entries, typeEnt
   onAddProperty?: (key: string, value: FrontmatterValue) => void
   onUpdateProperty?: (key: string, value: FrontmatterValue) => void
   onDeleteProperty?: (key: string) => void
-  onCreateAndOpenNote?: (title: string) => Promise<boolean>
+  onCreateAndOpenNote?: (title: string, type?: string, options?: { openTab?: boolean }) => Promise<boolean>
   locale?: AppLocale
 }) {
   const {
@@ -965,8 +1006,9 @@ export function DynamicRelationshipsPanel({ entry, frontmatter, entries, typeEnt
           entries={entries}
           sourceEntry={entry}
           vaultPath={resolvedVaultPath}
-          onAdd={(ref) => onAddProperty(key, ref)}
+          onAdd={(ref) => onAddProperty(key, linksWithPlainItems(frontmatter[key], [ref]) ?? ref)}
           onCreateAndOpenNote={onCreateAndOpenNote}
+          onOpenCreated={onNavigate}
           locale={locale}
           dataTestId="type-derived-relationship"
         />
@@ -978,14 +1020,15 @@ export function DynamicRelationshipsPanel({ entry, frontmatter, entries, typeEnt
           entries={entries}
           sourceEntry={entry}
           vaultPath={resolvedVaultPath}
-          onAdd={(ref) => onAddProperty!(label, ref)}
+          onAdd={(ref) => onAddProperty!(label, linksWithPlainItems(frontmatter[label], [ref]) ?? ref)}
           onCreateAndOpenNote={onCreateAndOpenNote}
+          onOpenCreated={onNavigate}
           locale={locale}
         />
       ))}
       <RelationshipActionRow>
         {onAddProperty
-          ? <AddRelationshipForm entries={entries} sourceEntry={entry} vaultPath={resolvedVaultPath} onAddProperty={onAddProperty} onCreateAndOpenNote={onCreateAndOpenNote} locale={locale} />
+          ? <AddRelationshipForm entries={entries} sourceEntry={entry} vaultPath={resolvedVaultPath} onAddProperty={onAddProperty} onCreateAndOpenNote={onCreateAndOpenNote} onOpenCreated={onNavigate} locale={locale} />
           : <DisabledLinkButton locale={locale} />
         }
       </RelationshipActionRow>

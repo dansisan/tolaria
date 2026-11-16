@@ -104,6 +104,20 @@ describe('DynamicPropertiesPanel', () => {
     vi.clearAllMocks()
   })
 
+  it('shows the plain names of a mixed wikilink list without raw brackets', () => {
+    renderPanel({ frontmatter: { people: ['[[H]]', '[[V]]', 'Martha', 'Kate'] } })
+
+    expect(screen.getByText('Martha')).toBeInTheDocument()
+    expect(screen.getByText('Kate')).toBeInTheDocument()
+    expect(screen.queryByText(/\[\[/)).not.toBeInTheDocument()
+  })
+
+  it('hides a People row that holds only wikilinks', () => {
+    renderPanel({ frontmatter: { people: ['[[H]]', '[[V]]'] } })
+
+    expect(screen.queryByText('People')).not.toBeInTheDocument()
+  })
+
   function renderEditablePanel(frontmatter: Record<string, unknown>) {
     renderPanel({ frontmatter, onUpdateProperty })
   }

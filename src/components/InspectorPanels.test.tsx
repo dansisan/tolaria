@@ -383,6 +383,34 @@ describe('DynamicRelationshipsPanel', () => {
       expect(screen.queryByTestId('remove-relation-ref')).not.toBeInTheDocument()
     })
 
+    describe('mixed wikilink and plain list', () => {
+      const mixed = { people: ['[[project/my-project]]', 'Martha', 'Kate'] }
+
+      it('keeps plain names when adding a link', () => {
+        renderEditableRelationships({ frontmatter: mixed })
+        fireEvent.click(screen.getByTestId('add-relation-ref'))
+        fireEvent.change(screen.getByTestId('add-relation-ref-input'), { target: { value: 'AI' } })
+        fireEvent.keyDown(screen.getByTestId('add-relation-ref-input'), { key: 'Enter' })
+
+        expect(onUpdateProperty).toHaveBeenCalledWith('people', ['[[project/my-project]]', '[[topic/ai]]', 'Martha', 'Kate'])
+      })
+
+      it('keeps plain names when removing a link', () => {
+        renderEditableRelationships({ frontmatter: { people: ['[[project/my-project]]', '[[topic/ai]]', 'Martha'] } })
+        fireEvent.click(screen.getAllByTestId('remove-relation-ref')[0])
+
+        expect(onUpdateProperty).toHaveBeenCalledWith('people', ['[[topic/ai]]', 'Martha'])
+      })
+
+      it('keeps plain names instead of deleting the field when removing the last link', () => {
+        renderEditableRelationships({ frontmatter: { people: ['[[project/my-project]]', 'Martha'] } })
+        fireEvent.click(screen.getByTestId('remove-relation-ref'))
+
+        expect(onDeleteProperty).not.toHaveBeenCalled()
+        expect(onUpdateProperty).toHaveBeenCalledWith('people', 'Martha')
+      })
+    })
+
     it('calls onDeleteProperty when removing the last ref in a group', () => {
       renderEditableRelationships()
       fireEvent.click(screen.getByTestId('remove-relation-ref'))
@@ -543,10 +571,73 @@ describe('DynamicRelationshipsPanel', () => {
       renderInlineCreatePanel()
       openInlineCreate('Brand New Note')
       fireEvent.click(screen.getByTestId('create-and-open-option'))
-      expect(onCreateAndOpenNote).toHaveBeenCalledWith('Brand New Note')
+      expect(onCreateAndOpenNote).toHaveBeenCalledWith('Brand New Note', undefined, { openTab: false })
       await vi.waitFor(() => {
         expect(onUpdateProperty).toHaveBeenCalledWith('Belongs to', ['[[project/my-project]]', '[[brand-new-note]]'])
       })
+    })
+
+    describe('people field', () => {
+      const alice = makeEntry({ path: '/vault/alice.md', filename: 'alice.md', title: 'Alice Smith', isA: 'Person' })
+      const aliceNote = makeEntry({ path: '/vault/alice-notes.md', filename: 'alice-notes.md', title: 'Alice meeting notes', isA: 'Note' })
+      const renderPeoplePanel = () => renderRelationshipsPanel({
+        frontmatter: { people: ['[[bob]]'] },
+        entries: [alice, aliceNote, personTypeEntry],
+        onUpdateProperty,
+        onDeleteProperty,
+        onCreateAndOpenNote,
+      })
+      const typeIntoPicker = (value: string) => {
+        fireEvent.click(screen.getByTestId('add-relation-ref'))
+        fireEvent.change(screen.getByTestId('add-relation-ref-input'), { target: { value } })
+      }
+
+      it('suggests only Person notes', () => {
+        renderPeoplePanel()
+        typeIntoPicker('Alice')
+
+        expect(screen.getByText('Alice Smith')).toBeInTheDocument()
+        expect(screen.queryByText('Alice meeting notes')).not.toBeInTheDocument()
+      })
+
+      it('creates a Person note instead of a plain Note and links it from people', async () => {
+        renderPeoplePanel()
+        typeIntoPicker('Brand New Person')
+        fireEvent.click(screen.getByTestId('create-and-open-option'))
+
+        expect(onCreateAndOpenNote).toHaveBeenCalledWith('Brand New Person', 'Person', { openTab: false })
+        await vi.waitFor(() => {
+          expect(onUpdateProperty).toHaveBeenCalledWith('people', ['[[bob]]', '[[brand-new-person]]'])
+        })
+      })
+
+      it('offers an existing non-Person note with exactly that title instead of Create, which would collide on the filename', () => {
+        renderPeoplePanel()
+        typeIntoPicker('alice meeting notes')
+
+        expect(screen.getByText('Alice meeting notes')).toBeInTheDocument()
+        expect(screen.queryByTestId('create-and-open-option')).not.toBeInTheDocument()
+      })
+
+      it('still hides non-Person notes that only partially match', () => {
+        renderPeoplePanel()
+        typeIntoPicker('Alice meeting')
+
+        expect(screen.queryByText('Alice meeting notes')).not.toBeInTheDocument()
+      })
+    })
+
+    it('links the new note before opening it, so the source note is still active when the link is written', async () => {
+      const order: string[] = []
+      onCreateAndOpenNote.mockImplementation(async () => { order.push('create'); return true })
+      onUpdateProperty.mockImplementation(async () => { order.push('link') })
+      const onOpen = vi.fn(() => { order.push('open') })
+      renderInlineCreatePanel({ onNavigate: onOpen })
+      openInlineCreate('Brand New Note')
+      fireEvent.click(screen.getByTestId('create-and-open-option'))
+
+      await vi.waitFor(() => expect(onOpen).toHaveBeenCalledWith('Brand New Note'))
+      expect(order).toEqual(['create', 'link', 'open'])
     })
 
     it('does not add wikilink when note creation fails', async () => {
@@ -554,7 +645,7 @@ describe('DynamicRelationshipsPanel', () => {
       renderInlineCreatePanel()
       openInlineCreate('Failing Note')
       fireEvent.click(screen.getByTestId('create-and-open-option'))
-      expect(onCreateAndOpenNote).toHaveBeenCalledWith('Failing Note')
+      expect(onCreateAndOpenNote).toHaveBeenCalledWith('Failing Note', undefined, { openTab: false })
       // Give async handler time to resolve
       await vi.waitFor(() => {
         expect(onCreateAndOpenNote).toHaveBeenCalled()
@@ -638,7 +729,7 @@ describe('DynamicRelationshipsPanel', () => {
       fireEvent.focus(noteInput)
       fireEvent.change(noteInput, { target: { value: 'New Person' } })
       fireEvent.click(screen.getByTestId('create-and-open-option'))
-      expect(onCreateAndOpenNote).toHaveBeenCalledWith('New Person')
+      expect(onCreateAndOpenNote).toHaveBeenCalledWith('New Person', undefined, { openTab: false })
       await vi.waitFor(() => {
         expect(onAddProperty).toHaveBeenCalledWith('Mentions', '[[new-person]]')
       })

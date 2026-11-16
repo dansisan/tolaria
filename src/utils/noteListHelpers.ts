@@ -466,11 +466,16 @@ function normalizeFolderPath(path: string): string {
   return path.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
 }
 
+function isAllNotesMarkdownEntry(entry: VaultEntry, visibility: AllNotesFileVisibility): boolean {
+  if (isInFolder(entry.path, ATTACHMENTS_FOLDER)) return false
+  return entry.isA !== 'Type' || visibility.typeNotes
+}
+
 export function isAllNotesEntry(
   entry: VaultEntry,
   allNotesFileVisibility: AllNotesFileVisibility = DEFAULT_ALL_NOTES_FILE_VISIBILITY,
 ): boolean {
-  if (isMarkdown(entry)) return !isInFolder(entry.path, ATTACHMENTS_FOLDER)
+  if (isMarkdown(entry)) return isAllNotesMarkdownEntry(entry, allNotesFileVisibility)
   return isOptionalAllNotesFileVisible(entry, allNotesFileVisibility)
 }
 

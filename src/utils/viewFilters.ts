@@ -65,7 +65,12 @@ function propertyField(value: VaultPropertyValue): ResolvedField {
 
 function resolveRelationshipField(entry: VaultEntry, lower: string): ResolvedField | null {
   const relKey = findCaseInsensitiveKey(entry.relationships, lower)
-  return relKey ? arrayField(Reflect.get(entry.relationships, relKey) as string[], 'relationship') : null
+  if (!relKey) return null
+  const links = Reflect.get(entry.relationships, relKey) as string[]
+  // A mixed list (`[[[Alice]], Bob]`) is split across both maps: links here, plain names in properties.
+  const plain = resolvePropertyField(entry, lower)
+  const plainNames = plain?.kind === 'array' ? plain.values : plain?.kind === 'scalar' && plain.value != null ? [String(plain.value)] : []
+  return arrayField([...links, ...plainNames], 'relationship')
 }
 
 function resolvePropertyField(entry: VaultEntry, lower: string): ResolvedField | null {

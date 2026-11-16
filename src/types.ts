@@ -157,6 +157,7 @@ export interface Settings {
   all_notes_show_pdfs?: boolean | null
   all_notes_show_images?: boolean | null
   all_notes_show_unsupported?: boolean | null
+  all_notes_show_type_notes?: boolean | null
   multi_workspace_enabled?: boolean | null
   frontmatter_created_key?: string | null
 }

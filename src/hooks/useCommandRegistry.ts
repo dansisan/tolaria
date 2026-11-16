@@ -48,6 +48,7 @@ interface CommandRegistryConfig {
   onReloadVault?: () => void
   onRepairVault?: () => void
   onRecomputeMetadata?: () => void
+  onLinkPeople?: () => void
   onImportAppleNotes?: () => void
   onSetNoteIcon?: () => void
   onRemoveNoteIcon?: () => void
@@ -171,7 +172,7 @@ export function useCommandRegistry(config: CommandRegistryConfig): import('./com
     mcpStatus, onInstallMcp, aiFeaturesEnabled,
     aiAgentsStatus, vaultAiGuidanceStatus,
     onOpenAiAgents, onRestoreVaultAiGuidance, onSetDefaultAiAgent, selectedAiAgent, onCycleDefaultAiAgent, selectedAiAgentLabel,
-    onReloadVault, onRepairVault, onRecomputeMetadata, onImportAppleNotes,
+    onReloadVault, onRepairVault, onRecomputeMetadata, onLinkPeople, onImportAppleNotes,
     locale, systemLocale, selectedUiLanguage, onSetUiLanguage, onSetThemeMode,
     onSetNoteIcon, onRemoveNoteIcon, activeNoteHasIcon, onChangeNoteType, onMoveNoteToFolder, canMoveNoteToFolder,
     onOpenInNewWindow, onRevealActiveFile, onCopyActiveFilePath, onCopyActiveDeepLink, onOpenActiveFileExternal, onExportNoteAsPdf, onToggleFavorite, onToggleOrganized,
@@ -279,12 +280,12 @@ export function useCommandRegistry(config: CommandRegistryConfig): import('./com
   const settingsCommands = useMemo(() => buildSettingsCommands({
     mcpStatus, vaultCount, isGettingStartedHidden,
     onOpenSettings, onOpenVault, onCreateEmptyVault, onRemoveActiveVault, onRestoreGettingStarted,
-    onCheckForUpdates, onInstallMcp, onReloadVault, onRepairVault, onRecomputeMetadata,
+    onCheckForUpdates, onInstallMcp, onReloadVault, onRepairVault, onRecomputeMetadata, onLinkPeople,
     locale, systemLocale, selectedUiLanguage, onSetUiLanguage, onSetThemeMode,
   }), [
     mcpStatus, vaultCount, isGettingStartedHidden, onOpenSettings,
     onOpenVault, onCreateEmptyVault, onRemoveActiveVault, onRestoreGettingStarted,
-    onCheckForUpdates, onInstallMcp, onReloadVault, onRepairVault, onRecomputeMetadata,
+    onCheckForUpdates, onInstallMcp, onReloadVault, onRepairVault, onRecomputeMetadata, onLinkPeople,
     locale, systemLocale, selectedUiLanguage, onSetUiLanguage, onSetThemeMode,
   ])
 

@@ -1704,6 +1704,26 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     }
   }, [appLocale, resolvedPath, vault])
 
+  const handleLinkPeople = useCallback(async () => {
+    if (!resolvedPath) return
+    // Rewrites `people` across the vault via the backend; suppress the watcher like
+    // handleRecomputeMetadata so the bulk writes don't storm the UI.
+    suppressVaultWatcherRef.current = true
+    try {
+      const tauriInvoke = isTauri() ? invoke : mockInvoke
+      const changed = await tauriInvoke<number>('link_people_frontmatter', { path: resolvedPath })
+      await vault.reloadVault()
+      setToastMessage(changed > 0
+        ? translate(appLocale, 'command.linkPeople.toast.done', { count: changed })
+        : translate(appLocale, 'command.linkPeople.toast.none'))
+      trackEvent('people_names_linked', { changed })
+    } catch (err) {
+      setToastMessage(translate(appLocale, 'command.linkPeople.toast.failed', { error: String(err) }))
+    } finally {
+      window.setTimeout(() => { suppressVaultWatcherRef.current = false }, VAULT_WATCHER_DEBOUNCE_MS + 250)
+    }
+  }, [appLocale, resolvedPath, vault])
+
   // Opens the folder picker; the actual import runs once the user confirms a
   // selection (see runAppleNotesImport), so large folders can be left unchecked.
   const handleImportAppleNotes = useCallback(() => {
@@ -2064,6 +2084,7 @@ function MainApp({ noteWindowParams }: { noteWindowParams: NoteWindowParams | nu
     onReloadVault: handleManualVaultReload,
     onRepairVault: handleRepairVault,
     onRecomputeMetadata: handleRecomputeMetadata,
+    onLinkPeople: handleLinkPeople,
     onImportAppleNotes: handleImportAppleNotes,
     onSetNoteIcon: handleSetNoteIconCommand,
     onRemoveNoteIcon: handleRemoveNoteIconCommand,

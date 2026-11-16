@@ -138,6 +138,16 @@ pub async fn backfill_derived_frontmatter(path: String) -> Result<usize, String>
         .map_err(|e| format!("Task panicked: {e}"))?
 }
 
+/// Convert plain `people` names that resolve to a Person note into wikilinks
+/// across the vault and return how many notes changed.
+#[tauri::command]
+pub async fn link_people_frontmatter(path: String) -> Result<usize, String> {
+    let path = expand_tilde(&path).into_owned();
+    tokio::task::spawn_blocking(move || vault::link_people_frontmatter(Path::new(&path)))
+        .await
+        .map_err(|e| format!("Task panicked: {e}"))?
+}
+
 #[tauri::command]
 pub async fn search_vault(
     vault_path: String,

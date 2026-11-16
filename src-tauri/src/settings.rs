@@ -118,6 +118,7 @@ pub struct Settings {
     pub all_notes_show_pdfs: Option<bool>,
     pub all_notes_show_images: Option<bool>,
     pub all_notes_show_unsupported: Option<bool>,
+    pub all_notes_show_type_notes: Option<bool>,
     pub multi_workspace_enabled: Option<bool>,
     pub frontmatter_created_key: Option<String>,
 }
@@ -322,6 +323,7 @@ fn normalize_settings(settings: Settings) -> Settings {
         all_notes_show_pdfs: settings.all_notes_show_pdfs,
         all_notes_show_images: settings.all_notes_show_images,
         all_notes_show_unsupported: settings.all_notes_show_unsupported,
+        all_notes_show_type_notes: settings.all_notes_show_type_notes,
         multi_workspace_enabled: settings.multi_workspace_enabled,
         frontmatter_created_key: normalize_optional_string(settings.frontmatter_created_key),
     }
@@ -568,6 +570,7 @@ mod tests {
             all_notes_show_pdfs: Some(true),
             all_notes_show_images: Some(true),
             all_notes_show_unsupported: Some(false),
+            all_notes_show_type_notes: Some(true),
             frontmatter_created_key: Some("date".to_string()),
         };
         let json = serde_json::to_string(&settings).unwrap();
@@ -612,6 +615,7 @@ mod tests {
             all_notes_show_pdfs: Some(true),
             all_notes_show_images: Some(false),
             all_notes_show_unsupported: Some(true),
+            all_notes_show_type_notes: Some(true),
             ..Default::default()
         });
         assert_eq!(loaded.auto_pull_interval_minutes, Some(10));
@@ -640,6 +644,7 @@ mod tests {
         assert_eq!(loaded.all_notes_show_pdfs, Some(true));
         assert_eq!(loaded.all_notes_show_images, Some(false));
         assert_eq!(loaded.all_notes_show_unsupported, Some(true));
+        assert_eq!(loaded.all_notes_show_type_notes, Some(true));
     }
 
     #[test]

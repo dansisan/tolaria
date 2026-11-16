@@ -320,3 +320,41 @@ fn test_frontmatter_tags_merged_with_body_tags_deduped() {
     actual.sort();
     assert_eq!(actual, expected);
 }
+
+#[test]
+fn test_mixed_wikilink_and_plain_flow_list_splits_links_from_plain_names() {
+    let dir = TempDir::new().unwrap();
+    let entry = parse_test_entry(
+        &dir,
+        "mixed.md",
+        "---\npeople: [[[H]], [[V]], Martha, Kate]\n---\nBody\n",
+    );
+
+    assert_eq!(
+        entry.relationships.get("people"),
+        Some(&vec!["[[H]]".to_string(), "[[V]]".to_string()])
+    );
+    assert_eq!(
+        entry.properties.get("people"),
+        Some(&serde_json::json!(["Martha", "Kate"]))
+    );
+}
+
+#[test]
+fn test_mixed_block_list_with_one_plain_name_keeps_it_as_property() {
+    let dir = TempDir::new().unwrap();
+    let entry = parse_test_entry(
+        &dir,
+        "mixed-block.md",
+        "---\npeople:\n  - \"[[H]]\"\n  - Martha\n---\nBody\n",
+    );
+
+    assert_eq!(
+        entry.relationships.get("people"),
+        Some(&vec!["[[H]]".to_string()])
+    );
+    assert_eq!(
+        entry.properties.get("people"),
+        Some(&serde_json::json!("Martha"))
+    );
+}

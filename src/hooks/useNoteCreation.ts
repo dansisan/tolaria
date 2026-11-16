@@ -1041,8 +1041,8 @@ export function useNoteCreation(config: NoteCreationConfig, tabDeps: CreationTab
     createTypeSilently({ entries, vaultPath, defaultWorkspacePath, vaults, setToastMessage, persistResolvedEntry, typeName }),
   [entries, vaultPath, defaultWorkspacePath, vaults, setToastMessage, persistResolvedEntry])
 
-  const handleCreateNoteForRelationship = useCallback((title: string): Promise<boolean> =>
-    createNamedNote({ entries, vaultPath, defaultWorkspacePath, vaults, setToastMessage, persistResolvedEntry, title, type: 'Note' }),
+  const handleCreateNoteForRelationship = useCallback((title: string, type = 'Note', options?: { openTab?: boolean }): Promise<boolean> =>
+    createNamedNote({ entries, vaultPath, defaultWorkspacePath, vaults, setToastMessage, persistResolvedEntry, title, type, filenameStem: title, openTab: options?.openTab }),
   [entries, vaultPath, defaultWorkspacePath, vaults, setToastMessage, persistResolvedEntry])
 
   const handleCreateNoteImmediate = useImmediateCreateQueue({

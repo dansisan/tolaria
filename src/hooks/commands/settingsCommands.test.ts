@@ -34,6 +34,16 @@ describe('buildSettingsCommands', () => {
     })
   })
 
+  it('runs the link-people command only when a handler is provided', () => {
+    const onLinkPeople = vi.fn()
+    const command = findCommand('link-people', buildSettingsCommands({ onOpenSettings: vi.fn(), onLinkPeople }))
+
+    expect(command).toMatchObject({ label: 'Link People Names to Person Notes', enabled: true })
+    command?.execute()
+    expect(onLinkPeople).toHaveBeenCalledTimes(1)
+    expect(findCommand('link-people')).toMatchObject({ enabled: false })
+  })
+
   it('adds a discoverable language settings command', () => {
     expectOpenSettingsCommand('open-language-settings', 'Open Language Settings')
   })

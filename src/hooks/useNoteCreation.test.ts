@@ -939,7 +939,7 @@ describe('useNoteCreation hook', () => {
     expect(created).toBe(false)
     expect(addEntry).not.toHaveBeenCalled()
     expect(openTabWithContent).not.toHaveBeenCalled()
-    expect(setToastMessage).toHaveBeenCalledWith('Cannot create note "Briefing" because briefing.md already exists')
+    expect(setToastMessage).toHaveBeenCalledWith('Cannot create note "Briefing" because Briefing.md already exists')
   })
 
   it('reverts optimistic creation when disk write fails (Tauri)', async () => {

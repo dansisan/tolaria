@@ -57,9 +57,11 @@ describe('buildEntryMetadataPatch', () => {
     const patch = buildEntryMetadataPatch('/note.md', '---\nOwner: [[person/alice]]\ncustom: value\n---\nBody')
 
     expect(patch).toMatchObject({
-      properties: { Owner: '[[person/alice]]', custom: 'value' },
+      properties: { custom: 'value' },
       relationships: { Owner: ['[[person/alice]]'] },
     })
+    // Wikilink values are relationships only; they must not also appear as raw-text properties.
+    expect(patch.properties).not.toHaveProperty('Owner')
   })
 
   it('clears stale metadata when frontmatter is removed', () => {

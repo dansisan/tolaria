@@ -86,7 +86,7 @@ interface EditorProps {
   onDeleteProperty?: (path: string, key: string, options?: FrontmatterOpOptions) => Promise<void>
   onAddProperty?: (path: string, key: string, value: FrontmatterValue, options?: FrontmatterOpOptions) => Promise<void>
   onCreateMissingType?: (path: string, missingType: string, nextTypeName: string) => Promise<boolean | void>
-  onCreateAndOpenNote?: (title: string) => Promise<boolean>
+  onCreateAndOpenNote?: (title: string, type?: string, options?: { openTab?: boolean }) => Promise<boolean>
   onChangeWorkspace?: (entry: VaultEntry, workspace: WorkspaceIdentity) => Promise<void> | void
   onInitializeProperties?: (path: string) => void
   showAIChat?: boolean
@@ -518,7 +518,7 @@ function EditorLayout({
   onDeleteProperty?: (path: string, key: string, options?: FrontmatterOpOptions) => Promise<void>
   onAddProperty?: (path: string, key: string, value: FrontmatterValue, options?: FrontmatterOpOptions) => Promise<void>
   onCreateMissingType?: (path: string, missingType: string, nextTypeName: string) => Promise<boolean | void>
-  onCreateAndOpenNote?: (title: string) => Promise<boolean>
+  onCreateAndOpenNote?: (title: string, type?: string, options?: { openTab?: boolean }) => Promise<boolean>
   onChangeWorkspace?: (entry: VaultEntry, workspace: WorkspaceIdentity) => Promise<void> | void
   onInitializeProperties?: (path: string) => void
   onFileCreated?: (relativePath: string) => void

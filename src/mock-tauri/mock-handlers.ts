@@ -155,6 +155,7 @@ let mockSettings: Settings = {
   all_notes_show_pdfs: null,
   all_notes_show_images: null,
   all_notes_show_unsupported: null,
+  all_notes_show_type_notes: null,
   multi_workspace_enabled: null,
 }
 
@@ -557,6 +558,7 @@ export const mockHandlers: Record<string, (args: any) => any> = {
       all_notes_show_pdfs: s.all_notes_show_pdfs ?? null,
       all_notes_show_images: s.all_notes_show_images ?? null,
       all_notes_show_unsupported: s.all_notes_show_unsupported ?? null,
+      all_notes_show_type_notes: s.all_notes_show_type_notes ?? null,
       multi_workspace_enabled: s.multi_workspace_enabled ?? null,
     }
     return null

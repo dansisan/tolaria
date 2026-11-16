@@ -37,6 +37,20 @@ describe('evaluateView', () => {
     expect(result.map((e) => e.title)).toEqual(['P1', 'P2'])
   })
 
+  it('matches both wikilinks and plain names of a mixed list field', () => {
+    const entries = [
+      makeEntry({ title: 'Mixed', relationships: { people: ['[[H]]'] }, properties: { people: ['Martha', 'Kate'] } }),
+      makeEntry({ title: 'Other', relationships: { people: ['[[V]]'] } }),
+    ]
+    const viewFor = (value: string): ViewDefinition => ({
+      name: 'People', icon: null, color: null, sort: null,
+      filters: { all: [{ field: 'people', op: 'contains', value }] },
+    })
+
+    expect(evaluateView(viewFor('Martha'), entries).map((e) => e.title)).toEqual(['Mixed'])
+    expect(evaluateView(viewFor('H'), entries).map((e) => e.title)).toEqual(['Mixed'])
+  })
+
   it('filters by status not_equals', () => {
     const view: ViewDefinition = {
       name: 'Active', icon: null, color: null, sort: null,

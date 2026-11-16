@@ -10,6 +10,7 @@ import {
   removeDisplayModeOverride,
 } from '../utils/propertyTypes'
 import { containsWikilinks } from '../components/DynamicPropertiesPanel'
+import { propertiesPanelValue } from '../utils/mixedWikilinkLists'
 import { canonicalFrontmatterKey, canonicalSystemMetadataKey, isSystemMetadataKey } from '../utils/systemMetadata'
 import { includesRelationshipKey } from '../utils/suggestedRelationships'
 import { useSuggestedRelationships } from './useAppPreferences'
@@ -100,8 +101,9 @@ function buildVisiblePropertyEntries(frontmatter: ParsedFrontmatter): PropertyEn
   const result: PropertyEntry[] = []
   const seen = new Set<string>()
 
-  for (const [key, value] of Object.entries(frontmatter)) {
-    if (!isVisibleProperty([key, value])) continue
+  for (const [key, rawValue] of Object.entries(frontmatter)) {
+    const value = propertiesPanelValue(rawValue)
+    if (value === undefined || isHiddenPropertyKey(key)) continue
 
     const canonicalKey = canonicalSystemMetadataKey(key)
     if (seen.has(canonicalKey)) continue

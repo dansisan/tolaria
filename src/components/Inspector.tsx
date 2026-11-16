@@ -37,7 +37,7 @@ interface InspectorProps {
   onDeleteProperty?: (path: string, key: string, options?: FrontmatterOpOptions) => Promise<void>
   onAddProperty?: (path: string, key: string, value: FrontmatterValue, options?: FrontmatterOpOptions) => Promise<void>
   onCreateMissingType?: (path: string, missingType: string, nextTypeName: string) => Promise<boolean | void>
-  onCreateAndOpenNote?: (title: string) => Promise<boolean>
+  onCreateAndOpenNote?: (title: string, type?: string, options?: { openTab?: boolean }) => Promise<boolean>
   onChangeWorkspace?: (entry: VaultEntry, workspace: WorkspaceIdentity) => Promise<void> | void
   onInitializeProperties?: (path: string) => void
   onToggleRawEditor?: () => void
@@ -104,7 +104,7 @@ function ValidFrontmatterPanels({
   vaultPath?: string
   referencedBy: ReferencedByItem[]
   onNavigate: (target: string) => void
-  onCreateAndOpenNote?: (title: string) => Promise<boolean>
+  onCreateAndOpenNote?: (title: string, type?: string, options?: { openTab?: boolean }) => Promise<boolean>
   onUpdateProperty?: (key: string, value: FrontmatterValue) => void
   onDeleteProperty?: (key: string) => void
   onAddProperty?: (key: string, value: FrontmatterValue) => void
@@ -179,7 +179,7 @@ function PrimaryInspectorPanel({
   onNavigate: (target: string) => void
   onToggleRawEditor?: () => void
   onInitializeProperties?: (path: string) => void
-  onCreateAndOpenNote?: (title: string) => Promise<boolean>
+  onCreateAndOpenNote?: (title: string, type?: string, options?: { openTab?: boolean }) => Promise<boolean>
   onUpdateProperty?: (key: string, value: FrontmatterValue) => void
   onDeleteProperty?: (key: string) => void
   onAddProperty?: (key: string, value: FrontmatterValue) => void

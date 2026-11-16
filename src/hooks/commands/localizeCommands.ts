@@ -69,6 +69,7 @@ const STATIC_LABEL_KEYS: Partial<Record<string, TranslationKey>> = {
   'reload-vault': 'command.settings.reloadVault',
   'repair-vault': 'command.settings.repairVault',
   'recompute-metadata': 'command.settings.recomputeMetadata',
+  'link-people': 'command.settings.linkPeople',
   'use-light-mode': 'command.settings.useLightMode',
   'use-dark-mode': 'command.settings.useDarkMode',
   'use-system-theme-mode': 'command.settings.useSystemTheme',

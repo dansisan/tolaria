@@ -144,6 +144,7 @@ describe('filterEntries', () => {
           pdfs: true,
           images: false,
           unsupported: false,
+          typeNotes: false,
         },
       }).map((entry) => entry.title),
     ).toEqual(['Note', 'PDF'])
@@ -154,6 +155,7 @@ describe('filterEntries', () => {
           pdfs: false,
           images: true,
           unsupported: false,
+          typeNotes: false,
         },
       }).map((entry) => entry.title),
     ).toEqual(['Note', 'Image'])
@@ -164,9 +166,28 @@ describe('filterEntries', () => {
           pdfs: false,
           images: false,
           unsupported: true,
+          typeNotes: false,
         },
       }).map((entry) => entry.title),
     ).toEqual(['Note', 'Text', 'Archive'])
+  })
+
+  it('hides type-definition notes from All Notes unless enabled', () => {
+    const entries = [
+      makeEntry({ path: '/vault/note.md', title: 'Note', isA: 'Note' }),
+      makeEntry({ path: '/vault/project.md', title: 'Project', isA: 'Type' }),
+    ]
+    const visibility = { pdfs: false, images: false, unsupported: false }
+
+    expect(
+      filterEntries(entries, allSelection, { subFilter: 'open' }).map((entry) => entry.title),
+    ).toEqual(['Note'])
+    expect(
+      filterEntries(entries, allSelection, {
+        subFilter: 'open',
+        allNotesFileVisibility: { ...visibility, typeNotes: true },
+      }).map((entry) => entry.title),
+    ).toEqual(['Note', 'Project'])
   })
 
   it('matches slash-based folder selections against Windows entry paths', () => {
