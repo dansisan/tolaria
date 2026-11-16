@@ -4,7 +4,8 @@ import { PROPERTY_CHIP_STYLE } from './propertyChipStyles'
 
 // Plain list values (people, aliases, ...) get a calm neutral chip; per-value colors
 // are reserved for real tags, where recognizing a tag at a glance is the point.
-const LIST_CHIP_STYLE = { ...PROPERTY_CHIP_STYLE, height: 20, padding: '0 6px', fontSize: 12 }
+// Size stays on the shared chip system (see propertyChipStyles.test.tsx).
+const LIST_CHIP_STYLE = PROPERTY_CHIP_STYLE
 
 function AutoFocusInput(props: ComponentProps<'input'>) {
   const ref = useRef<HTMLInputElement>(null)
@@ -267,7 +268,7 @@ export function TagPillList({
       ) : (
         <button type="button"
           className="inline-flex items-center justify-center border-none bg-muted leading-none text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          style={{ ...LIST_CHIP_STYLE, padding: '0 8px' }}
+          style={LIST_CHIP_STYLE}
           onClick={() => setIsAddingNew(true)}
           title={`Add ${label.toLowerCase()}`}
         >
