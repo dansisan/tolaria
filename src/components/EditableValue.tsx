@@ -1,7 +1,10 @@
 import { useState, useCallback, useEffect, useRef, type ComponentProps } from 'react'
 import { normalizeUrl, openExternalUrl } from '../utils/url'
-import { getTagStyle } from '../utils/tagStyles'
 import { PROPERTY_CHIP_STYLE } from './propertyChipStyles'
+
+// Plain list values (people, aliases, ...) get a calm neutral chip; per-value colors
+// are reserved for real tags, where recognizing a tag at a glance is the point.
+const LIST_CHIP_STYLE = { ...PROPERTY_CHIP_STYLE, height: 20, padding: '0 6px', fontSize: 12 }
 
 function AutoFocusInput(props: ComponentProps<'input'>) {
   const ref = useRef<HTMLInputElement>(null)
@@ -222,12 +225,8 @@ export function TagPillList({
         ) : (
           <span
             key={item}
-            className="group/pill relative inline-flex max-w-full min-w-0 items-center overflow-hidden transition-colors"
-            style={{
-              ...PROPERTY_CHIP_STYLE,
-              backgroundColor: getTagStyle(item).bg,
-              color: getTagStyle(item).color,
-            }}
+            className="group/pill relative inline-flex max-w-full min-w-0 items-center overflow-hidden bg-muted text-foreground transition-colors"
+            style={LIST_CHIP_STYLE}
             title="Click to edit"
           >
             <button
@@ -239,7 +238,7 @@ export function TagPillList({
             </button>
             <button type="button"
               className="absolute right-0.5 top-1/2 flex h-3.5 w-3.5 -translate-y-1/2 items-center justify-center rounded-full border-none p-0 text-[10px] leading-none opacity-0 transition-all hover:bg-[var(--accent-red-light)] hover:text-[var(--accent-red)] group-hover/pill:opacity-100"
-              style={{ color: getTagStyle(item).color, backgroundColor: getTagStyle(item).bg }}
+              style={{ backgroundColor: 'var(--muted)' }}
               onClick={(e) => {
                 e.stopPropagation()
                 handleDeleteItem(idx)
@@ -268,7 +267,7 @@ export function TagPillList({
       ) : (
         <button type="button"
           className="inline-flex items-center justify-center border-none bg-muted leading-none text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          style={PROPERTY_CHIP_STYLE}
+          style={{ ...LIST_CHIP_STYLE, padding: '0 8px' }}
           onClick={() => setIsAddingNew(true)}
           title={`Add ${label.toLowerCase()}`}
         >

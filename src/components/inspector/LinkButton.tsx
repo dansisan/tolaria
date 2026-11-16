@@ -7,12 +7,14 @@ export function StatusSuffix({ isArchived }: { isArchived: boolean }) {
   return null
 }
 
-export function LinkButton({ label, noteIcon, typeColor, bgColor, isArchived, onClick, onRemove, title, TypeIcon }: {
+export function LinkButton({ label, noteIcon, typeColor, bgColor, isArchived, compact, onClick, onRemove, title, TypeIcon }: {
   label: string
   noteIcon?: string | null
   typeColor: string
   bgColor?: string
   isArchived: boolean
+  /** Link row: no tint, label styled like an in-body wikilink (type color, dotted underline). */
+  compact?: boolean
   onClick: () => void
   onRemove?: () => void
   title?: string
@@ -20,12 +22,13 @@ export function LinkButton({ label, noteIcon, typeColor, bgColor, isArchived, on
 }) {
   const isDimmed = isArchived
   const color = isDimmed ? 'var(--muted-foreground)' : typeColor
+  const tinted = !compact && !!bgColor
   return (
     <span
-      className={`group/link flex w-full min-w-0 items-center justify-between gap-2${bgColor ? ' ring-inset hover:ring-1 hover:ring-current' : ' hover:opacity-80'}`}
+      className={`group/link flex w-full min-w-0 items-center justify-between gap-2${tinted ? ' ring-inset hover:ring-1 hover:ring-current' : ' hover:opacity-80'}`}
       style={{
-        background: isDimmed ? 'var(--muted)' : (bgColor ?? 'transparent'),
-        color, borderRadius: 6, padding: bgColor ? '6px 10px' : '4px 0',
+        background: isDimmed ? 'var(--muted)' : (tinted ? bgColor : 'transparent'),
+        color, borderRadius: 6, padding: tinted ? '6px 10px' : (compact ? '2px 0' : '4px 0'),
         fontSize: 12, fontWeight: 500, opacity: isDimmed ? 0.7 : 1,
       }}
     >
@@ -36,7 +39,7 @@ export function LinkButton({ label, noteIcon, typeColor, bgColor, isArchived, on
         title={title}
       >
         <NoteTitleIcon icon={noteIcon} size={14} />
-        {label}
+        <span className={compact ? 'wikilink' : undefined}>{label}</span>
         <StatusSuffix isArchived={isArchived} />
       </button>
       <span className="flex items-center gap-1.5 shrink-0">

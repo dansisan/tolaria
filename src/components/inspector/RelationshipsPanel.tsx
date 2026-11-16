@@ -512,6 +512,7 @@ function RelationshipGroup({ label, refs, entries, sourceEntry, typeEntryMap, va
             <LinkButton
               key={`${ref}-${props.target}`}
               {...props}
+              compact={targetTypeForRelationship(label) === 'Person'}
               onClick={() => onNavigate(props.target)}
               onRemove={onRemoveRef ? () => onRemoveRef(ref) : undefined}
             />
