@@ -74,7 +74,7 @@ Belongs to:
 fn test_parse_relationships_ignores_non_wikilinks() {
     let dir = TempDir::new().unwrap();
     let content = r#"---
-Is A: Note
+Is A: Essay
 Status: Active
 Tags:
   - productivity
@@ -87,7 +87,7 @@ Custom Field: just a plain string
 
     let entry = parse_md_file(&dir.path().join("plain-note.md"), "created").unwrap();
     assert_eq!(entry.relationships.len(), 1);
-    assert_relationship_values(&entry.relationships, &[("Type", &["[[note]]"])]);
+    assert_relationship_values(&entry.relationships, &[("Type", &["[[essay]]"])]);
 }
 
 const BIG_PROJECT_CONTENT: &str = "---\nIs A: Project\nHas:\n  - \"[[deliverable/mvp]]\"\n  - \"[[deliverable/v2]]\"\nTopics:\n  - \"[[topic/ai]]\"\n  - \"[[topic/compilers]]\"\nEvents:\n  - \"[[event/launch-day]]\"\nNotes:\n  - \"[[note/design-rationale]]\"\n  - \"[[note/meeting-2024-01]]\"\n  - \"[[note/meeting-2024-02]]\"\nOwner: \"[[person/alice]]\"\nRelated to:\n  - \"[[project/sibling-project]]\"\nBelongs to:\n  - \"[[area/engineering]]\"\nStatus: Active\n---\n# Big Project\n";

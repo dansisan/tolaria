@@ -3,6 +3,7 @@ import type { VaultEntry } from '../types'
 import { fuzzyMatch } from '../utils/fuzzyMatch'
 import { getTypeColor, getTypeLightColor, buildTypeEntryMap } from '../utils/typeColors'
 import { getTypeIcon } from '../components/NoteItem'
+import { visibleTypeLabel } from '../utils/defaultType'
 import type { NoteSearchResultItem } from '../components/NoteSearchList'
 import { slugifyNoteStem } from '../utils/noteSlug'
 import { entryTags } from '../utils/tagIndex'
@@ -175,7 +176,7 @@ function workspacePresentation({ entry, showWorkspace }: WorkspacePresentationIn
 }
 
 function toResult({ entry, typeEntryMap, showWorkspace }: ResultInput): NoteSearchResult {
-  const noteType = entry.isA || undefined
+  const noteType = visibleTypeLabel(entry.isA) ?? undefined
   const te = noteType ? typeEntryMap[noteType] : undefined
   return {
     entry,

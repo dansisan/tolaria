@@ -140,11 +140,11 @@ describe('buildNoteContent', () => {
   })
 
   it('omits title when null', () => {
-    expect(buildNoteContent({ title: null, type: 'Note', status: 'Active' })).toBe(`---\ntype: Note\nstatus: Active\n${DATE_FIELDS}\n---\n`)
+    expect(buildNoteContent({ title: null, type: 'Note', status: 'Active' })).toBe(`---\nstatus: Active\n${DATE_FIELDS}\n---\n`)
   })
 
   it('omits frontmatter title for the default Note type even when a title is provided (filename is the title)', () => {
-    expect(buildNoteContent({ title: 'My Note', type: 'Note', status: 'Active' })).toBe(`---\ntype: Note\nstatus: Active\n${DATE_FIELDS}\n---\n`)
+    expect(buildNoteContent({ title: 'My Note', type: 'Note', status: 'Active' })).toBe(`---\nstatus: Active\n${DATE_FIELDS}\n---\n`)
   })
 
   it('omits status when null', () => {
@@ -361,7 +361,7 @@ describe('useNoteCreation hook', () => {
     expect(createdEntry.title).toBe('Test Note')
     expect(createdEntry.isA).toBe('Note')
     expect(createdEntry.status).toBeNull()
-    expect(openTabWithContent.mock.calls[0][1]).toMatch(/^---\ntype: Note\ncreated: "[^"]+"\ndayCreated: \w+\nmodified: "[^"]+"\n---\n$/)
+    expect(openTabWithContent.mock.calls[0][1]).toMatch(/^---\ncreated: "[^"]+"\ndayCreated: \w+\nmodified: "[^"]+"\n---\n$/)
   })
 
   it('handleCreateNoteImmediate generates timestamp-based title', async () => {
@@ -375,7 +375,7 @@ describe('useNoteCreation hook', () => {
     expect(addEntry.mock.calls[0][0].title).toBe('Untitled Note 1700000000')
     expect(addEntry.mock.calls[0][0].filename).toBe('untitled-note-1700000000.md')
     expect(addEntry.mock.calls[0][0].status).toBeNull()
-    expect(openTabWithContent.mock.calls[0][1]).toContain('type: Note')
+    expect(openTabWithContent.mock.calls[0][1]).not.toContain('type:')
     expect(openTabWithContent.mock.calls[0][1]).not.toContain('# \n\n')
     vi.restoreAllMocks()
   })
@@ -398,7 +398,7 @@ describe('useNoteCreation hook', () => {
     const createdPath = '/Users/luca/Team/Projects/2026 Planning/untitled-note-1700000000.md'
     expect(vi.mocked(invoke)).toHaveBeenCalledWith('create_note_content', {
       path: createdPath,
-      content: expect.stringContaining('type: Note'),
+      content: expect.not.stringContaining('type:'),
       vaultPath: '/Users/luca/Team',
     })
     expect(addEntry).toHaveBeenCalledWith(expect.objectContaining({
@@ -422,12 +422,12 @@ describe('useNoteCreation hook', () => {
     const createdPath = '/Users/luca/Team/Projects/2026 Planning/untitled-note-1700000000.md'
     expect(vi.mocked(invoke)).toHaveBeenCalledWith('create_note_content', {
       path: createdPath,
-      content: expect.stringContaining('type: Note'),
+      content: expect.not.stringContaining('type:'),
       vaultPath: '/Users/luca/Team',
     })
     expect(openTabWithContent).toHaveBeenCalledWith(
       expect.objectContaining({ path: createdPath }),
-      expect.stringContaining('type: Note'),
+      expect.not.stringContaining('type:'),
     )
     expect(addEntry).toHaveBeenCalledWith(expect.objectContaining({ path: createdPath }))
     vi.restoreAllMocks()
@@ -633,7 +633,7 @@ describe('useNoteCreation hook', () => {
     const createdPath = expect.stringMatching(/untitled-note-\d+\.md$/)
     expect(vi.mocked(invoke)).toHaveBeenCalledWith('create_note_content', {
       path: createdPath,
-      content: expect.stringContaining('type: Note'),
+      content: expect.not.stringContaining('type:'),
       vaultPath: '/test/vault',
     })
     expect(addPendingSave).toHaveBeenCalledWith(createdPath)

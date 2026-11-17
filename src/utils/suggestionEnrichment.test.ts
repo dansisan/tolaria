@@ -146,12 +146,11 @@ describe('enrichSuggestionItems', () => {
     expect(result[0].TypeIcon).toBeDefined()
   })
 
-  it('preserves Note type metadata for explicit Note entries', () => {
+  it('treats explicit Note entries as neutral, like untyped ones', () => {
     const items = [makeItem('Explicit Note', 'Note', '/n.md', 'Note')]
     const result = enrichSuggestionItems(items, '', {})
-    expect(result[0].noteType).toBe('Note')
-    expect(result[0].typeColor).toBeDefined()
-    expect(result[0].TypeIcon).toBeDefined()
+    expect(result[0].noteType).toBeUndefined()
+    expect(result[0].typeColor).toBeUndefined()
   })
 
   it('keeps untyped Note-group entries neutral', () => {

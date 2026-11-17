@@ -205,12 +205,12 @@ describe('buildNoteContent', () => {
 
   it('omits frontmatter title for the default Note type even when a title is provided', () => {
     const content = buildNoteContent({ title: 'My Note', type: 'Note', status: 'Active' })
-    expect(content).toBe(`---\ntype: Note\nstatus: Active\n${DATE_FIELDS}\n---\n`)
+    expect(content).toBe(`---\nstatus: Active\n${DATE_FIELDS}\n---\n`)
   })
 
   it('omits title when null', () => {
     const content = buildNoteContent({ title: null, type: 'Note', status: 'Active' })
-    expect(content).toBe(`---\ntype: Note\nstatus: Active\n${DATE_FIELDS}\n---\n`)
+    expect(content).toBe(`---\nstatus: Active\n${DATE_FIELDS}\n---\n`)
   })
 
   it('omits status when null', () => {

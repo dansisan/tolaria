@@ -7,6 +7,7 @@ import { formatSearchSubtitle } from '../utils/noteListHelpers'
 import type { DateDisplayFormat } from '../utils/dateDisplay'
 import { scrollSelectedHTMLChildIntoView } from '../utils/domScroll'
 import { getTypeIcon } from './NoteItem'
+import { visibleTypeLabel } from '../utils/defaultType'
 import { NoteTitleIcon } from './NoteTitleIcon'
 import { WorkspaceInitialsBadge } from './WorkspaceInitialsBadge'
 import { useDateDisplayFormat } from '../hooks/useAppPreferences'
@@ -479,7 +480,7 @@ function resolveSearchResultPresentation({
   showWorkspace,
   dateDisplayFormat,
 }: Pick<SearchResultRowProps, 'result' | 'entry' | 'typeEntryMap' | 'showWorkspace' | 'dateDisplayFormat'>): SearchResultPresentation {
-  const isA = entry?.isA ?? result.noteType
+  const isA = visibleTypeLabel(entry?.isA ?? result.noteType)
   const noteType = isA || null
   const typeEntry = typeEntryMap[isA ?? '']
 

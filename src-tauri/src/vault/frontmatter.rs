@@ -358,9 +358,12 @@ pub(crate) fn extract_properties(
     properties
 }
 
-/// Resolve `is_a` from frontmatter only.
+/// Resolve `is_a` from frontmatter only. "Note" is the implicit default type, so
+/// an explicit `type: Note` is treated the same as no type at all.
 pub(crate) fn resolve_is_a(fm_is_a: Option<StringOrList>) -> Option<String> {
-    fm_is_a.and_then(|a| a.into_vec().into_iter().next())
+    fm_is_a
+        .and_then(|a| a.into_vec().into_iter().next())
+        .filter(|t| !t.eq_ignore_ascii_case("Note"))
 }
 
 pub(crate) fn resolve_note_width(note_width: Option<StringOrList>) -> Option<String> {

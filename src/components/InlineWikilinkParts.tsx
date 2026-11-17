@@ -10,6 +10,7 @@ import type {
 } from './inlineWikilinkText'
 import type { InlineWikilinkSuggestion } from './inlineWikilinkSuggestions'
 import { cn } from '@/lib/utils'
+import { visibleTypeLabel } from '../utils/defaultType'
 
 function withNativeEvent<T extends Event>(event: T): T & { nativeEvent: T } {
   const eventWithNativeEvent = event as T & { nativeEvent?: T }
@@ -112,7 +113,7 @@ function InlineSuggestionRow({
         <span className="truncate text-sm text-foreground">{suggestion.title}</span>
       </span>
       <span className="ml-3 shrink-0 text-[11px] text-muted-foreground">
-        {suggestion.entry.isA ?? 'Note'}
+        {visibleTypeLabel(suggestion.entry.isA)}
       </span>
     </button>
   )

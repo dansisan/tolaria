@@ -700,7 +700,7 @@ describe('App', () => {
       await waitFor(() => {
         expect(saveNoteContent).toHaveBeenCalledWith({
           path: '/vault/untitled-note-1700000000.md',
-          content: expect.stringMatching(/^---\ntype: Note\ncreated: "[^"]+"\ndayCreated: \w+\nmodified: "[^"]+"\n---\n$/),
+          content: expect.stringMatching(/^---\ncreated: "[^"]+"\ndayCreated: \w+\nmodified: "[^"]+"\n---\n$/),
           vaultPath: '/vault',
         })
       })

@@ -262,7 +262,8 @@ export function buildNoteContent({ title, type, status, template, body, defaults
   // Notes title by filename alone — only stamp a frontmatter title for
   // structured Type instances, which may have no free-form body to derive one from.
   if (title && type !== 'Note') lines.push(`title: ${title}`)
-  lines.push(`type: ${type}`)
+  // "Note" is the implicit default type — leave it out of frontmatter.
+  if (type !== 'Note') lines.push(`type: ${type}`)
   if (status) lines.push(`status: ${status}`)
   lines.push(`created: ${formatYamlScalar(createdDatetime)}`)
   lines.push(`dayCreated: ${day}`)

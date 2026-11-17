@@ -8,7 +8,7 @@ struct FrontmatterCase {
 }
 
 const COMPLEX_NOTE_CONTENT: &str = r#"---
-type: Note
+type: Essay
 _organized: true
 aliases: ["My Complex Note"]
 Topics: ["[[topic-writing]]", "[[topic-productivity|Productivity]]"]
@@ -35,10 +35,10 @@ notion_id: "abc123def456"
 Content.
 "#;
 
-const YES_NOTE_CONTENT: &str = "---\ntype: Note\n_organized: Yes\nStatus: Draft\n---\n# Test\n";
+const YES_NOTE_CONTENT: &str = "---\ntype: Essay\n_organized: Yes\nStatus: Draft\n---\n# Test\n";
 
 const TIMESTAMP_NOTE_CONTENT: &str =
-    "---\ntype: Note\n_organized: true\nCreated at: 2021-12-31T14:19:00.000Z\nTopics:\n  - \"[[topic-writing]]\"\n---\n# Test\n";
+    "---\ntype: Essay\n_organized: true\nCreated at: 2021-12-31T14:19:00.000Z\nTopics:\n  - \"[[topic-writing]]\"\n---\n# Test\n";
 
 const FLOW_ARRAY_CONTENT: &str = r#"---
 type: Evergreen
@@ -72,7 +72,7 @@ Content.
 "#;
 
 const BITCOIN_NOTE_CONTENT: &str = r#"---
-type: Note
+type: Essay
 workspace: personal
 notion_id: de48a4ad-e7ad-42aa-a5ce-1efdc259d7f9
 "Created at": "2021-12-17T10:21:00.000Z"
@@ -96,7 +96,7 @@ fn complex_frontmatter_cases() -> [FrontmatterCase; 7] {
         FrontmatterCase {
             file_name: "complex-note.md",
             content: COMPLEX_NOTE_CONTENT,
-            expected_type: "Note",
+            expected_type: "Essay",
             context: "type must be parsed correctly with complex frontmatter",
         },
         FrontmatterCase {
@@ -108,13 +108,13 @@ fn complex_frontmatter_cases() -> [FrontmatterCase; 7] {
         FrontmatterCase {
             file_name: "yes-note.md",
             content: YES_NOTE_CONTENT,
-            expected_type: "Note",
+            expected_type: "Essay",
             context: "_organized: Yes must be parsed as true",
         },
         FrontmatterCase {
             file_name: "timestamp-note.md",
             content: TIMESTAMP_NOTE_CONTENT,
-            expected_type: "Note",
+            expected_type: "Essay",
             context: "type must survive unquoted timestamp in sibling field",
         },
         FrontmatterCase {
@@ -132,7 +132,7 @@ fn complex_frontmatter_cases() -> [FrontmatterCase; 7] {
         FrontmatterCase {
             file_name: "bitcoin-note.md",
             content: BITCOIN_NOTE_CONTENT,
-            expected_type: "Note",
+            expected_type: "Essay",
             context: "type must be parsed correctly even with unquoted colon in alias",
         },
     ]
@@ -166,14 +166,14 @@ fn test_fallback_parser_extracts_type_and_organized() {
     use super::frontmatter::extract_fm_and_rels;
 
     let raw_content =
-        "---\ntype: Note\n_organized: true\nBroken: value: with: colons\n---\n# Test\n";
+        "---\ntype: Essay\n_organized: true\nBroken: value: with: colons\n---\n# Test\n";
     let (frontmatter, _, _, _, _) = extract_fm_and_rels(None, raw_content, "created");
     assert_eq!(
         frontmatter
             .is_a
             .as_ref()
             .and_then(|value| value.clone().into_scalar()),
-        Some("Note".to_string())
+        Some("Essay".to_string())
     );
     assert_eq!(frontmatter.organized, Some(true));
 }

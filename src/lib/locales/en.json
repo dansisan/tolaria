@@ -686,6 +686,7 @@
   "inspector.properties.addProperty": "Add property",
   "inspector.properties.deleteProperty": "Delete property",
   "inspector.properties.none": "None",
+  "inspector.properties.defaultType": "Note",
   "inspector.properties.workspace": "Vault",
   "inspector.properties.missingType": "Missing type",
   "inspector.properties.missingTypeAria": "Missing type {type}. Click to create this type.",

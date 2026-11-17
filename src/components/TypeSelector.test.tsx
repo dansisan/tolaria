@@ -70,7 +70,7 @@ describe('TypeSelector', () => {
     const { onUpdateProperty } = renderTypeSelector({ isA: 'Project' })
 
     openTypeCombobox()
-    fireEvent.click(screen.getByRole('option', { name: 'None' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Note' }))
 
     expect(onUpdateProperty).toHaveBeenCalledWith('type', null)
   })

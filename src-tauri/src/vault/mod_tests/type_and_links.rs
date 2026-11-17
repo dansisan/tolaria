@@ -109,7 +109,7 @@ fn test_type_key_generates_type_relationship() {
 #[test]
 fn test_type_key_not_in_relationships_as_generic() {
     let dir = TempDir::new().unwrap();
-    let content = "---\ntype: Note\nHas:\n  - \"[[task/foo]]\"\n---\n# Test\n";
+    let content = "---\ntype: Essay\nHas:\n  - \"[[task/foo]]\"\n---\n# Test\n";
     let entry = parse_test_entry(&dir, "note/test.md", content);
     assert_eq!(entry.relationships.len(), 2);
     assert!(entry.relationships.contains_key("Has"));
@@ -200,4 +200,12 @@ fn test_create_note_content_rejects_existing_file() {
 
     assert!(err.contains("already exists"));
     assert_eq!(fs::read_to_string(&path).unwrap(), "# Existing\n");
+}
+
+#[test]
+fn test_explicit_note_type_is_treated_as_untyped() {
+    let dir = TempDir::new().unwrap();
+    let entry = parse_test_entry(&dir, "plain.md", "---\ntype: Note\n---\nBody\n");
+    assert_eq!(entry.is_a, None);
+    assert!(!entry.relationships.contains_key("Type"));
 }

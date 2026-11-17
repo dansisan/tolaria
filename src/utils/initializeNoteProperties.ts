@@ -15,8 +15,7 @@ export type UpdateFrontmatterKeys = (
 ) => Promise<void>
 
 /**
- * Give a note the frontmatter it needs to be a note: a type and its dates, in one
- * write. Each frontmatter write costs a save flush and a git-status refresh, so
+ * Give a note the frontmatter it needs: its dates, in one write. Each frontmatter write costs a save flush and a git-status refresh, so
  * separate writes make the dates land visibly later than the type.
  */
 export async function initializeNoteProperties(
@@ -28,5 +27,7 @@ export async function initializeNoteProperties(
 ): Promise<void> {
   const dates = deps.resolveNoteDates ? await noteDateUpdates(deps.resolveNoteDates, path) : []
 
-  await deps.updateFrontmatterKeys(path, [['type', 'Note'], ...dates], { silent: true })
+  // "Note" is the implicit default type, so it is never written to frontmatter.
+  if (dates.length === 0) return
+  await deps.updateFrontmatterKeys(path, dates, { silent: true })
 }

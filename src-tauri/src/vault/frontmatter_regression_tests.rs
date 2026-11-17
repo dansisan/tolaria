@@ -68,11 +68,11 @@ struct AliasRecoveryCase<'a> {
 fn assert_alias_parser_recovers(case: AliasRecoveryCase<'_>) {
     let dir = TempDir::new().unwrap();
     let content = format!(
-        "---\ntype: Note\n_organized: true\naliases:\n  - {}\n  - Note\n---\n# {}\n",
+        "---\ntype: Essay\n_organized: true\naliases:\n  - {}\n  - Note\n---\n# {}\n",
         case.alias_item, case.title
     );
     let entry = parse_test_entry(&dir, case.file_name, &content);
-    assert_eq!(entry.is_a, Some("Note".to_string()));
+    assert_eq!(entry.is_a, Some("Essay".to_string()));
     assert!(entry.organized);
 }
 
@@ -180,10 +180,10 @@ fn test_alias_parser_recovers_special_alias_items() {
 #[test]
 fn test_alias_collisions_keep_frontmatter_with_last_value_winning() {
     let dir = TempDir::new().unwrap();
-    let content = "---\ntype: Note\nstatus: Active\nStatus: Evergreened\n---\n# Test\n";
+    let content = "---\ntype: Essay\nstatus: Active\nStatus: Evergreened\n---\n# Test\n";
     let entry = parse_test_entry(&dir, "test.md", content);
 
-    assert_eq!(entry.is_a, Some("Note".to_string()));
+    assert_eq!(entry.is_a, Some("Essay".to_string()));
     assert_eq!(entry.status, Some("Evergreened".to_string()));
 }
 

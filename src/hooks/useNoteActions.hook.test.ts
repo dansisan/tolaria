@@ -546,7 +546,7 @@ describe('useNoteActions hook', () => {
       const createdPath = expect.stringMatching(/untitled-note-\d+\.md$/)
       expect(vi.mocked(invoke)).toHaveBeenCalledWith('create_note_content', {
         path: createdPath,
-        content: expect.stringContaining('type: Note'),
+        content: expect.not.stringContaining('type:'),
         vaultPath: '/test/vault',
       })
       expect(addPendingSave).toHaveBeenCalledWith(createdPath)

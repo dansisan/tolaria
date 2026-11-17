@@ -422,7 +422,7 @@ describe('DynamicPropertiesPanel', () => {
     it('shows available types in dropdown', () => {
       renderPanel({ entries: typeEntries, onUpdateProperty })
       fireEvent.pointerDown(screen.getByRole('combobox'), { button: 0, pointerType: 'mouse' })
-      expect(screen.getByRole('option', { name: 'None' })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: 'Note' })).toBeInTheDocument()
       expect(screen.getByRole('option', { name: 'Person' })).toBeInTheDocument()
       expect(screen.getByRole('option', { name: 'Project' })).toBeInTheDocument()
       expect(screen.getByRole('option', { name: 'Topic' })).toBeInTheDocument()
@@ -439,13 +439,13 @@ describe('DynamicPropertiesPanel', () => {
       expect(onUpdateProperty).toHaveBeenCalledWith('type', 'Project')
     })
 
-    it('clears type when None selected', () => {
+    it('clears type when Note selected', () => {
       renderPanel({
         entry: makeEntry({ isA: 'Project' }),
         entries: typeEntries,
         onUpdateProperty,
       })
-      openAndSelect('None')
+      openAndSelect('Note')
       expect(onUpdateProperty).toHaveBeenCalledWith('type', null)
     })
 
@@ -494,14 +494,14 @@ describe('DynamicPropertiesPanel', () => {
       expect(screen.queryByTestId('missing-type-warning')).not.toBeInTheDocument()
     })
 
-    it('shows None placeholder when entry has no type', () => {
+    it('shows Note placeholder when entry has no type', () => {
       renderPanel({
         entry: makeEntry({ isA: null }),
         entries: typeEntries,
         onUpdateProperty,
       })
       expect(screen.getByTestId('type-selector')).toBeInTheDocument()
-      expect(screen.getByText('None')).toBeInTheDocument()
+      expect(screen.getByText('Note')).toBeInTheDocument()
     })
   })
 

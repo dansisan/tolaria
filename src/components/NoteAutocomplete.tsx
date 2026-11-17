@@ -19,6 +19,7 @@ import { getTypeIcon } from './NoteItem'
 import { NoteTitleIcon } from './NoteTitleIcon'
 import { WorkspaceInitialsBadge } from './WorkspaceInitialsBadge'
 import './WikilinkSuggestionMenu.css'
+import { visibleTypeLabel } from '../utils/defaultType'
 
 const MIN_QUERY_LENGTH = 2
 const MAX_RESULTS = 10
@@ -68,7 +69,7 @@ function shouldShowWorkspaceBadge(entries: VaultEntry[]): boolean {
 }
 
 function buildMatchedEntry(entry: VaultEntry, typeEntryMap: Record<string, VaultEntry>, showWorkspace: boolean): MatchedEntry {
-  const isA = entry.isA
+  const isA = visibleTypeLabel(entry.isA)
   const typeEntry = Reflect.get(typeEntryMap, isA ?? '') as VaultEntry | undefined
   const noteType = isA || undefined
   return {

@@ -41,9 +41,11 @@ function buildTypeOptions({
   query: string
 }) {
   const normalized = normalizeTypeQuery({ query })
-  const types = currentType && !availableTypes.includes(currentType)
+  // "Note" is the implicit default type, represented by the TYPE_NONE entry.
+  const isDefaultType = (type: string) => type.toLowerCase() === 'note'
+  const types = (currentType && !availableTypes.includes(currentType)
     ? [...availableTypes, currentType]
-    : [...availableTypes]
+    : [...availableTypes]).filter((type) => !isDefaultType(type))
   const sortedTypes = types.sort((left, right) => left.localeCompare(right))
   const filteredTypes = sortedTypes.filter((type) => normalized === '' || type.toLowerCase().includes(normalized))
 
@@ -104,7 +106,7 @@ function TypeSelectorValue({
   typeIconKeys: Record<string, string | null>
   locale: AppLocale
 }) {
-  if (!isA) return <span className="truncate text-muted-foreground">{translate(locale, 'inspector.properties.none')}</span>
+  if (!isA) return <span className="truncate text-muted-foreground">{translate(locale, 'inspector.properties.defaultType')}</span>
 
   return (
     <span className="flex min-w-0 items-center gap-1">
@@ -485,7 +487,7 @@ function EditableTypeSelector({
                         onClick={() => selectType(type)}
                       >
                         {type === TYPE_NONE ? (
-                          <span className="truncate text-muted-foreground">{translate(locale, 'inspector.properties.none')}</span>
+                          <span className="truncate text-muted-foreground">{translate(locale, 'inspector.properties.defaultType')}</span>
                         ) : (
                           <span className="flex min-w-0 items-center gap-2 truncate">
                             <TypeSelectorItem type={type} typeColorKeys={typeColorKeys} typeIconKeys={typeIconKeys} />

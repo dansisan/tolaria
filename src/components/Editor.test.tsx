@@ -1160,7 +1160,7 @@ describe('wikilink autocomplete', () => {
     mockFilterSuggestionItems.mockImplementation((items: unknown[]) => items)
   })
 
-  it('shows Note chips and icons for explicit Note entries while keeping untyped entries neutral', async () => {
+  it('keeps explicit Note entries neutral, like untyped entries', async () => {
     const mixedEntries: VaultEntry[] = [
       { ...mockEntry, title: 'Test Project', filename: 'proj.md', path: '/vault/proj.md', isA: 'Project', aliases: [] },
       { ...mockEntry, title: 'Test Plain', filename: 'plain.md', path: '/vault/plain.md', isA: null, aliases: [] },
@@ -1186,9 +1186,8 @@ describe('wikilink autocomplete', () => {
 
     const explicitNote = items.find((i: { title: string }) => i.title === 'Test Explicit')
     expect(explicitNote).toBeDefined()
-    expect(explicitNote!.noteType).toBe('Note')
-    expect(explicitNote!.typeColor).toBeTruthy()
-    expect(explicitNote!.TypeIcon).toBeTruthy()
+    expect(explicitNote!.noteType).toBeUndefined()
+    expect(explicitNote!.typeColor).toBeUndefined()
 
     // Untyped entries should remain neutral
     const plainNote = items.find((i: { title: string }) => i.title === 'Test Plain')

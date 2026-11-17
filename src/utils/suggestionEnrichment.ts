@@ -6,6 +6,7 @@ import { bestSearchRank } from './fuzzyMatch'
 import { filterSuggestionItems } from '@blocknote/core/extensions'
 import type { WikilinkSuggestionItem } from '../components/WikilinkSuggestionMenu'
 import { canonicalWikilinkTargetForEntry, relativePathStem } from './wikilink'
+import { visibleTypeLabel } from './defaultType'
 
 const MAX_RESULTS = 20
 
@@ -63,7 +64,7 @@ export function enrichSuggestionItems(
   const final = disambiguateTitles(deduplicateByPath(sliced))
   const showWorkspace = options.showWorkspace ?? hasMultipleSuggestionWorkspaces(final)
   return final.map(({ entry, entryType, ...rest }) => {
-    const noteType = entryType ?? undefined
+    const noteType = visibleTypeLabel(entryType) ?? undefined
     const te = noteType ? Reflect.get(typeEntryMap, noteType) as VaultEntry | undefined : undefined
     return {
       ...rest,
